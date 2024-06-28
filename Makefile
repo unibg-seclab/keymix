@@ -20,6 +20,7 @@ k: $(KEYMIX)
 	@ ./$(KEYMIX)
 
 clean:
+	@ rm -rf $(OBJECTS)
 	@ rm -rf $(KEYMIX)
 
 perf: $(KEYMIX)
