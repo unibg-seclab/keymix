@@ -20,6 +20,7 @@
 // TODO: do something about this global
 byte *TMP_BUF;
 
+#include "aesni.h"
 #include "config.h"
 #include "types.h"
 #include "utils.h"
@@ -114,9 +115,9 @@ int main() {
 
         // {function_name, descr, blocks_per_macro, diff_factor}
         mixing_config configs[] = {
-            {&multictr, "multictr", 9, 9},
-            {&recmultictr, "recmultictr", 9, 9},
-            {&singlectr, "singlectr", 3, 3},
+            {&multictr, "multictr", 9, 9},      {&recmultictr, "recmultictr", 9, 9},
+            {&singlectr, "singlectr", 3, 3},    {&aesni, "aesni (swap 96)", 3, 4},
+            {&aesni, "aesni (swap 128)", 3, 3},
         };
 
         unsigned int err = 0;

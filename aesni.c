@@ -146,3 +146,23 @@ void aes256enc(byte *data, byte *out, byte *key, size_t blocks) {
                 aes256_enc(key_schedule, data, out);
         }
 }
+
+// --------------------------------------------------- wrapper function
+
+int aesni(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
+        assert(blocks_per_macro == 3);
+
+        byte *last = seed + seed_size;
+        __uint128_t iv;
+
+        for (; seed < last; seed += 3 * AES_BLOCK_SIZE, out += 3 * AES_BLOCK_SIZE) {
+                iv = *(__uint128_t *)(seed + 2 * AES_BLOCK_SIZE);
+                aes256enc((byte *)&iv, out, seed, 3);
+                iv++;
+                aes256enc((byte *)&iv, out, seed, 3);
+                iv++;
+                aes256enc((byte *)&iv, out, seed, 3);
+        }
+
+        return 0;
+}
