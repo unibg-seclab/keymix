@@ -33,62 +33,38 @@ int mix(byte *seed, byte *out, size_t seed_size, mixing_config config) {
             (unsigned int)((seed_size / AES_BLOCK_SIZE) / config.blocks_per_macro);
         unsigned int levels = 1 + (unsigned int)(log10(nof_macros) / log10(config.diff_factor));
 
-        printf("nof_macros:\t\t%d\n", nof_macros);
-        printf("levels:\t\t\t%d\n", levels);
-        printf("%s mixing...\n", config.descr);
-
         int err;
         for (unsigned int level = 0; level < levels; level++) {
-                LOG("level %d, ", level);
-
-                double time = MEASURE(
-                    { err = (*(config.mixfunc))(seed, out, seed_size, config.blocks_per_macro); });
-                PRINT_TIME_DELTA("mixed in [ms]", time);
+                err = (*(config.mixfunc))(seed, out, seed_size, config.blocks_per_macro);
                 if (err != 0) {
-                        goto err_enc;
+                        return err;
                 }
 
-                time = MEASURE({
-                        // no swap at the last level
-                        if (levels - 1 != level) {
-                                if (config.mixfunc == &recmultictr) {
-                                        // seed -> seed
-                                        swap_seed(seed, seed, seed_size, level, config.diff_factor);
-                                } else {
-                                        // out -> seed
-                                        swap_seed(seed, out, seed_size, level, config.diff_factor);
-                                }
+                // no swap at the last level
+                if (levels - 1 != level) {
+                        if (config.mixfunc == &recmultictr) {
+                                // seed -> seed
+                                swap_seed(seed, seed, seed_size, level, config.diff_factor);
+                        } else {
+                                // out -> seed
+                                swap_seed(seed, out, seed_size, level, config.diff_factor);
                         }
-                        LOG("\n");
-                });
-                PRINT_TIME_DELTA(" swapped in [ms]", time)
+                }
         }
         // remember at that at the end of this function the result is saved into
         // (byte *seed)
         return 0;
-err_enc:
-        return err;
 }
 
 int mix_wrapper(byte *seed, byte *out, size_t seed_size, mixing_config config) {
-        TMP_BUF = checked_malloc(AES_BLOCK_SIZE * config.blocks_per_macro);
-        printf("blocks_per_macro:\t%d\n", config.blocks_per_macro);
-        printf("diff_factor:\t\t%d\n", config.diff_factor);
-
+        TMP_BUF = malloc(AES_BLOCK_SIZE * config.blocks_per_macro);
         int err = mix(seed, out, seed_size, config);
         if (err != 0) {
                 printf("Encryption error\n");
-                goto err_enc;
         }
-        explicit_bzero(TMP_BUF, AES_BLOCK_SIZE * config.blocks_per_macro);
+cleanup:
         free(TMP_BUF);
-        explicit_bzero(out, seed_size);
-        return 0;
-err_enc:
-        explicit_bzero(TMP_BUF, AES_BLOCK_SIZE * config.blocks_per_macro);
-        free(TMP_BUF);
-        explicit_bzero(out, seed_size);
-        return ERR_ENC;
+        return err;
 }
 
 int main() {
@@ -110,6 +86,8 @@ int main() {
         //     size_t seed_size = 229582512;
         size_t seed_size = 688747536; // in bytes
 
+        printf("Seed has size %zu MiB\n", seed_size / 1024 / 1024);
+
         byte *seed = checked_malloc(seed_size);
         byte *out  = checked_malloc(seed_size);
 
@@ -130,7 +108,22 @@ int main() {
                         print_buffer_hex(seed, seed_size, "seed");
                         print_buffer_hex(out, seed_size, "out");
                 }
+                unsigned int nof_macros =
+                    (unsigned int)((seed_size / AES_BLOCK_SIZE) / configs[i].blocks_per_macro);
+                unsigned int levels =
+                    1 + (unsigned int)(log10(nof_macros) / log10(configs[i].diff_factor));
+
+                printf("nof_macros:\t\t%d\n", nof_macros);
+                printf("levels:\t\t\t%d\n", levels);
+                printf("%s mixing...\n", configs[i].descr);
+                printf("blocks_per_macro:\t%d\n", configs[i].blocks_per_macro);
+                printf("diff_factor:\t\t%d\n", configs[i].diff_factor);
+
                 double time = MEASURE({ err = mix_wrapper(seed, out, seed_size, configs[i]); });
+
+                explicit_bzero(TMP_BUF, AES_BLOCK_SIZE * configs[i].blocks_per_macro);
+                explicit_bzero(out, seed_size);
+
                 if (err != 0) {
                         printf("Error occured while encrypting");
                         goto clean;
