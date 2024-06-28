@@ -17,6 +17,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#include "types.h"
+
 // sizes
 #define TERMINAL_SIZE 64
 #define SIZE_MACRO 48
@@ -30,9 +32,6 @@
 
 // configuratins
 #define SILENCE 1
-
-// types
-#define byte unsigned char
 
 byte *TMP_BUF;
 
@@ -343,7 +342,7 @@ int main() {
         // very large seeds (>1GiB)
 
         //	size_t seed_size = 8503056;
-        //	size_t seed_size = 229582512;
+        //     size_t seed_size = 229582512;
         size_t seed_size = 688747536; // in bytes
 
         byte *seed = checked_malloc(seed_size);
