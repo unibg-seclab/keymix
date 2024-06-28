@@ -19,12 +19,6 @@ byte *checked_malloc(size_t size) {
         return buf;
 }
 
-void set_zero(byte *buf, size_t size) {
-        for (unsigned int i = 0; i < size; i++) {
-                buf[i] = 0;
-        }
-}
-
 byte *generate_random_bytestream(int num_bytes) {
         byte *buf   = (byte *)malloc(num_bytes);
         int success = RAND_bytes(buf, num_bytes);
