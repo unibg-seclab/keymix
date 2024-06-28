@@ -20,8 +20,7 @@ k: $(KEYMIX)
 	@ ./$(KEYMIX)
 
 clean:
-	# note: MIX and WOLF do not exist in Makefile
-	@ rm -rf $(KEYMIX) $(CBC) $(KEYS)
+	@ rm -rf $(KEYMIX)
 
 perf: $(KEYMIX)
 	@ sudo perf record --call-graph dwarf ./$(KEYMIX)
