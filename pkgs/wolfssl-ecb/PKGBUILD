@@ -6,7 +6,6 @@ arch=(x86_64)
 url="https://www.wolfssl.com/"
 license=(GPL-2.0-or-later)
 depends=(glibc)
-makedepends=(cmake)
 provides=(libwolfssl.so)
 source=(
   $pkgname-$pkgver-stable.tar.gz::https://github.com/$pkgname/$pkgname/archive/refs/tags/v$pkgver-stable.tar.gz
@@ -21,32 +20,23 @@ validpgpkeys=(
 )
 
 build() {
-  local cmake_options=(
-    -B build
-    -D CMAKE_BUILD_TYPE=None
-    -D CMAKE_INSTALL_PREFIX=/usr
-    -D WOLFSSL_CURVE25519=ON
-    -D WOLFSSL_CURVE448=ON
-    -D WOLFSSL_ED25519=ON
-    -D WOLFSSL_ED448=ON
-    -D WOLFSSL_REPRODUCIBLE_BUILD=ON
-    -D WOLFSSL_SNI=ON
-    -D WARNING_C_FLAGS="$CFLAGS"
-    -W no-dev
-    -S $pkgname-$pkgver-stable
-  )
-
-  # Last option is different from Arch's PKGBUILD
-  cmake "${cmake_options[@]}" -D WOLFSSL_AESCTR=yes
-  cmake --build build --verbose
+  cd "$srcdir/$pkgname-$pkgver-stable"
+  ./autogen.sh
+  ./configure --enable-aesni --enable-intelasm --enable-aesctr --enable-aescbc CFLAGS="-DHAVE_AES_ECB"
+  make
 }
 
 check() {
-  cd build
-  ./wolfcrypt/test/testwolfcrypt
+  cd "$srcdir/$pkgname-$pkgver-stable"
+  make check
 }
 
 package() {
-  DESTDIR="$pkgdir" cmake --install build
-  install -vDm 644 $pkgname-$pkgver-stable/{README,ChangeLog}.md -t "$pkgdir/usr/share/doc/$pkgname/"
+  cd "$srcdir/$pkgname-$pkgver-stable"
+  DESTDIR="$pkgdir" make install
+
+  # Make puts libraries in /usr/local
+  cd "$pkgdir/usr"
+  mv local/* ./
+  rm -r local
 }
