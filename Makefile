@@ -6,10 +6,10 @@ FLAMEGRAPH_DIR = $(file < .FlameGraphDir)
 KEYMIX = keymix
 
 CC = gcc
-CFLAGS = -O3
+CFLAGS = -O3 -msse2 -msse -march=native -maes
 LDLIBS = -lcrypto -lm -lwolfssl
 
-$(OUT): $(OBJECTS)
+$(KEYMIX): $(OBJECTS)
 build: $(OBJECTS)
 
 PERFDATA = perf.data
@@ -20,7 +20,8 @@ k: $(KEYMIX)
 	@ ./$(KEYMIX)
 
 clean:
-	@ rm -rf $(OUT) $(CBC) $(KEYS) $(MIX) $(WOLF)
+	# note: MIX and WOLF do not exist in Makefile
+	@ rm -rf $(KEYMIX) $(CBC) $(KEYS)
 
 perf: $(KEYMIX)
 	@ sudo perf record --call-graph dwarf ./$(KEYMIX)
