@@ -17,87 +17,21 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#include "config.h"
 #include "types.h"
-
-// sizes
-#define TERMINAL_SIZE 64
-#define SIZE_MACRO 48
-#define SIZE_KB 1024
-#define SIZE_1MiB (1024 * SIZE_KB)
-// current limit (todo: no longer use unsigned int for seed size)
-#define SIZE_1GiB (1024 * SIZE_1MiB)
-
-// errors
-#define ERR_ENC 1
-
-// configuratins
-#define SILENCE 1
+#include "utils.h"
 
 byte *TMP_BUF;
 
-struct mixing_config {
+typedef struct {
         int (*mixfunc)(byte *, byte *, size_t, unsigned int);
         char *descr;
         unsigned int blocks_per_macro; // number of 128-bit blocks in each macro
         unsigned int diff_factor;      // diffusion factor (swap functio): 3 (128 bits), 4
                                        // (96 bits), 6 (64 bits), 12 (32 bits)
-};
-
-void memxor(byte *dst, byte *src, size_t n) {
-        for (unsigned int i = 0; i < n; i++) {
-                dst[i] ^= src[i];
-        }
-}
-
-void *checked_malloc(size_t size) {
-        byte *buf = malloc(size);
-        if (buf == NULL) {
-                printf("(!) Error occured while allocating memory\n");
-                free(buf);
-                exit(1);
-        }
-        return buf;
-}
-
-unsigned char *generate_random_bytestream(int num_bytes) {
-
-        byte *buf   = malloc(num_bytes);
-        int success = RAND_bytes(buf, num_bytes);
-        if (!success) {
-                free(buf);
-                exit(1);
-        }
-
-        return buf;
-}
-
-void print_buffer_hex(byte *buf, size_t size, char *descr) {
-        printf("%s\n", descr);
-        for (size_t i = 0; i < size; i++) {
-                if (i % 16 == 0) {
-                        printf("|");
-                }
-                printf("%02x", buf[i]);
-        }
-        printf("|\n");
-}
-
-unsigned long get_current_time_millis() {
-        struct timeval tp;
-        gettimeofday(&tp, NULL);
-        unsigned long current_time_millisec = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-        return current_time_millisec;
-}
-
-unsigned long print_time_delta(long previous_time_millis, char *descr) {
-        unsigned long current_time_millisec = get_current_time_millis();
-        if (!SILENCE)
-                printf("%s: %ld", descr, current_time_millisec - previous_time_millis);
-        return current_time_millisec;
-}
+} mixing_config;
 
 int singlectr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
-
         if (blocks_per_macro != 3) {
                 goto err_enc;
         }
@@ -138,7 +72,6 @@ err_enc:
 }
 
 int multictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
-
         // current max ctr len = 2^8-1
         Aes aes;
         int err = wc_AesInit(&aes, NULL, INVALID_DEVID);
@@ -265,37 +198,40 @@ void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned
         }
 }
 
-int mix(byte *seed, byte *out, size_t seed_size, struct mixing_config config) {
+int mix(byte *seed, byte *out, size_t seed_size, mixing_config config) {
         unsigned int nof_macros =
             (unsigned int)((seed_size / AES_BLOCK_SIZE) / config.blocks_per_macro);
         unsigned int levels = 1 + (unsigned int)(log10(nof_macros) / log10(config.diff_factor));
+
         printf("nof_macros:\t\t%d\n", nof_macros);
         printf("levels:\t\t\t%d\n", levels);
         printf("%s mixing...\n", config.descr);
+
         int err;
         for (unsigned int level = 0; level < levels; level++) {
-                unsigned long current_time_millis = get_current_time_millis();
-                if (!SILENCE)
-                        printf("level %d, ", level);
-                err = (*(config.mixfunc))(seed, out, seed_size, config.blocks_per_macro);
+                LOG("level %d, ", level);
+
+                double time = MEASURE(
+                    { err = (*(config.mixfunc))(seed, out, seed_size, config.blocks_per_macro); });
+                PRINT_TIME_DELTA("mixed in [ms]", time);
                 if (err != 0) {
                         goto err_enc;
                 }
-                current_time_millis = print_time_delta(current_time_millis, "mixed in [ms]");
-                // no swap at the last level
-                if (levels - 1 != level) {
-                        if (config.mixfunc == &recmultictr) {
-                                // seed -> seed
-                                swap_seed(seed, seed, seed_size, level, config.diff_factor);
-                        } else {
-                                // out -> seed
-                                swap_seed(seed, out, seed_size, level, config.diff_factor);
+
+                time = MEASURE({
+                        // no swap at the last level
+                        if (levels - 1 != level) {
+                                if (config.mixfunc == &recmultictr) {
+                                        // seed -> seed
+                                        swap_seed(seed, seed, seed_size, level, config.diff_factor);
+                                } else {
+                                        // out -> seed
+                                        swap_seed(seed, out, seed_size, level, config.diff_factor);
+                                }
                         }
-                        current_time_millis =
-                            print_time_delta(current_time_millis, " swapped in [ms]");
-                }
-                if (!SILENCE)
-                        printf("\n");
+                        LOG("\n");
+                });
+                PRINT_TIME_DELTA(" swapped in [ms]", time)
         }
         // remember at that at the end of this function the result is saved into
         // (byte *seed)
@@ -304,8 +240,7 @@ err_enc:
         return err;
 }
 
-int mix_wrapper(byte *seed, byte *out, size_t seed_size, struct mixing_config config) {
-
+int mix_wrapper(byte *seed, byte *out, size_t seed_size, mixing_config config) {
         TMP_BUF = checked_malloc(AES_BLOCK_SIZE * config.blocks_per_macro);
         printf("blocks_per_macro:\t%d\n", config.blocks_per_macro);
         printf("diff_factor:\t\t%d\n", config.diff_factor);
@@ -349,35 +284,35 @@ int main() {
         byte *out  = checked_malloc(seed_size);
 
         // {function_name, descr, blocks_per_macro, diff_factor}
-        struct mixing_config configs[] = {
+        mixing_config configs[] = {
             {&multictr, "multictr", 9, 9},
             {&recmultictr, "recmultictr", 9, 9},
             {&singlectr, "singlectr", 3, 3},
         };
 
         unsigned int err = 0;
-        for (unsigned int i = 0; i < sizeof(configs) / sizeof(struct mixing_config); i++) {
+        for (unsigned int i = 0; i < sizeof(configs) / sizeof(mixing_config); i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(seed, seed_size);
                 explicit_bzero(out, seed_size);
-                unsigned long start_time_millis = get_current_time_millis();
-                if (seed_size <= 3 * AES_BLOCK_SIZE * 3) {
-                        print_buffer_hex(seed, seed_size, "seed");
-                        print_buffer_hex(out, seed_size, "out");
-                }
-                err = mix_wrapper(seed, out, seed_size, configs[i]);
-                if (err != 0) {
-                        printf("Error occured while encrypting");
-                        goto clean;
-                }
-                unsigned long end_time_millis = get_current_time_millis();
-                unsigned short precision      = 2;
-                double readable_size          = (double)seed_size / SIZE_1MiB;
-                printf("total time [s]:\t\t%.*lf\n", precision,
-                       (double)(end_time_millis - start_time_millis) / 1000);
+
+                double time = MEASURE({
+                        if (seed_size <= 3 * AES_BLOCK_SIZE * 3) {
+                                print_buffer_hex(seed, seed_size, "seed");
+                                print_buffer_hex(out, seed_size, "out");
+                        }
+                        err = mix_wrapper(seed, out, seed_size, configs[i]);
+                        if (err != 0) {
+                                printf("Error occured while encrypting");
+                                goto clean;
+                        }
+                });
+
+                unsigned short precision = 2;
+                double readable_size     = (double)seed_size / SIZE_1MiB;
+                printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
                 printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
-                printf("avg. speed [MiB/s]:\t%.*lf\n", precision,
-                       readable_size * 1000 / (end_time_millis - start_time_millis));
+                printf("avg. speed [MiB/s]:\t%.*lf\n", precision, readable_size * 1000 / (time));
                 printf("====\n");
         }
 
