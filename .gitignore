@@ -42,3 +42,6 @@ perf.*
 
 # flamegraphdir
 .FlameGraphDir
+
+pkgs/wolfssl-ecb/*
+!pkgs/wolfssl-ecb/PKGBUILD
