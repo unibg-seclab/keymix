@@ -21,7 +21,6 @@
 byte *TMP_BUF;
 
 #include "aesni.h"
-#include "config.h"
 #include "types.h"
 #include "utils.h"
 
