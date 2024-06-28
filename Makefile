@@ -36,7 +36,7 @@ perf-flame: $(PERFDATA)
 	@ google-chrome --incognito $(FLAMEGRAPH_DIR)/perf.svg
 
 arch-wolfssl:
-ifeq ($(shell which makepkg), /usr/bin/makepk)
+ifeq ($(shell which makepkg), /usr/bin/makepkg)
 	@ cd pkgs/wolfssl-ecb && makepkg -sfi
 else
 	@ echo "You don't have makepkg, you sure you're on Arch?"
