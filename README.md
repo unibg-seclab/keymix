@@ -9,3 +9,9 @@
    - enable `aesni`, `intelasm`, `aesctr`, `aescbc`, `aesecb`
 6. run `make` to build `keymix`
 7. run `make k` to build and run `keymix`
+
+# Workflow
+
++ `clang-format` is executed as a pre-commit hook
++ formatted files are highlighted in red and stored in the working directory
++ commit is aborted (the changes must be stashed again)
