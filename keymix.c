@@ -22,7 +22,8 @@
 #define SIZE_MACRO 48
 #define SIZE_KB 1024
 #define SIZE_1MiB (1024 * SIZE_KB)
-#define SIZE_1GiB (1024 * SIZE_1MiB) // current limit
+// current limit (todo: no longer use unsigned int for seed size)
+#define SIZE_1GiB (1024 * SIZE_1MiB)
 
 // errors
 #define ERR_ENC 1
