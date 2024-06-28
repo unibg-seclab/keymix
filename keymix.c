@@ -59,12 +59,6 @@ void *checked_malloc(size_t size) {
         return buf;
 }
 
-void set_zero(byte *buf, size_t size) {
-        for (unsigned int i = 0; i < size; i++) {
-                buf[i] = 0;
-        }
-}
-
 unsigned char *generate_random_bytestream(int num_bytes) {
 
         byte *buf   = malloc(num_bytes);
@@ -321,14 +315,14 @@ int mix_wrapper(byte *seed, byte *out, size_t seed_size, struct mixing_config co
                 printf("Encryption error\n");
                 goto err_enc;
         }
-        set_zero(TMP_BUF, AES_BLOCK_SIZE * config.blocks_per_macro);
+        explicit_bzero(TMP_BUF, AES_BLOCK_SIZE * config.blocks_per_macro);
         free(TMP_BUF);
-        set_zero(out, seed_size);
+        explicit_bzero(out, seed_size);
         return 0;
 err_enc:
-        set_zero(TMP_BUF, AES_BLOCK_SIZE * config.blocks_per_macro);
+        explicit_bzero(TMP_BUF, AES_BLOCK_SIZE * config.blocks_per_macro);
         free(TMP_BUF);
-        set_zero(out, seed_size);
+        explicit_bzero(out, seed_size);
         return ERR_ENC;
 }
 
@@ -364,8 +358,8 @@ int main() {
         unsigned int err = 0;
         for (unsigned int i = 0; i < sizeof(configs) / sizeof(struct mixing_config); i++) {
                 printf("zeroing memory...\n");
-                set_zero(seed, seed_size);
-                set_zero(out, seed_size);
+                explicit_bzero(seed, seed_size);
+                explicit_bzero(out, seed_size);
                 unsigned long start_time_millis = get_current_time_millis();
                 if (seed_size <= 3 * AES_BLOCK_SIZE * 3) {
                         print_buffer_hex(seed, seed_size, "seed");
@@ -388,7 +382,7 @@ int main() {
         }
 
 clean:
-        set_zero(seed, seed_size);
+        explicit_bzero(seed, seed_size);
         free(seed);
         free(out);
         return err;
