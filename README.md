@@ -7,6 +7,7 @@
    - create a local file `.FlameGraphDir` and write FlameGraph location
 5. clone and install system-wide [wolfSSL](https://github.com/wolfSSL/wolfssl.git)
    - enable `aesni`, `intelasm`, `aesctr`, `aescbc`, `aesecb`
+   - e.g., `./configure --enable-aesni --enable-intelasm --enable-aesctr --enable-aescbc CFLAGS="-DHAVE_AES_ECB"`
 6. run `make` to build `keymix`
 7. run `make k` to build and run `keymix`
 
