@@ -1,0 +1,16 @@
+#!/bin/bash
+
+STYLEARG="-style=file:.clang-format"
+
+for FILE in `git diff-index --cached --name-only HEAD | grep -iE '\.(cpp|cc|h|hpp|c)$'` ; do
+    clang-format -i ${STYLEARG} ${FILE}
+done
+
+if [[ -n `git diff --name-only` ]]
+then
+    printf -- "Auto-formatted files brought back to working directory:\n"
+    for FILE in `git diff --name-only | grep -iE '\.(cpp|cc|h|hpp|c)$'` ; do
+	printf -- "\t\x1B[31m%s\n" ${FILE}
+    done
+    exit 1
+fi

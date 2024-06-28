@@ -1,0 +1,41 @@
+# -*- mode: gitignore; -*-
+*~
+\#*\#
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Org-mode
+.org-id-locations
+*_archive
+
+# flymake-mode
+*_flymake.*
+
+# elpa packages
+/elpa/
+
+# reftex files
+*.rel
+
+# AUCTeX auto folder
+/auto/
+
+# Flycheck
+flycheck_*.el
+
+# projectiles files
+.projectile
+
+# directory configuration
+.dir-locals.el
+
+# source files
+*.o
+
+# targets
+keymix
+
+# perf data
+perf.*
