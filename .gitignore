@@ -39,3 +39,6 @@ keymix
 
 # perf data
 perf.*
+
+# flamegraphdir
+.FlameGraphDir
