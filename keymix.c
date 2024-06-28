@@ -82,8 +82,8 @@ int main() {
         // very large seeds (>1GiB)
 
         //	size_t seed_size = 8503056;
-        //     size_t seed_size = 229582512;
-        size_t seed_size = 688747536; // in bytes
+        // size_t seed_size = 229582512;
+        size_t seed_size = 22369621 * 48; // in bytes, ~ 1GiB
 
         printf("Seed has size %zu MiB\n", seed_size / 1024 / 1024);
 
@@ -93,7 +93,7 @@ int main() {
         // {function_name, descr, blocks_per_macro, diff_factor}
         mixing_config configs[] = {
             {&multictr, "multictr", 9, 9},      {&recmultictr, "recmultictr", 9, 9},
-            {&singlectr, "singlectr", 3, 3},    {&aesni, "aesni (swap 96)", 3, 4},
+            {&singlectr, "singlectr", 3, 4},    {&aesni, "aesni (swap 96)", 3, 4},
             {&aesni, "aesni (swap 128)", 3, 3},
         };
 
