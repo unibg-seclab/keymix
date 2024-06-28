@@ -126,17 +126,15 @@ int main() {
                 explicit_bzero(seed, seed_size);
                 explicit_bzero(out, seed_size);
 
-                double time = MEASURE({
-                        if (seed_size <= 3 * AES_BLOCK_SIZE * 3) {
-                                print_buffer_hex(seed, seed_size, "seed");
-                                print_buffer_hex(out, seed_size, "out");
-                        }
-                        err = mix_wrapper(seed, out, seed_size, configs[i]);
-                        if (err != 0) {
-                                printf("Error occured while encrypting");
-                                goto clean;
-                        }
-                });
+                if (seed_size <= 3 * AES_BLOCK_SIZE * 3) {
+                        print_buffer_hex(seed, seed_size, "seed");
+                        print_buffer_hex(out, seed_size, "out");
+                }
+                double time = MEASURE({ err = mix_wrapper(seed, out, seed_size, configs[i]); });
+                if (err != 0) {
+                        printf("Error occured while encrypting");
+                        goto clean;
+                }
 
                 unsigned short precision = 2;
                 double readable_size     = (double)seed_size / SIZE_1MiB;
