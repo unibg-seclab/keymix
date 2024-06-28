@@ -15,5 +15,5 @@
 
 + `clang-format` is executed as a pre-commit hook
 + formatted files are highlighted in red and stored in the working directory
-+ commit is aborted (the changes must be stashed again)
++ commit is aborted, the changes must be re-staged
 + only C/C++ source files are currently formatted
