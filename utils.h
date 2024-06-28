@@ -7,10 +7,16 @@
 #include <time.h>
 
 void memxor(byte *dst, byte *src, size_t n);
+
 byte *checked_malloc(size_t size);
+
 void set_zero(byte *buf, size_t size);
+
 unsigned char *generate_random_bytestream(int num_bytes);
+
 void print_buffer_hex(byte *buf, size_t size, char *descr);
+
+void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
 
 #define D if (!SILENCE)
 #define LOG(...) D printf(__VA_ARGS__)
