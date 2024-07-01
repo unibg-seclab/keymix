@@ -35,9 +35,9 @@ perf-flame: $(PERFDATA)
 	@ cd $(FLAMEGRAPH_DIR); pwd; sudo perf script | ./stackcollapse-perf.pl |./flamegraph.pl > perf.svg
 	@ google-chrome --incognito $(FLAMEGRAPH_DIR)/perf.svg
 
-arch-wolfssl:
+wolfssl:
 ifeq ($(shell which makepkg), /usr/bin/makepkg)
 	@ cd pkgs/wolfssl-ecb && makepkg -sfi
 else
-	@ echo "You don't have makepkg, you sure you're on Arch?"
+	@ cd pkgs/wolfssl-ecb && ./install.sh
 endif

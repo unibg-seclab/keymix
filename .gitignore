@@ -45,3 +45,4 @@ perf.*
 
 pkgs/wolfssl-ecb/*
 !pkgs/wolfssl-ecb/PKGBUILD
+!pkgs/wolfssl-ecb/install.sh
