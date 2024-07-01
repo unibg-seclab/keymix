@@ -1,5 +1,7 @@
 #include "aesni.h"
 
+#include "utils.h"
+#include <assert.h>
 #include <wmmintrin.h>
 #include <wolfssl/wolfcrypt/aes.h>
 
@@ -99,7 +101,7 @@ void aesni3(byte *seed, byte *out) {
 }
 
 int aesni(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
-        assert(blocks_per_macro == 3);
+        D assert(blocks_per_macro == 3);
 
         byte *last = seed + seed_size;
         for (; seed < last; seed += 3 * AES_BLOCK_SIZE, out += 3 * AES_BLOCK_SIZE) {

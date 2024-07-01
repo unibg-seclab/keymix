@@ -1,12 +1,13 @@
 #include "singlectr.h"
 
 #include "config.h"
+#include "utils.h"
 #include <assert.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
 
 int singlectr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
-        assert(blocks_per_macro == 3);
+        D assert(blocks_per_macro == 3);
 
         Aes aes;
         int err = wc_AesInit(&aes, NULL, INVALID_DEVID);
