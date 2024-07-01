@@ -37,31 +37,21 @@ int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         // or using GCC builtins
         unsigned int levels = 1 + (unsigned int)(log10(nof_macros) / log10(config->diff_factor));
 
-        // Setup the structure to save data into out
+        // Setup the structure to save the output into out
         memcpy(buffer, seed, seed_size);
 
         for (unsigned int level = 0; level < levels; level++) {
-                // Mixfunc puts the result into out, except for recmultictr
-                // which puts the result into buffer
                 int err = (*(config->mixfunc))(buffer, out, seed_size, config->blocks_per_macro);
                 D assert(err == 0 && "Encryption error");
 
-                // no swap at the last level, so the output rests in `out`
+                // No swap at the last level, so the output stays in `out`
                 if (level == levels - 1) {
-                        if (config->mixfunc == &recmultictr)
-                                memcpy(out, buffer, seed_size);
                         break;
                 }
 
-                // Swap, that puts the correct data into out
-
-                if (config->mixfunc == &recmultictr) {
-                        // buffer -> buffer
-                        swap_seed(buffer, buffer, seed_size, level, config->diff_factor);
-                } else {
-                        // out -> buffer
-                        swap_seed(buffer, out, seed_size, level, config->diff_factor);
-                }
+                // Swap `out`, and put the result in `buffer` for the next
+                // iteration
+                swap_seed(buffer, out, seed_size, level, config->diff_factor);
         }
 
         free(buffer);

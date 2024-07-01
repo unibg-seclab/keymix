@@ -60,9 +60,9 @@ cleanup:
         return err ? ERR_ENC : 0;
 }
 
-int recmultictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
-        size_t buffer_size = AES_BLOCK_SIZE * blocks_per_macro;
-        byte *buffer       = malloc(buffer_size);
+// Note that, for this function, `seed` is both input and output
+// The "actual" interface for recmultictr is down, after this one
+int recmultictr_inner(byte *seed, size_t seed_size, unsigned int blocks_per_macro, byte *buffer) {
         Aes aes;
         int err = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (err != 0) {
@@ -104,11 +104,19 @@ int recmultictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per
                         }
                 }
         }
-        // remember that outside of this function the result is saved into (byte
-        // *seed)
 cleanup:
-        explicit_bzero(buffer, buffer_size);
-        free(buffer);
         wc_AesFree(&aes);
         return err ? ERR_ENC : 0;
+}
+
+int recmultictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
+        size_t buffer_size = AES_BLOCK_SIZE * blocks_per_macro;
+        byte *buffer       = malloc(buffer_size);
+
+        memcpy(out, seed, seed_size);
+        int err = recmultictr_inner(out, seed_size, blocks_per_macro, buffer);
+
+        explicit_bzero(buffer, buffer_size);
+        free(buffer);
+        return err;
 }
