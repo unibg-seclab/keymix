@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "config.h"
 #include "types.h"
 
 #include <stdlib.h>
@@ -14,7 +15,7 @@ void print_buffer_hex(byte *buf, size_t size, char *descr);
 
 void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
 
-#define D if (!SILENCE)
+#define D if (DEBUG)
 #define LOG(...) D printf(__VA_ARGS__)
 
 #ifdef NO_MEASURE

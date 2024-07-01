@@ -5,9 +5,11 @@
 #define ERR_ENC 1
 
 // configuratins
-#define SILENCE 1
 
 // Uncomment to disable time measuring
 // #define NO_MEASURE
+
+// Enable or disable debug-time checks
+#define DEBUG 1
 
 #endif
