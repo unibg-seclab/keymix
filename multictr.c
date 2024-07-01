@@ -2,14 +2,14 @@
 
 #include "config.h"
 #include "utils.h"
+#include <string.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
 
-// TODO: Do something about this
-extern byte *TMP_BUF;
-
 int multictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
         // current max ctr len = 2^8-1
+        size_t buffer_size = AES_BLOCK_SIZE * blocks_per_macro;
+        byte *buffer       = malloc(buffer_size);
         Aes aes;
         int err = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (err != 0) {
@@ -32,7 +32,7 @@ int multictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_ma
                                 goto cleanup;
                         }
                         for (unsigned short b = 0; b < blocks_per_macro; b++) {
-                                err = wc_AesEncryptDirect(&aes, TMP_BUF,
+                                err = wc_AesEncryptDirect(&aes, buffer,
                                                           seed + KEY_OFFSET + IV_OFFSET);
                                 if (err != 0) {
                                         printf("AesEncryptDirect returned: %d\n", err);
@@ -42,11 +42,11 @@ int multictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_ma
                         }
                         if (tblock == 0) {
                                 // copy
-                                memcpy(&out[macro_offset], TMP_BUF,
+                                memcpy(&out[macro_offset], buffer,
                                        blocks_per_macro * AES_BLOCK_SIZE);
                         } else {
                                 // xor
-                                memxor(&out[macro_offset], TMP_BUF,
+                                memxor(&out[macro_offset], buffer,
                                        blocks_per_macro * AES_BLOCK_SIZE);
                         }
                 }
@@ -54,16 +54,20 @@ int multictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_ma
         // remember that outside of this function the result is saved into (byte
         // *out)
 cleanup:
+        explicit_bzero(buffer, buffer_size);
+        free(buffer);
         wc_AesFree(&aes);
         return err ? ERR_ENC : 0;
 }
 
 int recmultictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
+        size_t buffer_size = AES_BLOCK_SIZE * blocks_per_macro;
+        byte *buffer       = malloc(buffer_size);
         Aes aes;
         int err = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (err != 0) {
                 printf("AesInit returned: %d\n", err);
-                goto err_enc;
+                goto cleanup;
         }
         unsigned int MACRO_OFFSET;
         unsigned int IV_OFFSET = 2 * AES_BLOCK_SIZE;
@@ -78,33 +82,33 @@ int recmultictr(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per
                                                   AES_ENCRYPTION);
                         if (err != 0) {
                                 printf("AesSetKey returned: %d\n", err);
-                                goto err_enc;
+                                goto cleanup;
                         }
                         for (unsigned short b = 0; b < (1 + tblock) * 3; b++) {
-                                err = wc_AesEncryptDirect(&aes, TMP_BUF,
+                                err = wc_AesEncryptDirect(&aes, buffer,
                                                           seed + KEY_OFFSET + IV_OFFSET);
                                 if (err != 0) {
                                         printf("AesEncryptDirect returned: %d\n", err);
-                                        goto err_enc;
+                                        goto cleanup;
                                 }
                                 seed[KEY_OFFSET + IV_OFFSET] += 1;
                         }
                         if (tblock == 0) {
                                 // copy
-                                memcpy(&seed[MACRO_OFFSET], TMP_BUF,
+                                memcpy(&seed[MACRO_OFFSET], buffer,
                                        (1 + tblock) * 3 * AES_BLOCK_SIZE);
                         } else {
                                 // xor
-                                memxor(&seed[MACRO_OFFSET], TMP_BUF,
+                                memxor(&seed[MACRO_OFFSET], buffer,
                                        (1 + tblock) * 3 * AES_BLOCK_SIZE);
                         }
                 }
         }
         // remember that outside of this function the result is saved into (byte
         // *seed)
+cleanup:
+        explicit_bzero(buffer, buffer_size);
+        free(buffer);
         wc_AesFree(&aes);
-        return 0;
-err_enc:
-        wc_AesFree(&aes);
-        return ERR_ENC;
+        return err ? ERR_ENC : 0;
 }

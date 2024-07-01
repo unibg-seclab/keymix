@@ -18,9 +18,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-// TODO: do something about this global
-byte *TMP_BUF;
-
 #include "aesni.h"
 #include "types.h"
 #include "utils.h"
@@ -63,10 +60,8 @@ int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
 }
 
 int mix_wrapper(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
-        TMP_BUF = malloc(AES_BLOCK_SIZE * config->blocks_per_macro);
         int err = mix(seed, out, seed_size, config);
         D assert(err == 0 && "Encryption error");
-        free(TMP_BUF);
         return err;
 }
 
@@ -85,10 +80,10 @@ int main() {
         // todo: replace usingned int with something else to handle
         // very large seeds (>1GiB)
 
-        //	size_t seed_size = 8503056;
+        // Seed dimension (in Bytes)
+        // size_t seed_size = 8503056;
         // size_t seed_size = 229582512;
-        size_t seed_size = 22369621 * 48; // in bytes, ~ 1GiB
-
+        size_t seed_size = 22369621 * (3 * AES_BLOCK_SIZE); // ~ 1GiB
         printf("Seed has size %zu MiB\n", seed_size / 1024 / 1024);
 
         byte *seed = checked_malloc(seed_size);
@@ -125,7 +120,6 @@ int main() {
 
                 double time = MEASURE({ err = mix_wrapper(seed, out, seed_size, &configs[i]); });
 
-                explicit_bzero(TMP_BUF, AES_BLOCK_SIZE * configs[i].blocks_per_macro);
                 explicit_bzero(out, seed_size);
 
                 if (err != 0) {
