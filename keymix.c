@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -27,41 +28,44 @@ byte *TMP_BUF;
 #include "multictr.h"
 #include "singlectr.h"
 
+// Mixes the seed into out
 int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
-        unsigned int nof_macros =
-            (unsigned int)((seed_size / AES_BLOCK_SIZE) / config->blocks_per_macro);
+        byte *buffer = (byte *)malloc(seed_size);
+
+        size_t nof_macros   = (seed_size / AES_BLOCK_SIZE) / config->blocks_per_macro;
         unsigned int levels = 1 + (unsigned int)(log10(nof_macros) / log10(config->diff_factor));
 
-        int err;
+        // Setup the structure to save data into out
+        memcpy(seed, out, seed_size);
+
         for (unsigned int level = 0; level < levels; level++) {
-                err = (*(config->mixfunc))(seed, out, seed_size, config->blocks_per_macro);
-                if (err != 0) {
-                        return err;
-                }
+                // Mixfunc puts the result into buffer, except for recmultictr
+                // which puts the result into out
+                int err = (*(config->mixfunc))(out, buffer, seed_size, config->blocks_per_macro);
+                D assert(err == 0 && "Encryption error");
 
                 // no swap at the last level
-                if (levels - 1 != level) {
-                        if (config->mixfunc == &recmultictr) {
-                                // seed -> seed
-                                swap_seed(seed, seed, seed_size, level, config->diff_factor);
-                        } else {
-                                // out -> seed
-                                swap_seed(seed, out, seed_size, level, config->diff_factor);
-                        }
+                if (level == levels - 1) {
+                        break;
+                }
+
+                if (config->mixfunc == &recmultictr) {
+                        // out -> out
+                        swap_seed(out, out, seed_size, level, config->diff_factor);
+                } else {
+                        // buffer -> out
+                        swap_seed(out, buffer, seed_size, level, config->diff_factor);
                 }
         }
-        // remember at that at the end of this function the result is saved into
-        // (byte *seed)
+
+        free(buffer);
         return 0;
 }
 
 int mix_wrapper(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         TMP_BUF = malloc(AES_BLOCK_SIZE * config->blocks_per_macro);
         int err = mix(seed, out, seed_size, config);
-        if (err != 0) {
-                printf("Encryption error\n");
-        }
-cleanup:
+        D assert(err == 0 && "Encryption error");
         free(TMP_BUF);
         return err;
 }
@@ -92,8 +96,9 @@ int main() {
 
         // {function_name, descr, blocks_per_macro, diff_factor}
         mixing_config configs[] = {
-            {&multictr, "multictr", 9, 9},      {&recmultictr, "recmultictr", 9, 9},
-            {&singlectr, "singlectr", 3, 4},    {&aesni, "aesni (swap 96)", 3, 4},
+            {&multictr, "multictr", 9, 9}, // {&recmultictr, "recmultictr", 9, 9},
+            {&singlectr, "singlectr", 3, 4},
+            {&aesni, "aesni (swap 96)", 3, 4},
             {&aesni, "aesni (swap 128)", 3, 3},
         };
 
@@ -108,7 +113,7 @@ int main() {
                         print_buffer_hex(out, seed_size, "out");
                 }
                 unsigned int nof_macros =
-                    (unsigned int)((seed_size / AES_BLOCK_SIZE) / configs[i].blocks_per_macro);
+                    (seed_size / AES_BLOCK_SIZE) / configs[i].blocks_per_macro;
                 unsigned int levels =
                     1 + (unsigned int)(log10(nof_macros) / log10(configs[i].diff_factor));
 
