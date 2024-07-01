@@ -13,20 +13,9 @@ byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
         if (buf == NULL) {
                 printf("(!) Error occured while allocating memory\n");
-                free(buf);
+                // No need to free, as free is a no-op when the ptr is NULL
                 exit(1);
         }
-        return buf;
-}
-
-byte *generate_random_bytestream(int num_bytes) {
-        byte *buf   = (byte *)malloc(num_bytes);
-        int success = RAND_bytes(buf, num_bytes);
-        if (!success) {
-                free(buf);
-                exit(1);
-        }
-
         return buf;
 }
 
@@ -42,24 +31,22 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
-
+        // dist = diff_factor ^ (level + 1)
         unsigned long dist = 1;
         for (unsigned int i = 0; i <= level; i++) {
                 dist *= diff_factor;
         }
 
         unsigned int spos;  // slab position
-        unsigned int bpos;  // block position
+        unsigned long bpos; // block position
         unsigned int nbpos; // new block position
 
         for (unsigned int slab = 0; slab < in_size / (AES_BLOCK_SIZE * diff_factor); slab++) {
                 spos = slab * AES_BLOCK_SIZE * diff_factor;
-                // 1st block never moves
+                // 1st block never moves, so we start from index 1
                 for (unsigned int block = 1; block < diff_factor; block++) {
-                        bpos = (unsigned int)slab + block * AES_BLOCK_SIZE;
-                        nbpos =
-                            (unsigned int)(((unsigned long)bpos + AES_BLOCK_SIZE * block * dist) &
-                                           in_size);
+                        bpos  = slab + block * AES_BLOCK_SIZE;
+                        nbpos = (unsigned int)((bpos + AES_BLOCK_SIZE * block * dist) & in_size);
                         // copy the block to the new position
                         memcpy(out + nbpos, in + bpos, (size_t)(SIZE_MACRO / diff_factor));
                 }
