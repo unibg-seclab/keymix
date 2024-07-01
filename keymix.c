@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -29,6 +28,7 @@
 int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
 
+        int err           = 0;
         size_t nof_macros = (seed_size / AES_BLOCK_SIZE) / config->blocks_per_macro;
         // Not immediate rn, but when deriving T+1 seeds consider if it does
         // make a difference switching to something faster than 2 calls to
@@ -41,8 +41,10 @@ int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         memcpy(buffer, seed, seed_size);
 
         for (unsigned int level = 0; level < levels; level++) {
-                int err = (*(config->mixfunc))(buffer, out, seed_size, config->blocks_per_macro);
-                D assert(err == 0 && "Encryption error");
+                err = (*(config->mixfunc))(buffer, out, seed_size, config->blocks_per_macro);
+                if (err) {
+                        goto cleanup;
+                }
 
                 // No swap at the last level, so the output stays in `out`
                 if (level == levels - 1) {
@@ -54,13 +56,9 @@ int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
                 swap_seed(buffer, out, seed_size, level, config->diff_factor);
         }
 
+cleanup:
+        explicit_bzero(buffer, seed_size);
         free(buffer);
-        return 0;
-}
-
-int mix_wrapper(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
-        int err = mix(seed, out, seed_size, config);
-        D assert(err == 0 && "Encryption error");
         return err;
 }
 
@@ -115,7 +113,7 @@ int main() {
                 printf("blocks_per_macro:\t%d\n", configs[i].blocks_per_macro);
                 printf("diff_factor:\t\t%d\n", configs[i].diff_factor);
 
-                double time = MEASURE({ err = mix_wrapper(seed, out, seed_size, &configs[i]); });
+                double time = MEASURE({ err = mix(seed, out, seed_size, &configs[i]); });
 
                 explicit_bzero(out, seed_size);
 
