@@ -29,7 +29,12 @@
 int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
 
-        size_t nof_macros   = (seed_size / AES_BLOCK_SIZE) / config->blocks_per_macro;
+        size_t nof_macros = (seed_size / AES_BLOCK_SIZE) / config->blocks_per_macro;
+        // Not immediate rn, but when deriving T+1 seeds consider if it does
+        // make a difference switching to something faster than 2 calls to
+        // floating-point logs
+        // e.g. https://math.stackexchange.com/questions/1627914/smart-way-to-calculate-floorlogx
+        // or using GCC builtins
         unsigned int levels = 1 + (unsigned int)(log10(nof_macros) / log10(config->diff_factor));
 
         // Setup the structure to save data into out
