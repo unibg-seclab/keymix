@@ -38,25 +38,29 @@ int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         unsigned int levels = 1 + (unsigned int)(log10(nof_macros) / log10(config->diff_factor));
 
         // Setup the structure to save data into out
-        memcpy(seed, out, seed_size);
+        memcpy(buffer, seed, seed_size);
 
         for (unsigned int level = 0; level < levels; level++) {
-                // Mixfunc puts the result into buffer, except for recmultictr
-                // which puts the result into out
-                int err = (*(config->mixfunc))(out, buffer, seed_size, config->blocks_per_macro);
+                // Mixfunc puts the result into out, except for recmultictr
+                // which puts the result into buffer
+                int err = (*(config->mixfunc))(buffer, out, seed_size, config->blocks_per_macro);
                 D assert(err == 0 && "Encryption error");
 
-                // no swap at the last level
+                // no swap at the last level, so the output rests in `out`
                 if (level == levels - 1) {
+                        if (config->mixfunc == &recmultictr)
+                                memcpy(out, buffer, seed_size);
                         break;
                 }
 
+                // Swap, that puts the correct data into out
+
                 if (config->mixfunc == &recmultictr) {
-                        // out -> out
-                        swap_seed(out, out, seed_size, level, config->diff_factor);
+                        // buffer -> buffer
+                        swap_seed(buffer, buffer, seed_size, level, config->diff_factor);
                 } else {
-                        // buffer -> out
-                        swap_seed(out, buffer, seed_size, level, config->diff_factor);
+                        // out -> buffer
+                        swap_seed(buffer, out, seed_size, level, config->diff_factor);
                 }
         }
 
@@ -71,7 +75,6 @@ int mix_wrapper(byte *seed, byte *out, size_t seed_size, mixing_config *config) 
 }
 
 int main() {
-
         // todo: rewrite code to test different encryption suites
         // todo: write on a real file
         // todo: recover and check correct parameters
@@ -96,9 +99,8 @@ int main() {
 
         // {function_name, descr, blocks_per_macro, diff_factor}
         mixing_config configs[] = {
-            {&multictr, "multictr", 9, 9}, // {&recmultictr, "recmultictr", 9, 9},
-            {&singlectr, "singlectr", 3, 4},
-            {&aesni, "aesni (swap 96)", 3, 4},
+            {&multictr, "multictr", 9, 9},      {&recmultictr, "recmultictr", 9, 9},
+            {&singlectr, "singlectr", 3, 4},    {&aesni, "aesni (swap 96)", 3, 4},
             {&aesni, "aesni (swap 128)", 3, 3},
         };
 
