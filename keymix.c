@@ -17,11 +17,12 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#include "aesni.h"
 #include "types.h"
 #include "utils.h"
 
+#include "aesni.h"
 #include "multictr.h"
+#include "singlectr-openssl.h"
 #include "singlectr.h"
 
 // Mixes the seed into out
@@ -87,8 +88,12 @@ int main() {
 
         // {function_name, descr, blocks_per_macro, diff_factor}
         mixing_config configs[] = {
-            {&multictr, "multictr", 9, 9},      {&recmultictr, "recmultictr", 9, 9},
-            {&singlectr, "singlectr", 3, 4},    {&aesni, "aesni (swap 96)", 3, 4},
+            {&multictr, "multictr (wolfssl)", 9, 9},
+            {&recmultictr, "recmultictr (wolfssl)", 9, 9},
+            {&singlectr, "singlectr (wolfssl, 96)", 3, 4},
+            {&singlectr_openssl, "singlectr (openssl, 128)", 3, 3},
+            {&singlectr_openssl, "singlectr (openssl, 96)", 3, 4},
+            {&aesni, "aesni (swap 96)", 3, 4},
             {&aesni, "aesni (swap 128)", 3, 3},
         };
 
