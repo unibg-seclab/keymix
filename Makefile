@@ -3,28 +3,28 @@ OBJECTS = $(SOURCES:%.c=%.o)
 
 FLAMEGRAPH_DIR = $(file < .FlameGraphDir)
 
-KEYMIX = keymix
+OUT = test
 
 CC = gcc
 CFLAGS = -O3 -msse2 -msse -march=native -maes
 LDLIBS = -lcrypto -lm -lwolfssl
 
-$(KEYMIX): $(OBJECTS)
+$(OUT): $(OBJECTS)
 build: $(OBJECTS)
 
 PERFDATA = perf.data
 
 %.c: %.h
 
-k: $(KEYMIX)
-	@ ./$(KEYMIX)
+run: $(OUT)
+	@ ./$(OUT)
 
 clean:
 	@ rm -rf $(OBJECTS)
-	@ rm -rf $(KEYMIX)
+	@ rm -rf $(OUT)
 
-perf: $(KEYMIX)
-	@ sudo perf record --call-graph dwarf ./$(KEYMIX)
+perf: $(OUT)
+	@ sudo perf record --call-graph dwarf ./$(OUT)
 
 perf-report: $(PERFDATA)
 	@ sudo perf report

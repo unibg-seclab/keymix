@@ -12,7 +12,7 @@ void memxor(byte *dst, byte *src, size_t n) {
 byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
         if (buf == NULL) {
-                printf("(!) Error occured while allocating memory\n");
+                LOG("(!) Error occured while allocating memory\n");
                 // No need to free, as free is a no-op when the ptr is NULL
                 exit(1);
         }

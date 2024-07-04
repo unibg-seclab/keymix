@@ -6,8 +6,10 @@
 
 // configuratins
 
-// Uncomment to disable time measuring
-// #define NO_MEASURE
+// sizes
+#define SIZE_BLOCK 16
+#define BLOCKS_PER_MACRO 3
+#define SIZE_MACRO (BLOCKS_PER_MACRO * SIZE_BLOCK)
 
 // Enable or disable debug-time checks
 #define DEBUG 1

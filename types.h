@@ -1,15 +1,11 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "config.h"
 #include <stdlib.h>
 
 // Custom common types
 typedef unsigned char byte;
-
-// sizes
-#define SIZE_BLOCK 16
-#define BLOCKS_PER_MACRO 3
-#define SIZE_MACRO (BLOCKS_PER_MACRO * SIZE_BLOCK)
 
 #define SIZE_KB 1024
 #define SIZE_1MiB (1024 * SIZE_KB)
