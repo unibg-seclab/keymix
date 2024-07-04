@@ -1,7 +1,6 @@
 #include "utils.h"
 
-#include <openssl/rand.h>
-#include <wolfssl/wolfcrypt/aes.h>
+#include <string.h>
 
 void memxor(byte *dst, byte *src, size_t n) {
         for (; n > 0; n--) {
@@ -30,12 +29,12 @@ void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned
         unsigned long bpos; // block position
         unsigned int nbpos; // new block position
 
-        for (unsigned int slab = 0; slab < in_size / (AES_BLOCK_SIZE * diff_factor); slab++) {
-                spos = slab * AES_BLOCK_SIZE * diff_factor;
+        for (unsigned int slab = 0; slab < in_size / (SIZE_BLOCK * diff_factor); slab++) {
+                spos = slab * SIZE_BLOCK * diff_factor;
                 // 1st block never moves, so we start from index 1
                 for (unsigned int block = 1; block < diff_factor; block++) {
-                        bpos  = slab + block * AES_BLOCK_SIZE;
-                        nbpos = (unsigned int)((bpos + AES_BLOCK_SIZE * block * dist) & in_size);
+                        bpos  = slab + block * SIZE_BLOCK;
+                        nbpos = (unsigned int)((bpos + SIZE_BLOCK * block * dist) & in_size);
                         // copy the block to the new position
                         memcpy(out + nbpos, in + bpos, (size_t)(SIZE_MACRO / diff_factor));
                 }
