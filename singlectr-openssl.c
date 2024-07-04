@@ -7,6 +7,7 @@
 int singlectr_openssl(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
         EVP_EncryptInit(ctx, EVP_aes_256_ecb(), NULL, NULL);
+        EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
 
         byte *last = seed + seed_size;
