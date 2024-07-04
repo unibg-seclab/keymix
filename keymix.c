@@ -21,7 +21,6 @@
 #include "utils.h"
 
 #include "aesni.h"
-#include "multictr.h"
 #include "singlectr-openssl.h"
 #include "singlectr.h"
 
@@ -29,13 +28,8 @@
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
 
-        int err           = 0;
-        size_t nof_macros = (seed_size / AES_BLOCK_SIZE) / config->blocks_per_macro;
-        // Not immediate rn, but when deriving T+1 seeds consider if it does
-        // make a difference switching to something faster than 2 calls to
-        // floating-point logs
-        // e.g. https://math.stackexchange.com/questions/1627914/smart-way-to-calculate-floorlogx
-        // or using GCC builtins
+        int err             = 0;
+        size_t nof_macros   = (seed_size / AES_BLOCK_SIZE) / config->blocks_per_macro;
         unsigned int levels = 1 + (unsigned int)(log10(nof_macros) / log10(config->diff_factor));
 
         // Setup the structure to save the output into out
@@ -86,8 +80,6 @@ int main() {
 
         // {function_name, descr, blocks_per_macro, diff_factor}
         mixing_config configs[] = {
-            {&multictr, "multictr (wolfssl)", 9, 9},
-            {&recmultictr, "recmultictr (wolfssl)", 9, 9},
             {&singlectr, "singlectr (wolfssl, 96)", 3, 4},
             {&singlectr_openssl, "singlectr (openssl, 128)", 3, 3},
             {&singlectr_openssl, "singlectr (openssl, 96)", 3, 4},
