@@ -26,7 +26,7 @@
 #include "singlectr.h"
 
 // Mixes the seed into out
-int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
+int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
 
         int err           = 0;
@@ -43,14 +43,12 @@ int mix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
 
         for (unsigned int level = 0; level < levels; level++) {
                 err = (*(config->mixfunc))(buffer, out, seed_size, config->blocks_per_macro);
-                if (err) {
+                if (err)
                         goto cleanup;
-                }
 
                 // No swap at the last level, so the output stays in `out`
-                if (level == levels - 1) {
+                if (level == levels - 1)
                         break;
-                }
 
                 // Swap `out`, and put the result in `buffer` for the next
                 // iteration
@@ -118,7 +116,7 @@ int main() {
                 printf("blocks_per_macro:\t%d\n", configs[i].blocks_per_macro);
                 printf("diff_factor:\t\t%d\n", configs[i].diff_factor);
 
-                double time = MEASURE({ err = mix(seed, out, seed_size, &configs[i]); });
+                double time = MEASURE({ err = keymix(seed, out, seed_size, &configs[i]); });
 
                 explicit_bzero(out, seed_size);
 
