@@ -1,11 +1,11 @@
-#include "singlectr.h"
+#include "singlectr-wolfssl.h"
 
 #include "config.h"
 #include "utils.h"
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
 
-int singlectr(byte *seed, byte *out, size_t seed_size) {
+int singlectr_wolfssl(byte *seed, byte *out, size_t seed_size) {
         Aes aes;
         int err = wc_AesInit(&aes, NULL, INVALID_DEVID);
         D if (err) {

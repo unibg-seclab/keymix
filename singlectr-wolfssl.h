@@ -4,6 +4,6 @@
 #include "types.h"
 #include <stdlib.h>
 
-int singlectr(byte *seed, byte *out, size_t seed_size);
+int singlectr_wolfssl(byte *seed, byte *out, size_t seed_size);
 
 #endif

@@ -21,7 +21,7 @@
 
 #include "aesni.h"
 #include "singlectr-openssl.h"
-#include "singlectr.h"
+#include "singlectr-wolfssl.h"
 
 // Mixes the seed into out
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
@@ -63,7 +63,7 @@ int main() {
 
         // {function_name, descr, diff_factor}
         mixing_config configs[] = {
-            {&singlectr, "singlectr (wolfssl, 96)", 4},
+            {&singlectr_wolfssl, "singlectr (wolfssl, 96)", 4},
             {&singlectr_openssl, "singlectr (openssl, 96)", 4},
             {&aesni, "aesni (swap 96)", 4},
         };
