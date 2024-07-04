@@ -20,9 +20,8 @@ typedef unsigned char byte;
 typedef struct {
         int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
         char *descr;
-        unsigned int blocks_per_macro; // number of 128-bit blocks in each macro
-        unsigned int diff_factor;      // diffusion factor (swap functio): 3 (128 bits), 4
-                                       // (96 bits), 6 (64 bits), 12 (32 bits)
+        unsigned int diff_factor; // diffusion factor (swap functio): 3 (128 bits), 4
+                                  // (96 bits), 6 (64 bits), 12 (32 bits)
 } mixing_config;
 
 #endif

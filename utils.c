@@ -19,17 +19,6 @@ byte *checked_malloc(size_t size) {
         return buf;
 }
 
-void print_buffer_hex(byte *buf, size_t size, char *descr) {
-        printf("%s\n", descr);
-        for (size_t i = 0; i < size; i++) {
-                if (i % 16 == 0) {
-                        printf("|");
-                }
-                printf("%02x", buf[i]);
-        }
-        printf("|\n");
-}
-
 void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
         // dist = diff_factor ^ (level + 1)
         unsigned long dist = 1;
