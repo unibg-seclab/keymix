@@ -84,8 +84,8 @@ void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
 void aes256enc(byte *data, byte *out, byte *key, size_t blocks) {
         __m128i key_schedule[15];
         aes_256_key_expansion(key, key_schedule);
-        byte *last = data + blocks * AES_BLOCK_SIZE;
-        for (; data < last; data += AES_BLOCK_SIZE, out += AES_BLOCK_SIZE) {
+        byte *last = data + blocks * SIZE_BLOCK;
+        for (; data < last; data += SIZE_BLOCK, out += SIZE_BLOCK) {
                 aes256_enc(key_schedule, data, out);
         }
 }
@@ -94,17 +94,15 @@ void aes256enc(byte *data, byte *out, byte *key, size_t blocks) {
 
 void aesni3(byte *seed, byte *out) {
         byte *key           = seed;
-        __uint128_t iv      = *(__uint128_t *)(seed + 2 * AES_BLOCK_SIZE);
+        __uint128_t iv      = *(__uint128_t *)(seed + 2 * SIZE_BLOCK);
         __uint128_t data[3] = {iv, iv + 1, iv + 2};
 
-        aes256enc((byte *)data, out, key, 3);
+        aes256enc((byte *)data, out, key, BLOCKS_PER_MACRO);
 }
 
-int aesni(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro) {
-        D assert(blocks_per_macro == 3);
-
+int aesni(byte *seed, byte *out, size_t seed_size) {
         byte *last = seed + seed_size;
-        for (; seed < last; seed += 3 * AES_BLOCK_SIZE, out += 3 * AES_BLOCK_SIZE) {
+        for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
                 aesni3(seed, out);
         }
 

@@ -36,7 +36,7 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         memcpy(buffer, seed, seed_size);
 
         for (unsigned int level = 0; level < levels; level++) {
-                err = (*(config->mixfunc))(buffer, out, seed_size, config->blocks_per_macro);
+                err = (*(config->mixfunc))(buffer, out, seed_size);
                 if (err)
                         goto cleanup;
 
@@ -81,10 +81,8 @@ int main() {
         // {function_name, descr, blocks_per_macro, diff_factor}
         mixing_config configs[] = {
             {&singlectr, "singlectr (wolfssl, 96)", 3, 4},
-            {&singlectr_openssl, "singlectr (openssl, 128)", 3, 3},
             {&singlectr_openssl, "singlectr (openssl, 96)", 3, 4},
             {&aesni, "aesni (swap 96)", 3, 4},
-            {&aesni, "aesni (swap 128)", 3, 3},
         };
 
         unsigned int err = 0;
