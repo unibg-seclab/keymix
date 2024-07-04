@@ -1,9 +1,6 @@
 #include "aesni.h"
 
-#include "utils.h"
-#include <assert.h>
 #include <wmmintrin.h>
-#include <wolfssl/wolfcrypt/aes.h>
 
 // Implemented following the Intel white paper here
 // https://www.intel.com/content/dam/doc/white-paper/advanced-encryption-standard-new-instructions-set-paper.pdf

@@ -1,2 +1,0 @@
-gcc -O3 -msse2 -msse -march=native -maes   -c -o test.o test.c
-gcc   test.o aesni.o keymix.o singlectr-openssl.o singlectr-wolfssl.o utils.o  -lcrypto -lm -lwolfssl -o test
