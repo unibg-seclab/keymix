@@ -31,10 +31,12 @@ void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned
 
         for (unsigned int slab = 0; slab < in_size / (SIZE_BLOCK * diff_factor); slab++) {
                 spos = slab * SIZE_BLOCK * diff_factor;
-                // 1st block never moves, so we start from index 1
+                // 1st block, copy without move
+                memcpy(out + slab, in + slab, (size_t)(SIZE_MACRO / diff_factor));
+                // 2nd to last blocks, move
                 for (unsigned int block = 1; block < diff_factor; block++) {
                         bpos  = slab + block * SIZE_BLOCK;
-                        nbpos = (unsigned int)((bpos + SIZE_BLOCK * block * dist) & in_size);
+                        nbpos = (unsigned int)((bpos + SIZE_BLOCK * block * dist) % in_size);
                         // copy the block to the new position
                         memcpy(out + nbpos, in + bpos, (size_t)(SIZE_MACRO / diff_factor));
                 }
