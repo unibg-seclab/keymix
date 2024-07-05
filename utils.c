@@ -20,14 +20,14 @@ byte *checked_malloc(size_t size) {
 
 void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
         // dist = diff_factor ^ (level + 1)
-        unsigned long dist = 1;
-        for (unsigned int i = 0; i <= level; i++) {
+        size_t dist = 1;
+        for (int i = 0; i <= level; i++) {
                 dist *= diff_factor;
         }
 
-        unsigned int spos;  // slab position
-        unsigned long bpos; // block position
-        unsigned int nbpos; // new block position
+        size_t spos;  // slab position
+        size_t bpos;  // block position
+        size_t nbpos; // new block position
 
         for (unsigned int slab = 0; slab < in_size / (SIZE_BLOCK * diff_factor); slab++) {
                 spos = slab * SIZE_BLOCK * diff_factor;
@@ -36,9 +36,11 @@ void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned
                 // 2nd to last blocks, move
                 for (unsigned int block = 1; block < diff_factor; block++) {
                         bpos  = slab + block * SIZE_BLOCK;
-                        nbpos = (unsigned int)((bpos + SIZE_BLOCK * block * dist) % in_size);
+                        nbpos = (bpos + SIZE_BLOCK * block * dist);
+                        while (nbpos >= in_size)
+                                nbpos -= in_size;
                         // copy the block to the new position
-                        memcpy(out + nbpos, in + bpos, (size_t)(SIZE_MACRO / diff_factor));
+                        memcpy(out + nbpos, in + bpos, SIZE_MACRO / diff_factor);
                 }
         }
 }
