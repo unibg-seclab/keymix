@@ -41,3 +41,6 @@ ifeq ($(shell which makepkg), /usr/bin/makepkg)
 else
 	@ cd pkgs/wolfssl-ecb && ./install.sh
 endif
+
+graph.%:
+	@ python graphs/$*.py
