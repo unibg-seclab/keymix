@@ -1,6 +1,8 @@
 #include "singlectr-openssl.h"
 
 #include "types.h"
+#include "utils.h"
+#include <assert.h>
 #include <openssl/evp.h>
 
 int singlectr_openssl(byte *seed, byte *out, size_t seed_size) {
@@ -11,10 +13,13 @@ int singlectr_openssl(byte *seed, byte *out, size_t seed_size) {
 
         byte *last = seed + seed_size;
         for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key = seed;
-                byte *in  = seed + 2 * SIZE_BLOCK;
+                byte *key        = seed;
+                __uint128_t data = *(__uint128_t *)(seed + 2 * SIZE_BLOCK);
+
+                __uint128_t in[] = {data, data + 1, data + 2};
+                D assert(sizeof(in) == SIZE_MACRO);
                 EVP_EncryptInit(ctx, NULL, key, NULL);
-                EVP_EncryptUpdate(ctx, out, &outl, in, SIZE_BLOCK);
+                EVP_EncryptUpdate(ctx, out, &outl, (byte *)in, SIZE_MACRO);
         }
 
         EVP_CIPHER_CTX_cleanup(ctx);
