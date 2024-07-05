@@ -32,6 +32,9 @@ int main() {
         byte *out             = NULL;
         size_t *seed_sizes    = NULL;
 
+        // Write CSV header
+        printf("seed_size,implementation,diff_factor,time\n");
+
         for (int d = 0; d < sizeof(diff_factors) / sizeof(size_t); d++) {
                 size_t diff_factor = diff_factors[d];
 
