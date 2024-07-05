@@ -36,7 +36,7 @@ void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned
                 // 2nd to last blocks, move
                 for (unsigned int block = 1; block < diff_factor; block++) {
                         bpos  = slab + block * SIZE_BLOCK;
-                        nbpos = (bpos + SIZE_BLOCK * block * dist);
+                        nbpos = bpos + SIZE_BLOCK * block * dist;
                         while (nbpos >= in_size)
                                 nbpos -= in_size;
                         // copy the block to the new position
