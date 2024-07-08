@@ -10,6 +10,6 @@
 // #define NO_MEASURE
 
 // Enable or disable debug-time checks
-#define DEBUG 1
+#define DEBUG 0
 
 #endif

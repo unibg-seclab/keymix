@@ -4,6 +4,6 @@
 #include "types.h"
 #include <stdlib.h>
 
-int singlectr_openssl(byte *seed, byte *out, size_t seed_size, unsigned int blocks_per_macro);
+int openssl(byte *seed, byte *out, size_t seed_size);
 
 #endif
