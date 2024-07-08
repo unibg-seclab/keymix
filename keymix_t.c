@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 
 typedef struct {
         byte *seed;
@@ -18,15 +19,25 @@ typedef struct {
 void *w_keymix(void *a) {
         args_t *args = (args_t *)a;
 
-        for (size_t i = 0; i < args->num_seeds; i++) {
-                // TODO: apply IV
-                keymix(args->seed, args->out, args->seed_size, args->config);
+        __uint128_t iv = args->starting_iv;
 
-                args->seed += args->seed_size;
+        // Keep a local copy of the seed: it needs to be modified, and we are
+        // in a multithreaded environment, so we can't just overwrite the same
+        // memory area while other threads are trying to read it and modify it
+        // themselves
+        byte *buffer = malloc(args->seed_size);
+        memcpy(buffer, args->seed, args->seed_size);
+
+        for (size_t i = 0; i < args->num_seeds; i++) {
+                // First block of buffer = first block of seed XOR iv
+                *(__uint128_t *)buffer = *(__uint128_t *)args->seed ^ iv;
+                keymix(buffer, args->out, args->seed_size, args->config);
+
                 args->out += args->seed_size;
-                args->starting_iv++;
+                iv++;
         }
 
+        free(buffer);
         return NULL;
 }
 
@@ -62,7 +73,6 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 pthread_create(threads + t, NULL, w_keymix, a);
                 started_threads++;
 
-                seed += thread_seeds * seed_size;
                 out += thread_seeds * seed_size;
                 iv += thread_seeds;
         }
