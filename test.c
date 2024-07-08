@@ -8,7 +8,7 @@
 #include <math.h>
 #include <string.h>
 
-#define NUM_OF_TESTS 1
+#define NUM_OF_TESTS 20
 #define MINIMUM_SEED_SIZE (8 * SIZE_1MiB)
 #define MAXIMUM_SEED_SIZE (1.9 * SIZE_1GiB)
 
