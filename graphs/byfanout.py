@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-FILE = 'data/out-preliminary.csv'
+FILE = 'data/out.csv'
 
 df = pd.read_csv(FILE)
 
@@ -25,7 +25,7 @@ for fanout in fanouts:
     plt.ylabel('Average time [s]')
     plt.ylim(0, 120)
     plt.xscale('log')
-    plt.savefig(f'graphs/preliminary-fanout-{fanout}-time.pdf')
+    plt.savefig(f'graphs/by-fanout-{fanout}-time.pdf')
 
     plt.figure()
     plt.title(f'Fanout = {fanout}')
@@ -43,4 +43,4 @@ for fanout in fanouts:
     plt.ylabel('Average speed [MiB/s]')
     plt.xscale('log')
     plt.ylim(0, 180)
-    plt.savefig(f'graphs/preliminary-fanout-{fanout}-speed.pdf')
+    plt.savefig(f'graphs/by-fanout-{fanout}-speed.pdf')
