@@ -20,8 +20,8 @@
 
 // Note that test_single_keymix covers the case with expansion 1 and threads 1
 
-#define MAX_THREADS 4
-#define MAX_EXPANSION 4
+#define MAX_THREADS 12
+#define MAX_EXPANSION 10
 
 // https://stackoverflow.com/questions/78030049/how-do-i-determine-the-type-of-an-element-in-a-struct-in-a-c-macro
 #define FOR_EVERY(idx, array)                                                                      \
