@@ -12,10 +12,9 @@
 
 // -------------------------------------------------- Configure tests
 
-#define NUM_OF_TESTS 1
+#define NUM_OF_TESTS 20
 #define MINIMUM_SEED_SIZE (8 * SIZE_1MiB)
-// #define MAXIMUM_SEED_SIZE (1.9 * SIZE_1GiB)
-#define MAXIMUM_SEED_SIZE (50 * SIZE_1MiB)
+#define MAXIMUM_SEED_SIZE (1.9 * SIZE_1GiB)
 
 #define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)
 
