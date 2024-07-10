@@ -81,13 +81,14 @@ void setup_valid_internal_threads(size_t diff_factor, int **internal_threads,
         int thr = 1;
 
         // 1 thread is managed directly by the simple keymix
-        while (thr < MAX_THREADS) {
-                (*internal_threads_count)++;
+        do {
                 thr *= diff_factor;
-        }
+                (*internal_threads_count)++;
+        } while (thr < MAX_THREADS);
 
         *internal_threads = realloc(*internal_threads, sizeof(int) * *internal_threads_count);
-        thr               = 1;
+        // We skip thr = 1, because for that we use the non-threaded keymix version
+        thr = diff_factor;
         for (int i = 0; i < *internal_threads_count; i++) {
                 (*internal_threads)[i] = thr;
                 thr *= diff_factor;
@@ -134,8 +135,7 @@ void test_internal_multi_keymix(size_t diff_factor, byte *seed, byte *out, size_
             config->descr, config->diff_factor, NUM_OF_TESTS);
 
         for (int test = 0; test < NUM_OF_TESTS; test++) {
-                // TODO: calculate time
-                double time = MEASURE();
+                double time = MEASURE(parallel_keymix(seed, out, seed_size, config, threads));
 
                 printf("%zu,%d,%d,%s,%d,%f\n", seed_size, 1, threads, config->descr,
                        config->diff_factor, time);
@@ -184,7 +184,8 @@ int main() {
                                 SAFE_REALLOC(out, size);
                                 test_single_keymix(diff_factor, seed, out, size, &configs[c]);
 
-                                for (int thr = 2; thr < MAX_THREADS; thr++) {
+                                FOR_EVERY(t, internal_threads) {
+                                        int thr = internal_threads[t];
                                         test_internal_multi_keymix(diff_factor, seed, out, size,
                                                                    thr, &configs[c]);
                                 }
