@@ -341,7 +341,7 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
         if (print_result == 1 && seed_size <= 48 * 3) {
                 D printf("[i] Result\n");
                 for (unsigned int t = 0; t < nof_threads; t++) {
-                        char descr[24];
+                        char descr[128];
                         sprintf(descr, "thread %d memory chunk", t);
                         D print_buffer_hex(args[t].out, args[t].thread_chunk_size, descr);
                 }
