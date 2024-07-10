@@ -20,7 +20,7 @@
 
 // Note that test_single_keymix covers the case with expansion 1 and threads 1
 
-#define MAX_THREADS 12
+#define MAX_THREADS 24
 #define MAX_EXPANSION 10
 
 // https://stackoverflow.com/questions/78030049/how-do-i-determine-the-type-of-an-element-in-a-struct-in-a-c-macro
@@ -77,13 +77,13 @@ void setup_valid_internal_threads(size_t diff_factor, int **internal_threads,
                                   size_t *internal_threads_count) {
         *internal_threads_count = 0; // 1 thread always valid
 
-        int thr = 1;
+        int thr = diff_factor;
 
         // 1 thread is managed directly by the simple keymix
-        do {
-                thr *= diff_factor;
+        while (thr < MAX_THREADS) {
                 (*internal_threads_count)++;
-        } while (thr < MAX_THREADS);
+                thr *= diff_factor;
+        }
 
         *internal_threads = realloc(*internal_threads, sizeof(int) * *internal_threads_count);
         // We skip thr = 1, because for that we use the non-threaded keymix version
