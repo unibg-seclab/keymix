@@ -184,7 +184,7 @@ int main() {
                                 SAFE_REALLOC(out, size);
                                 test_single_keymix(diff_factor, seed, out, size, &configs[c]);
 
-                                FOR_EVERY(t, internal_threads) {
+                                for (int t = 0; t < internal_threads_count; t++) {
                                         int thr = internal_threads[t];
                                         test_internal_multi_keymix(diff_factor, seed, out, size,
                                                                    thr, &configs[c]);
