@@ -13,13 +13,14 @@ typedef struct {
         size_t seed_size;
         size_t num_seeds;
         mixing_config *config;
-        __uint128_t starting_iv;
+        __uint128_t iv;
+        __uint128_t starting_counter;
 } args_t;
 
 void *w_keymix(void *a) {
         args_t *args = (args_t *)a;
 
-        __uint128_t iv = args->starting_iv;
+        __uint128_t counter = args->starting_counter;
 
         // Keep a local copy of the seed: it needs to be modified, and we are
         // in a multithreaded environment, so we can't just overwrite the same
@@ -28,13 +29,20 @@ void *w_keymix(void *a) {
         byte *buffer = malloc(args->seed_size);
         memcpy(buffer, args->seed, args->seed_size);
 
+        // The seed gets modified as follows
+        // First block -> XOR with (unchanging) IV
+        // Second block -> XOR with a counter
+
+        __uint128_t *buffer_as_blocks = (__uint128_t *)buffer;
+
+        buffer_as_blocks[0] ^= args->iv;
+
         for (size_t i = 0; i < args->num_seeds; i++) {
-                // First block of buffer = first block of seed XOR iv
-                *(__uint128_t *)buffer = *(__uint128_t *)args->seed ^ iv;
+                buffer_as_blocks[1] ^= counter;
                 keymix(buffer, args->out, args->seed_size, args->config);
 
                 args->out += args->seed_size;
-                iv++;
+                counter++;
         }
 
         free(buffer);
@@ -42,11 +50,11 @@ void *w_keymix(void *a) {
 }
 
 int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_config *config,
-             int num_threads) {
+             int num_threads, __uint128_t iv) {
         pthread_t threads[num_threads];
         args_t args[num_threads];
 
-        __uint128_t iv = 0;
+        __uint128_t counter = 0;
 
         D assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
 
@@ -62,19 +70,20 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 size_t thread_seeds = MAX(1UL, remaining / (num_threads - t));
                 remaining -= thread_seeds;
 
-                args_t *a      = &args[t];
-                a->seed        = seed;
-                a->out         = out;
-                a->num_seeds   = thread_seeds;
-                a->seed_size   = seed_size;
-                a->config      = config;
-                a->starting_iv = iv;
+                args_t *a           = &args[t];
+                a->seed             = seed;
+                a->out              = out;
+                a->num_seeds        = thread_seeds;
+                a->seed_size        = seed_size;
+                a->config           = config;
+                a->iv               = iv;
+                a->starting_counter = counter;
 
                 pthread_create(threads + t, NULL, w_keymix, a);
                 started_threads++;
 
                 out += thread_seeds * seed_size;
-                iv += thread_seeds;
+                counter += thread_seeds;
         }
         D printf("Started %d threads\n", started_threads);
 
