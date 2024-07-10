@@ -2,10 +2,10 @@
 
 #include "aesni.h"
 #include "keymix_t.h"
-#include "singlectr-openssl.h"
-#include "singlectr-wolfssl.h"
+#include "openssl.h"
 #include "types.h"
 #include "utils.h"
+#include "wolfssl.h"
 #include <math.h>
 #include <string.h>
 #include <time.h>
@@ -63,11 +63,11 @@ void setup_seeds(size_t diff_factor, size_t **seed_sizes, size_t *seed_sizes_cou
 void setup_configs(size_t diff_factor, mixing_config *configs) {
         configs[0].diff_factor = diff_factor;
         configs[0].descr       = "wolfssl";
-        configs[0].mixfunc     = &singlectr_wolfssl;
+        configs[0].mixfunc     = &wolfssl;
 
         configs[1].diff_factor = diff_factor;
         configs[1].descr       = "openssl";
-        configs[1].mixfunc     = &singlectr_openssl;
+        configs[1].mixfunc     = &openssl;
 
         configs[2].diff_factor = diff_factor;
         configs[2].descr       = "intel (aesni)";

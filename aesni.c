@@ -102,6 +102,5 @@ int aesni(byte *seed, byte *out, size_t seed_size) {
         for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
                 aesni3(seed, out);
         }
-
         return 0;
 }

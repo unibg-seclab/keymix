@@ -1,11 +1,11 @@
-#include "singlectr-openssl.h"
+#include "openssl.h"
 
 #include "types.h"
 #include "utils.h"
 #include <assert.h>
 #include <openssl/evp.h>
 
-int singlectr_openssl(byte *seed, byte *out, size_t seed_size) {
+int openssl(byte *seed, byte *out, size_t seed_size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
         EVP_EncryptInit(ctx, EVP_aes_256_ecb(), NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);

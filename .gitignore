@@ -37,6 +37,7 @@ flycheck_*.el
 # targets
 keymix
 test
+main
 
 # perf data
 perf.*

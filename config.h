@@ -12,6 +12,6 @@
 #define SIZE_MACRO (BLOCKS_PER_MACRO * SIZE_BLOCK)
 
 // Enable or disable debug-time checks
-#define DEBUG 1
+#define DEBUG 0
 
 #endif

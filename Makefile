@@ -6,8 +6,8 @@ FLAMEGRAPH_DIR = $(file < .FlameGraphDir)
 OUT = test
 
 CC = gcc
-CFLAGS = -O3 -msse2 -msse -march=native -maes
-LDLIBS = -lcrypto -lm -lwolfssl
+CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp
+LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
 $(OUT): $(OBJECTS)
 build: $(OBJECTS)

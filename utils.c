@@ -19,28 +19,29 @@ byte *checked_malloc(size_t size) {
 }
 
 void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
-        // dist = diff_factor ^ (level + 1)
-        size_t dist = 1;
-        for (int i = 0; i <= level; i++) {
+        unsigned long dist = SIZE_MACRO;
+        for (unsigned int i = 1; i < level; i++) {
                 dist *= diff_factor;
         }
 
-        size_t spos;  // slab position
-        size_t bpos;  // block position
-        size_t nbpos; // new block position
+        unsigned long bpos;  // block position
+        unsigned long nbpos; // new block position
+        size_t block_len         = (size_t)(SIZE_MACRO / diff_factor);
+        unsigned long nof_macros = in_size / SIZE_MACRO;
 
-        for (unsigned int slab = 0; slab < in_size / (SIZE_BLOCK * diff_factor); slab++) {
-                spos = slab * SIZE_BLOCK * diff_factor;
-                // 1st block, copy without move
-                memcpy(out + slab, in + slab, (size_t)(SIZE_MACRO / diff_factor));
-                // 2nd to last blocks, move
-                for (unsigned int block = 1; block < diff_factor; block++) {
-                        bpos  = slab + block * SIZE_BLOCK;
-                        nbpos = bpos + SIZE_BLOCK * block * dist;
-                        while (nbpos >= in_size)
+        unsigned long mpos = 0;
+        for (unsigned int m = 0; m < nof_macros; m++) {
+                // 1st block in macro
+                memcpy(out + mpos, in + mpos, block_len);
+                // 2nd to last blocks in macro
+                for (unsigned int b = 1; b < diff_factor; b++) {
+                        bpos  = mpos + b * block_len;
+                        nbpos = bpos + b * dist;
+                        if (nbpos > in_size - 1) {
                                 nbpos -= in_size;
-                        // copy the block to the new position
-                        memcpy(out + nbpos, in + bpos, SIZE_MACRO / diff_factor);
+                        }
+                        memcpy(out + nbpos, in + bpos, block_len);
                 }
+                mpos += SIZE_MACRO;
         }
 }
