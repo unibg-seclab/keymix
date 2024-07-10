@@ -15,6 +15,8 @@ typedef struct {
         mixing_config *config;
         __uint128_t iv;
         __uint128_t starting_counter;
+
+        int internal_threads;
 } args_t;
 
 void *w_keymix(void *a) {
@@ -39,7 +41,11 @@ void *w_keymix(void *a) {
 
         for (size_t i = 0; i < args->num_seeds; i++) {
                 buffer_as_blocks[1] ^= counter;
-                keymix(buffer, args->out, args->seed_size, args->config);
+                if (args->internal_threads == 1)
+                        keymix(buffer, args->out, args->seed_size, args->config);
+                else
+                        parallel_keymix(buffer, args->out, args->seed_size, args->config,
+                                        args->internal_threads);
 
                 args->out += args->seed_size;
                 counter++;
@@ -50,9 +56,23 @@ void *w_keymix(void *a) {
 }
 
 int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_config *config,
-             int num_threads, __uint128_t iv) {
+             int num_threads, int internal_threads, __uint128_t iv) {
         pthread_t threads[num_threads];
         args_t args[num_threads];
+
+        if (num_threads == 1) {
+                args_t a;
+                a.seed             = seed;
+                a.out              = out;
+                a.num_seeds        = 1;
+                a.seed_size        = seed_size;
+                a.config           = config;
+                a.iv               = iv;
+                a.starting_counter = 0;
+                a.internal_threads = internal_threads;
+                w_keymix(&a);
+                return 0;
+        }
 
         __uint128_t counter = 0;
 
@@ -78,6 +98,7 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 a->config           = config;
                 a->iv               = iv;
                 a->starting_counter = counter;
+                a->internal_threads = internal_threads;
 
                 pthread_create(threads + t, NULL, w_keymix, a);
                 started_threads++;
