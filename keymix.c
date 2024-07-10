@@ -336,14 +336,14 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
         unsigned long end = get_current_time_millis();
 
-        unsigned int print_result = 0;
-        D print_result            = 1;
-        if (print_result == 1 && seed_size <= 48 * 3) {
-                D printf("[i] Result\n");
-                for (unsigned int t = 0; t < nof_threads; t++) {
-                        char descr[128];
-                        sprintf(descr, "thread %d memory chunk", t);
-                        D print_buffer_hex(args[t].out, args[t].thread_chunk_size, descr);
+        D {
+                if (seed_size <= 48 * 3) {
+                        printf("[i] Result\n");
+                        for (unsigned int t = 0; t < nof_threads; t++) {
+                                char descr[128];
+                                sprintf(descr, "thread %d memory chunk", t);
+                                print_buffer_hex(args[t].out, args[t].thread_chunk_size, descr);
+                        }
                 }
         }
 
