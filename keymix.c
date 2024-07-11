@@ -2,6 +2,7 @@
 #include "types.h"
 #include "utils.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <math.h>
 #include <pthread.h>
@@ -12,6 +13,40 @@
 #include <wolfssl/wolfcrypt/aes.h>
 
 void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
+
+        D assert(level > 0);
+
+        size_t SIZE_BLOCK = (size_t)(SIZE_MACRO / diff_factor);
+        // divide the input into slabs based on the diff_factor
+        unsigned long prev_slab_blocks = diff_factor;
+        for (unsigned int i = 1; i < level; i++) {
+                prev_slab_blocks *= diff_factor;
+        }
+        unsigned long slab_blocks = prev_slab_blocks * diff_factor;
+        size_t SIZE_SLAB          = slab_blocks * SIZE_BLOCK;
+        unsigned long nof_slabs   = in_size / SIZE_SLAB;
+        size_t PREV_SLAB_SIZE     = SIZE_BLOCK * prev_slab_blocks;
+
+        unsigned long block = 0;
+        size_t OFFSET_SLAB  = 0;
+        for (; nof_slabs > 0; nof_slabs--) {
+                for (unsigned long psb = 0; psb < prev_slab_blocks; psb++) {
+                        for (unsigned int u = 0; u < diff_factor; u++) {
+                                memcpy(out + block * SIZE_BLOCK,
+                                       in + OFFSET_SLAB + psb * SIZE_BLOCK + PREV_SLAB_SIZE * u,
+                                       SIZE_BLOCK);
+                                block++;
+                        }
+                }
+                OFFSET_SLAB += SIZE_SLAB;
+        }
+}
+
+void swap_cyclic(byte *out, byte *in, size_t in_size, unsigned int level,
+                 unsigned int diff_factor) {
+
+        D assert(level > 0);
+
         unsigned long dist = 48;
         for (unsigned int i = 1; i < level; i++) {
                 dist *= diff_factor;
