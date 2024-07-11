@@ -12,17 +12,15 @@
 
 // -------------------------------------------------- Configure tests
 
-#define NUM_OF_TESTS 1
+#define NUM_OF_TESTS 20
 #define MINIMUM_SEED_SIZE (8 * SIZE_1MiB)
-#define MAXIMUM_SEED_SIZE (10 * SIZE_1MiB)
-// #define MAXIMUM_SEED_SIZE (1.9 * SIZE_1GiB)
+#define MAXIMUM_SEED_SIZE (1.9 * SIZE_1GiB)
 
 #define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)
+#define MAX_EXPANSION 20
 
-// Note that test_single_keymix covers the case with expansion 1 and threads 1
-
-#define MAX_THREADS 4
-#define MAX_EXPANSION 4
+#define DO_EXPANSION_TESTS
+#define DO_ENCRYPTION_TESTS
 
 #define FOR_EVERY(x, ptr, size) for (__typeof__(*ptr) *x = ptr; x < ptr + size; x++)
 
@@ -35,24 +33,27 @@
 
 // -------------------------------------------------- Utility functions
 
+FILE *fout;
+
 void csv_header() {
-        printf("seed_size,");        // Seed size in B
-        printf("expansion,");        // How many Ts to generate (each seed_size big)
-        printf("internal_threads,"); // Number of threads for parallel_keymix, if 1 use keymix
-        printf("external_threads,"); // Number of threads to generate the different Ts
-        printf("implementation,");   // AES implementation/library used
-        printf("diff_factor,");      // Fanout
-        printf("time\n");            // Time in ms
+        fprintf(fout, "seed_size,"); // Seed size in B
+        fprintf(fout, "expansion,"); // How many Ts to generate (each seed_size big)
+        fprintf(fout,
+                "internal_threads,"); // Number of threads for parallel_keymix, if 1 use keymix
+        fprintf(fout, "external_threads,"); // Number of threads to generate the different Ts
+        fprintf(fout, "implementation,");   // AES implementation/library used
+        fprintf(fout, "diff_factor,");      // Fanout
+        fprintf(fout, "time\n");            // Time in ms
 }
 void csv_line(size_t seed_size, size_t expansion, int internal_threads, int external_threads,
               char *implementation, int diff_factor, double time) {
-        printf("%zu,", seed_size);
-        printf("%zu,", expansion);
-        printf("%d,", internal_threads);
-        printf("%d,", external_threads);
-        printf("%s,", implementation);
-        printf("%d,", diff_factor);
-        printf("%.2f\n", time);
+        fprintf(fout, "%zu,", seed_size);
+        fprintf(fout, "%zu,", expansion);
+        fprintf(fout, "%d,", internal_threads);
+        fprintf(fout, "%d,", external_threads);
+        fprintf(fout, "%s,", implementation);
+        fprintf(fout, "%d,", diff_factor);
+        fprintf(fout, "%.2f\n", time);
 }
 
 size_t first_x_that_surpasses(double bar, size_t diff_factor) {
@@ -92,23 +93,32 @@ void setup_configs(size_t diff_factor, mixing_config *configs) {
         configs[2].mixfunc     = &aesni;
 }
 
-void setup_valid_internal_threads(size_t diff_factor, int **internal_threads,
+void setup_valid_internal_threads(size_t diff_factor, int internal_threads[],
                                   size_t *internal_threads_count) {
-        *internal_threads_count = 0;
+        // Diff factors can be only one of 3, so we can just wing a switch
+        // Just be sure to keep the maximum reasonable
 
-        int thr = 1;
-
-        while (thr <= MAX_THREADS) {
-                (*internal_threads_count)++;
-                thr *= diff_factor;
-        }
-
-        *internal_threads = realloc(*internal_threads, sizeof(int) * *internal_threads_count);
-
-        thr = 1;
-        for (int i = 0; i < *internal_threads_count; i++) {
-                (*internal_threads)[i] = thr;
-                thr *= diff_factor;
+        switch (diff_factor) {
+        case 2:
+                *internal_threads_count = 5;
+                internal_threads[0]     = 1;
+                internal_threads[1]     = 2;
+                internal_threads[2]     = 4;
+                internal_threads[3]     = 8;
+                internal_threads[4]     = 16;
+                break;
+        case 3:
+                *internal_threads_count = 3;
+                internal_threads[0]     = 1;
+                internal_threads[1]     = 3;
+                internal_threads[2]     = 9;
+                break;
+        case 4:
+                *internal_threads_count = 3;
+                internal_threads[0]     = 1;
+                internal_threads[1]     = 4;
+                internal_threads[2]     = 16;
+                break;
         }
 }
 
@@ -131,7 +141,13 @@ void test_keymix(byte *seed, byte *out, size_t seed_size, size_t expansion, int 
 
 // -------------------------------------------------- Main loops
 
-int main() {
+int main(int argc, char *argv[]) {
+        if (argc < 3) {
+                LOG("Usage:\n");
+                LOG("  test [EXP OUTPUT] [ENC OUTPUT]\n");
+                return 1;
+        }
+
         // Gli unici per cui il nostro schema funzione e ha senso
         size_t diff_factors[]     = {2, 3, 4};
         size_t diff_factors_count = sizeof(diff_factors) / sizeof(__typeof__(*diff_factors));
@@ -142,14 +158,21 @@ int main() {
         size_t *seed_sizes = NULL;
         size_t seed_sizes_count;
 
-        int *internal_threads = NULL;
+        size_t external_threads[] = {1, 2, 4, 8, 16};
+        size_t external_threads_count =
+            sizeof(external_threads) / sizeof(__typeof__(*external_threads));
+
+        // There are never no more than 5 internal threads' values
+        int internal_threads[5] = {0, 0, 0, 0, 0};
         size_t internal_threads_count;
 
         mixing_config configs[3] = {};
         size_t configs_count     = sizeof(configs) / sizeof(__typeof__(*configs));
 
+#ifdef DO_EXPANSION_TESTS
         LOG("Doing %d tests (each dot = 1 test)\n", NUM_OF_TESTS);
 
+        fout = fopen(argv[1], "w");
         csv_header();
 
         FOR_EVERY(diff_p, diff_factors, diff_factors_count) {
@@ -157,7 +180,7 @@ int main() {
 
                 setup_seeds(diff_factor, &seed_sizes, &seed_sizes_count);
                 setup_configs(diff_factor, configs);
-                setup_valid_internal_threads(diff_factor, &internal_threads,
+                setup_valid_internal_threads(diff_factor, internal_threads,
                                              &internal_threads_count);
 
                 FOR_EVERY(size, seed_sizes, seed_sizes_count) {
@@ -165,24 +188,32 @@ int main() {
                         LOG("Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
                         SAFE_REALLOC(seed, *size);
 
-                        FOR_EVERY(config, configs, configs_count) {
-                                FOR_EVERY(ithr, internal_threads, internal_threads_count) {
-                                        for (int ethr = 1; ethr <= MAX_THREADS; ethr++) {
-                                                for (size_t exp = 1; exp <= MAX_EXPANSION; exp++) {
-                                                        SAFE_REALLOC(out, exp * (*size));
-                                                        test_keymix(seed, out, *size, exp, *ithr,
-                                                                    ethr, config);
-                                                }
-                                        }
-                                }
+                        FOR_EVERY(config, configs, configs_count)
+                        FOR_EVERY(ithr, internal_threads, internal_threads_count)
+                        FOR_EVERY(ethr, external_threads, external_threads_count)
+                        for (size_t exp = 1; exp <= MAX_EXPANSION; exp++) {
+                                SAFE_REALLOC(out, exp * (*size));
+                                test_keymix(seed, out, *size, exp, *ithr, *ethr, config);
                         }
                 }
         }
 
+        fclose(fout);
+        fout = NULL;
+#endif
+
+#ifdef DO_ENCRYPTION_TESTS
+        fout = fopen(argv[2], "w");
+
+        fclose(fout);
+        fout = NULL;
+#endif
+
 cleanup:
+        if (fout)
+                fclose(fout);
         free(seed);
         free(out);
         free(seed_sizes);
-        free(internal_threads);
         return 0;
 }

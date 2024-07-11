@@ -17,7 +17,10 @@ PERFDATA = perf.data
 %.c: %.h
 
 run: $(OUT)
-	@ ./$(OUT)
+	@ ./$(OUT) data/out.csv data/enc.csv
+
+daemon: $(OUT)
+	@ ./$(OUT) data/out.csv data/enc.csv 2> log & disown
 
 clean:
 	@ rm -rf $(OBJECTS)

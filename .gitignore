@@ -52,3 +52,4 @@ pkgs/wolfssl-ecb/*
 venv
 graphs/*.pdf
 graphs/__pycache__
+log
