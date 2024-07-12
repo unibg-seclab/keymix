@@ -102,32 +102,34 @@ void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int 
                 return;
         }
 
+        int size_block = SIZE_MACRO / diff_factor;
+
         // divide the input into slabs based on the diff_factor
         unsigned long prev_slab_blocks = diff_factor;
         for (unsigned int i = 1; i < level; i++) {
                 prev_slab_blocks *= diff_factor;
         }
         unsigned long slab_blocks = prev_slab_blocks * diff_factor;
-        size_t size_slab          = slab_blocks * SIZE_BLOCK;
-        unsigned long nof_slabs   = in_size / size_slab;
-        size_t prev_slab_size     = SIZE_BLOCK * prev_slab_blocks;
+        size_t slab_size          = slab_blocks * size_block;
+        unsigned long nof_slabs   = in_size / slab_size;
+        size_t prev_slab_size     = size_block * prev_slab_blocks;
 
         D printf("swap, level %d, diff_factor %d, prev_slab_blocks %ld, slab_blocks %ld, slab_size "
                  "%ld, in_size %ld\n",
-                 level, diff_factor, prev_slab_blocks, slab_blocks, size_slab, in_size);
+                 level, diff_factor, prev_slab_blocks, slab_blocks, slab_size, in_size);
 
         unsigned long block = 0;
         size_t OFFSET_SLAB  = 0;
         for (; nof_slabs > 0; nof_slabs--) {
                 for (unsigned long psb = 0; psb < prev_slab_blocks; psb++) {
                         for (unsigned int u = 0; u < diff_factor; u++) {
-                                memcpy(out + block * SIZE_BLOCK,
-                                       in + OFFSET_SLAB + psb * SIZE_BLOCK + prev_slab_size * u,
-                                       SIZE_BLOCK);
+                                memcpy(out + block * size_block,
+                                       in + OFFSET_SLAB + psb * size_block + prev_slab_size * u,
+                                       size_block);
                                 block++;
                         }
                 }
-                OFFSET_SLAB += size_slab;
+                OFFSET_SLAB += slab_size;
         }
 }
 
