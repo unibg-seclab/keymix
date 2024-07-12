@@ -9,7 +9,7 @@
 // sizes
 #define SIZE_BLOCK 16
 #define BLOCKS_PER_MACRO 3
-#define SIZE_MACRO (BLOCKS_PER_MACRO * SIZE_BLOCK)
+#define SIZE_MACRO 48
 
 // Enable or disable debug-time checks
 #define DEBUG 0
