@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <assert.h>
+#include <math.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -25,8 +26,45 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("|\n");
 }
 
-void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
+void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout) {
+        // If we interpret in and out a series of mini_blocks, each single one
+        // of size SIZE_MACRO / fanout, then the formula to shuffle them is actually quite simple
+        //
+        // Consider the first (fanout ^ level) macro-blocks
+        //    for each j in the indexes of the out part in this frist macro-blocks
+        //        i = (fanout ^ level) * (j % fanout) + floor(j / fanout)
+        //        out[j] = in[j]
+        // And then repeat for the remaining, with the approriate offset
 
+        size_t mini_size = SIZE_MACRO / fanout;
+
+        byte *last              = out + in_size;
+        size_t fanout_exp_level = pow(fanout, level);
+
+        size_t slab_size = fanout_exp_level * SIZE_MACRO;
+
+        D printf("Moving pieces of %zu B\n", mini_size);
+        D printf("Over a total of %zu slabs\n", in_size / slab_size);
+
+        for (; out < last; out += slab_size, in += slab_size) {
+                D printf("New slab\n");
+
+                for (size_t j = 0; j < (slab_size / mini_size); j++) {
+                        size_t i = fanout_exp_level * (j % fanout) + j / fanout;
+                        D printf("%zu -> %zu\n", i, j);
+                        memcpy(out + j * mini_size, in + i * mini_size, mini_size);
+                }
+        }
+}
+
+// This is the same as the previous one, but trying to optimize the stuff
+void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout) {
+        size_t mini_size = SIZE_MACRO / fanout;
+        byte *last       = out + in_size;
+        // size
+}
+
+void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
         if (level == 0) {
                 return;
         }

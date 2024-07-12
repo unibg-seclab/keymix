@@ -5,32 +5,58 @@ FLAMEGRAPH_DIR = $(file < .FlameGraphDir)
 
 OUT = main
 TEST = test
+VERIFY = verify
+PERFDATA = perf.data
+
+# ------------ Compiler flags
 
 CC = gcc
 CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude
 LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
-$(OUT): main.o $(OBJECTS)
-$(TEST): test.o $(OBJECTS)
-build: $(OBJECTS)
+# ------------ Generic building
 
-PERFDATA = perf.data
+build: $(OBJECTS)
 
 %.c: %.h
 
+wolfssl:
+ifeq ($(shell which makepkg 2> /dev/null), /usr/bin/makepkg)
+	@ cd pkgs/wolfssl-ecb && makepkg -sfi
+else
+	@ cd pkgs/wolfssl-ecb && ./install.sh
+endif
+
+# ------------ main.c for quick tests
+
+$(OUT): main.o $(OBJECTS)
 run: $(OUT)
 	@ ./$(OUT)
 
+# ------------ Testing
+
+$(TEST): test.o $(OBJECTS)
 run-test: $(TEST)
 	@ ./$(TEST) data/out.csv data/enc.csv
 
 daemon: $(TEST)
 	@ ./$(TEST) data/out.csv data/enc.csv 2> log & disown
 
+# ------------ Verifying
+
+$(VERIFY): verify.o $(OBJECTS)
+
+ver: $(VERIFY)
+	@ ./$(VERIFY)
+
+# ------------ Cleaning
+
 clean:
 	@ rm -rf $(OBJECTS)
 	@ rm -rf $(OUT).o $(TEST).o
 	@ rm -rf $(OUT) $(TEST)
+
+# ------------ Performance and flamegraph
 
 perf: $(OUT)
 	@ sudo perf record --call-graph dwarf ./$(OUT)
@@ -44,12 +70,7 @@ perf-flame: $(PERFDATA)
 	@ cd $(FLAMEGRAPH_DIR); pwd; sudo perf script | ./stackcollapse-perf.pl |./flamegraph.pl > perf.svg
 	@ google-chrome --incognito $(FLAMEGRAPH_DIR)/perf.svg
 
-wolfssl:
-ifeq ($(shell which makepkg 2> /dev/null), /usr/bin/makepkg)
-	@ cd pkgs/wolfssl-ecb && makepkg -sfi
-else
-	@ cd pkgs/wolfssl-ecb && ./install.sh
-endif
+# ------------ Graphs
 
 graph.%:
 	@ python graphs/$*.py
