@@ -97,6 +97,91 @@ void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsign
         }
 }
 
+// Let's start cheating
+// 1. We can user `restrict` for the input pointer to tell the compiler
+//    that `out` and `in` will always and surely point to different areas
+//    in memory. This is ok for us, we don't want any overlapping on those two.
+// 2. The formula from shuffle can be transformed to (knowing that a % b = a - b * (a / b) if a,b
+//    are integers)
+//        i = d^l * j + (1 - d^(l+1)) * (j/d)
+//                      ^^^^^^^^^^^^^ This is surely negative, let's make it positive
+//          = d^l * j - (d^(l+1) - 1) * (j/d) = aj - b(j/d)
+//    so we can precompute the necessary multipliers.
+//    Note that in the code d^l = macros_in_slab, while d^(l+1) = macros_in_slab * fanout =
+// 3. It's true that j = fanout * k + mod, but we can just make j start from 0
+//    at each new slab and increment it
+// 4. Since we go over `out` linearly, in order, we can just increment `out`
+//    by mini_size every time, instead of jumping a slab_size and then updating
+//    the individual elements one by one. This does not hold for `in`.
+// 5. As said in the previous shuffle_opt,
+//        tot_js = slab_size / mini_size = fanout^(level+1) = b + 1
+// 6. We can multiply a and b directly by mini_size, so that we don't do
+//    a lot of multiplications internally. j must always remain a "simple" integer.
+// 7. We don't have to calculate j/fanout every single time, since the fanout
+//    is known and j always has the same values. If we take this idea into
+//    account, we can setup already all the possible values that aj - b(j/fanout)
+//    takes once, before doing the for again and again.
+//    I am not 100% sure this is faster than just recomputing (since we need to malloc)
+//    but I'll try it and leave the old code commented. We could try an array,
+//    but if it's too big it will error out.
+void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
+                  unsigned int fanout) {
+        size_t mini_size      = SIZE_MACRO / fanout;
+        byte *last            = out + in_size;
+        size_t macros_in_slab = intpow(fanout, level);
+        size_t slab_size      = macros_in_slab * SIZE_MACRO;
+
+        size_t a      = mini_size * macros_in_slab;
+        size_t tot_js = macros_in_slab * fanout;
+        size_t b      = mini_size * (tot_js - 1);
+
+        size_t *is = malloc(tot_js * sizeof(size_t));
+        for (size_t j = 0; j < tot_js; j++) {
+                is[j] = a * j - b * (j / fanout);
+        }
+
+        while (out < last) {
+                for (size_t j = 0; j < tot_js; j++) {
+                        // size_t i = a * j - b * (j / fanout);
+                        // memcpy(out, in + i, mini_size);
+                        memcpy(out, in + is[j], mini_size);
+                        out += mini_size;
+                }
+                in += slab_size;
+        }
+
+        free(is);
+}
+// void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
+//                   unsigned int fanout) {
+//         size_t mini_size      = SIZE_MACRO / fanout;
+//         byte *last            = out + in_size;
+//         size_t macros_in_slab = intpow(fanout, level);
+//         size_t slab_size      = macros_in_slab * SIZE_MACRO;
+
+//         size_t j;
+//         size_t a = macros_in_slab;
+//         size_t b = slab_size - 1;
+
+//         while (out < last) {
+//                 j = 0;
+
+//                 for (size_t k = 0; k < macros_in_slab; k++) {
+//                         for (size_t mod = 0; mod < fanout; mod++) {
+//                                 // size_t i = macros_in_slab * mod + k;
+//                                 size_t i = a * j + b * (j / fanout);
+//                                 memcpy(out, in + i * mini_size, mini_size);
+//                                 j++; // We must increment by 1, otherwise the formula for i does
+//                                 not
+//                                      // work
+//                                 out += mini_size;
+//                         }
+//                 }
+
+//                 in += slab_size;
+//         }
+// }
+
 void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
         if (level == 0) {
                 return;
@@ -144,7 +229,8 @@ void swap_chunks(thread_data *args, int level) {
         unsigned long chunk_blocks    = args->thread_chunk_size / size_block;
         unsigned long chunk_start_pos = args->thread_id * args->thread_chunk_size;
         unsigned long slab_start_pos  = chunk_start_pos - chunk_start_pos % slab_size;
-        unsigned long UPFRONT_BLOCKS_OFFSET = args->diff_factor * (chunk_start_pos % prev_slab_size);
+        unsigned long UPFRONT_BLOCKS_OFFSET =
+            args->diff_factor * (chunk_start_pos % prev_slab_size);
 
         size_t OFFSET = slab_start_pos + UPFRONT_BLOCKS_OFFSET;
 
