@@ -1,5 +1,3 @@
-#include "keymix.h"
-
 #include "aesni.h"
 #include "keymix_t.h"
 #include "openssl.h"

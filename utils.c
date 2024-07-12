@@ -1,5 +1,6 @@
 #include "utils.h"
 
+#include <assert.h>
 #include <string.h>
 
 void memxor(byte *dst, byte *src, size_t n) {
@@ -19,29 +20,31 @@ byte *checked_malloc(size_t size) {
 }
 
 void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
-        unsigned long dist = SIZE_MACRO;
+        D assert(level > 0);
+
+        size_t size_to_move = SIZE_MACRO / diff_factor;
+
+        // divide the input into slabs based on the diff_factor
+        unsigned long prev_slab_blocks = diff_factor;
         for (unsigned int i = 1; i < level; i++) {
-                dist *= diff_factor;
+                prev_slab_blocks *= diff_factor;
         }
+        unsigned long slab_blocks = prev_slab_blocks * diff_factor;
+        size_t SIZE_SLAB          = slab_blocks * size_to_move;
+        unsigned long nof_slabs   = in_size / SIZE_SLAB;
+        size_t PREV_SLAB_SIZE     = size_to_move * prev_slab_blocks;
 
-        unsigned long bpos;  // block position
-        unsigned long nbpos; // new block position
-        size_t block_len         = (size_t)(SIZE_MACRO / diff_factor);
-        unsigned long nof_macros = in_size / SIZE_MACRO;
-
-        unsigned long mpos = 0;
-        for (unsigned int m = 0; m < nof_macros; m++) {
-                // 1st block in macro
-                memcpy(out + mpos, in + mpos, block_len);
-                // 2nd to last blocks in macro
-                for (unsigned int b = 1; b < diff_factor; b++) {
-                        bpos  = mpos + b * block_len;
-                        nbpos = bpos + b * dist;
-                        if (nbpos > in_size - 1) {
-                                nbpos -= in_size;
+        unsigned long block = 0;
+        size_t OFFSET_SLAB  = 0;
+        for (; nof_slabs > 0; nof_slabs--) {
+                for (unsigned long psb = 0; psb < prev_slab_blocks; psb++) {
+                        for (unsigned int u = 0; u < diff_factor; u++) {
+                                memcpy(out + block * size_to_move,
+                                       in + OFFSET_SLAB + psb * size_to_move + PREV_SLAB_SIZE * u,
+                                       size_to_move);
+                                block++;
                         }
-                        memcpy(out + nbpos, in + bpos, block_len);
                 }
-                mpos += SIZE_MACRO;
+                OFFSET_SLAB += SIZE_SLAB;
         }
 }
