@@ -45,7 +45,7 @@ perf-flame: $(PERFDATA)
 	@ google-chrome --incognito $(FLAMEGRAPH_DIR)/perf.svg
 
 wolfssl:
-ifeq ($(shell which makepkg), /usr/bin/makepkg)
+ifeq ($(shell which makepkg 2> /dev/null), /usr/bin/makepkg)
 	@ cd pkgs/wolfssl-ecb && makepkg -sfi
 else
 	@ cd pkgs/wolfssl-ecb && ./install.sh
