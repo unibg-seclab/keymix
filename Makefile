@@ -1,15 +1,17 @@
-SOURCES = $(wildcard *.c)
+SOURCES = $(wildcard src/*.c)
 OBJECTS = $(SOURCES:%.c=%.o)
 
 FLAMEGRAPH_DIR = $(file < .FlameGraphDir)
 
-OUT = test
+OUT = main
+TEST = test
 
 CC = gcc
-CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp
+CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude
 LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
-$(OUT): $(OBJECTS)
+$(OUT): main.o $(OBJECTS)
+$(TEST): test.o $(OBJECTS)
 build: $(OBJECTS)
 
 PERFDATA = perf.data
@@ -17,14 +19,18 @@ PERFDATA = perf.data
 %.c: %.h
 
 run: $(OUT)
-	@ ./$(OUT) data/out.csv data/enc.csv
+	@ ./$(OUT)
 
-daemon: $(OUT)
-	@ ./$(OUT) data/out.csv data/enc.csv 2> log & disown
+run-test: $(TEST)
+	@ ./$(TEST) data/out.csv data/enc.csv
+
+daemon: $(TEST)
+	@ ./$(TEST) data/out.csv data/enc.csv 2> log & disown
 
 clean:
 	@ rm -rf $(OBJECTS)
-	@ rm -rf $(OUT)
+	@ rm -rf $(OUT).o $(TEST).o
+	@ rm -rf $(OUT) $(TEST)
 
 perf: $(OUT)
 	@ sudo perf record --call-graph dwarf ./$(OUT)
