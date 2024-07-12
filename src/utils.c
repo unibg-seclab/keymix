@@ -134,22 +134,17 @@ void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int 
 }
 
 void swap_chunks(thread_data *args, int level) {
+        int size_block = SIZE_MACRO / args->diff_factor;
 
-        unsigned long prev_slab_blocks = args->diff_factor;
-        for (unsigned int i = 1; i < level; i++) {
-                prev_slab_blocks *= args->diff_factor;
+        size_t prev_slab_size = size_block;
+        for (unsigned int i = 0; i < level; i++) {
+                prev_slab_size *= args->diff_factor;
         }
-        size_t prev_slab_size         = SIZE_BLOCK * prev_slab_blocks;
-        size_t size_slab              = prev_slab_blocks * args->diff_factor * SIZE_BLOCK;
-        unsigned long chunk_blocks    = args->thread_chunk_size / SIZE_BLOCK;
+        size_t slab_size              = args->diff_factor * prev_slab_size;
+        unsigned long chunk_blocks    = args->thread_chunk_size / size_block;
         unsigned long chunk_start_pos = args->thread_id * args->thread_chunk_size;
-        unsigned long slab_start_pos  = 0;
-        while (slab_start_pos + size_slab <= chunk_start_pos) {
-                slab_start_pos += size_slab;
-        }
-        unsigned int psrid = (chunk_start_pos - slab_start_pos) / prev_slab_size;
-        unsigned long UPFRONT_BLOCKS_OFFSET =
-            (chunk_start_pos - slab_start_pos - psrid * prev_slab_size) * args->diff_factor;
+        unsigned long slab_start_pos  = chunk_start_pos - chunk_start_pos % slab_size;
+        unsigned long UPFRONT_BLOCKS_OFFSET = args->diff_factor * (chunk_start_pos % prev_slab_size);
 
         size_t OFFSET = slab_start_pos + UPFRONT_BLOCKS_OFFSET;
 
@@ -157,10 +152,10 @@ void swap_chunks(thread_data *args, int level) {
                  "SIZE_SLAB %ld, "
                  "chunk_size %ld, OFFSET %ld\n",
                  level, args->thread_id, args->diff_factor, args->thread_id, prev_slab_size,
-                 size_slab, args->thread_chunk_size, OFFSET);
+                 slab_size, args->thread_chunk_size, OFFSET);
 
-        for (unsigned long block; block < chunk_blocks; block++) {
-                memcpy(args->abs_swp + OFFSET, args->out + block * SIZE_BLOCK, SIZE_BLOCK);
+        for (unsigned long block = 0; block < chunk_blocks; block++) {
+                memcpy(args->abs_swp + OFFSET, args->out + block * size_block, size_block);
                 OFFSET += SIZE_MACRO;
         }
 }
