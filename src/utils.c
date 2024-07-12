@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <sys/time.h>
 
 byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
@@ -24,10 +25,11 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("|\n");
 }
 
-void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
-        D assert(level > 0);
+void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
 
-        size_t size_to_move = SIZE_MACRO / diff_factor;
+        if (level == 0) {
+                return;
+        }
 
         // divide the input into slabs based on the diff_factor
         unsigned long prev_slab_blocks = diff_factor;
@@ -35,52 +37,57 @@ void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned
                 prev_slab_blocks *= diff_factor;
         }
         unsigned long slab_blocks = prev_slab_blocks * diff_factor;
-        size_t SIZE_SLAB          = slab_blocks * size_to_move;
-        unsigned long nof_slabs   = in_size / SIZE_SLAB;
-        size_t PREV_SLAB_SIZE     = size_to_move * prev_slab_blocks;
+        size_t size_slab          = slab_blocks * SIZE_BLOCK;
+        unsigned long nof_slabs   = in_size / size_slab;
+        size_t prev_slab_size     = SIZE_BLOCK * prev_slab_blocks;
+
+        D printf("swap, level %d, diff_factor %d, prev_slab_blocks %ld, slab_blocks %ld, slab_size "
+                 "%ld, in_size %ld\n",
+                 level, diff_factor, prev_slab_blocks, slab_blocks, size_slab, in_size);
 
         unsigned long block = 0;
         size_t OFFSET_SLAB  = 0;
         for (; nof_slabs > 0; nof_slabs--) {
                 for (unsigned long psb = 0; psb < prev_slab_blocks; psb++) {
                         for (unsigned int u = 0; u < diff_factor; u++) {
-                                memcpy(out + block * size_to_move,
-                                       in + OFFSET_SLAB + psb * size_to_move + PREV_SLAB_SIZE * u,
-                                       size_to_move);
+                                memcpy(out + block * SIZE_BLOCK,
+                                       in + OFFSET_SLAB + psb * SIZE_BLOCK + prev_slab_size * u,
+                                       SIZE_BLOCK);
                                 block++;
                         }
                 }
-                OFFSET_SLAB += SIZE_SLAB;
+                OFFSET_SLAB += size_slab;
         }
 }
 
-void swap_cyclic(byte *out, byte *in, size_t in_size, unsigned int level,
-                 unsigned int diff_factor) {
-        D assert(level > 0);
+void swap_chunks(thread_data *args, int level) {
 
-        unsigned long dist = SIZE_MACRO;
+        unsigned long prev_slab_blocks = args->diff_factor;
         for (unsigned int i = 1; i < level; i++) {
-                dist *= diff_factor;
+                prev_slab_blocks *= args->diff_factor;
         }
+        size_t prev_slab_size         = SIZE_BLOCK * prev_slab_blocks;
+        size_t size_slab              = prev_slab_blocks * args->diff_factor * SIZE_BLOCK;
+        unsigned long chunk_blocks    = args->thread_chunk_size / SIZE_BLOCK;
+        unsigned long chunk_start_pos = args->thread_id * args->thread_chunk_size;
+        unsigned long slab_start_pos  = 0;
+        while (slab_start_pos + size_slab <= chunk_start_pos) {
+                slab_start_pos += size_slab;
+        }
+        unsigned int psrid = (chunk_start_pos - slab_start_pos) / prev_slab_size;
+        unsigned long UPFRONT_BLOCKS_OFFSET =
+            (chunk_start_pos - slab_start_pos - psrid * prev_slab_size) * args->diff_factor;
 
-        unsigned long bpos;  // block position
-        unsigned long nbpos; // new block position
-        size_t block_len         = SIZE_MACRO / diff_factor;
-        unsigned long nof_macros = in_size / SIZE_MACRO;
+        size_t OFFSET = slab_start_pos + UPFRONT_BLOCKS_OFFSET;
 
-        unsigned long mpos = 0;
-        for (unsigned int m = 0; m < nof_macros; m++) {
-                // 1st block in macro
-                memcpy(out + mpos, in + mpos, block_len);
-                // 2nd to last blocks in macro
-                for (unsigned int b = 1; b < diff_factor; b++) {
-                        bpos  = mpos + b * block_len;
-                        nbpos = bpos + b * dist;
-                        if (nbpos > in_size - 1) {
-                                nbpos -= in_size;
-                        }
-                        memcpy(out + nbpos, in + bpos, block_len);
-                }
-                mpos += SIZE_MACRO;
+        D printf("swap, level %d, thread_id %d, diff_factor %d, thread_id %d, PREV_SLAB_SIZE %ld, "
+                 "SIZE_SLAB %ld, "
+                 "chunk_size %ld, OFFSET %ld\n",
+                 level, args->thread_id, args->diff_factor, args->thread_id, prev_slab_size,
+                 size_slab, args->thread_chunk_size, OFFSET);
+
+        for (unsigned long block; block < chunk_blocks; block++) {
+                memcpy(args->abs_swp + OFFSET, args->out + block * SIZE_BLOCK, SIZE_BLOCK);
+                OFFSET += SIZE_MACRO;
         }
 }

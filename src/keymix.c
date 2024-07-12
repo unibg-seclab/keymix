@@ -17,13 +17,10 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         size_t nof_macros   = seed_size / SIZE_MACRO;
         unsigned int levels = 1 + (unsigned int)(log(nof_macros) / log(config->diff_factor));
 
-        err = (*(config->mixfunc))(seed, out, seed_size);
-        if (err)
-                goto cleanup;
-
-        for (unsigned int level = 1; level < levels; level++) {
+        for (unsigned int level = 0; level < levels; level++) {
                 // swap `out`, put the result into `swp`, then re-encrypt
-                swap_seed(buffer, out, seed_size, level, config->diff_factor);
+                swap(buffer, out, seed_size, level, config->diff_factor);
+                D printf("encrypt level %d\n", level);
                 err = (*(config->mixfunc))(buffer, out, seed_size);
                 if (err)
                         goto cleanup;
@@ -32,35 +29,6 @@ cleanup:
         explicit_bzero(buffer, seed_size);
         free(buffer);
         return err;
-}
-
-void swap_chunks(thread_data *args, int level) {
-        unsigned long dist = 48;
-        for (unsigned int i = 1; i < level; i++) {
-                dist *= args->diff_factor;
-        }
-
-        unsigned long rbpos; // elative block position
-        unsigned long nbpos; // new absolute block position
-        size_t block_len            = (size_t)(SIZE_MACRO / args->diff_factor);
-        unsigned long nof_macros    = args->thread_chunk_size / 48;
-        unsigned long thread_offset = args->thread_id * args->thread_chunk_size;
-
-        unsigned long mpos = 0;
-        for (unsigned int m = 0; m < nof_macros; m++) {
-                // 1st block in macro
-                memcpy(args->swp + mpos, args->out + mpos, block_len);
-                // 2nd to last blocks in macro
-                for (unsigned int b = 1; b < args->diff_factor; b++) {
-                        rbpos = mpos + b * block_len;
-                        nbpos = rbpos + thread_offset + b * dist;
-                        if (nbpos > args->seed_size - 1) {
-                                nbpos -= args->seed_size;
-                        }
-                        memcpy(args->abs_swp + nbpos, args->out + rbpos, block_len);
-                }
-                mpos += SIZE_MACRO;
-        }
 }
 
 void *run(void *config) {
@@ -73,15 +41,8 @@ void *run(void *config) {
                 goto thread_exit;
         }
 
-        // thread-layers
-        D printf("thread %d encrypting level %d\n", args->thread_id, 0);
-        *thread_status = (*(args->mixfunc))(args->in, args->out, args->thread_chunk_size);
-        if (*thread_status) {
-                printf("[e] thread %d encryption error\n", args->thread_id);
-                goto thread_exit;
-        }
-        for (unsigned int l = 1; l < args->thread_levels; l++) {
-                swap_seed(args->swp, args->out, args->thread_chunk_size, l, args->diff_factor);
+        for (unsigned int l = 0; l < args->thread_levels; l++) {
+                swap(args->swp, args->out, args->thread_chunk_size, l, args->diff_factor);
                 D printf("thread %d encrypting level %d\n", args->thread_id, l);
                 *thread_status = (*(args->mixfunc))(args->swp, args->out, args->thread_chunk_size);
                 if (*thread_status) {
@@ -171,6 +132,7 @@ void free_coord_sems(thread_data *args, unsigned int threads) {
         }
 }
 
+// Mixes the seed into out using a number of threads equal to a power of diff_factor
 int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
                     unsigned int nof_threads) {
 

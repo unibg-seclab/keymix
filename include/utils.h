@@ -10,8 +10,8 @@
 byte *checked_malloc(size_t size);
 void print_buffer_hex(byte *buf, size_t size, char *descr);
 
-void swap_seed(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
-void swap_cyclic(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
+void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
+void swap_chunks(thread_data *args, int level);
 
 #define D if (DEBUG)
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
