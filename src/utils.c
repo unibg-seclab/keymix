@@ -63,6 +63,44 @@ void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int
 }
 
 // This is the same as the previous one, but trying to optimize the stuff
+// Look further for a better optimization of this
+
+// void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
+//                  unsigned int fanout) {
+//         size_t mini_size      = SIZE_MACRO / fanout;
+//         byte *last            = out + in_size;
+//         size_t macros_in_slab = intpow(fanout, level);
+//         size_t slab_size      = macros_in_slab * SIZE_MACRO;
+
+//         for (; out < last; out += slab_size, in += slab_size) {
+//                 // Here we want to have indexes from 0 to (slab_size / mini_size)
+//                 // That is, from 0 to
+//                 // (macros_in_slab * SIZE_MACRO) / (SIZE_MACRO / fanout)
+//                 //    = macros_in_slab * fanout
+//                 //    = fanout ^ (level+1)
+//                 //
+//                 // E.g., with fanout = 3, we want 0,1,2,...,8 (a total of 3^2 = 9 indices)
+//                 // for level = 1
+//                 // This means we can use 2 for
+//                 //  - One external with k = 0,...,fanout^level - 1 (= 0,...,macros_in_slab-1)
+//                 //  - One internal with n = 0,...,fanout-1 (which we can call mod)
+//                 // And we get that
+//                 //  k = j / fanout
+//                 //  mod = j % fanout
+
+//                 // In this way, there are no fractions and no modules computed
+//                 // every time
+
+//                 for (size_t k = 0; k < macros_in_slab; k++) {
+//                         for (size_t mod = 0; mod < fanout; mod++) {
+//                                 size_t i = macros_in_slab * mod + k;
+//                                 size_t j = fanout * k + mod;
+//                                 memcpy(out + j * mini_size, in + i * mini_size, mini_size);
+//                         }
+//                 }
+//         }
+// }
+
 void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
                  unsigned int fanout) {
         size_t mini_size      = SIZE_MACRO / fanout;
@@ -70,32 +108,23 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
         size_t macros_in_slab = intpow(fanout, level);
         size_t slab_size      = macros_in_slab * SIZE_MACRO;
 
-        for (; out < last; out += slab_size, in += slab_size) {
-                // Here we want to have indexes from 0 to (slab_size / mini_size)
-                // That is, from 0 to
-                // (macros_in_slab * SIZE_MACRO) / (SIZE_MACRO / fanout)
-                //    = macros_in_slab * fanout
-                //    = fanout ^ (level+1)
-                //
-                // E.g., with fanout = 3, we want 0,1,2,...,8 (a total of 3^2 = 9 indices)
-                // for level = 1
-                // This means we can use 2 for
-                //  - One external with k = 0,...,fanout^level - 1 (= 0,...,macros_in_slab-1)
-                //  - One internal with n = 0,...,fanout-1 (which we can call mod)
-                // And we get that
-                //  k = j / fanout
-                //  mod = j % fanout
+        size_t i           = 0;
+        size_t i_increment = mini_size * macros_in_slab;
 
-                // In this way, there are no fractions and no modules computed
-                // every time
-
+        while (out < last) {
                 for (size_t k = 0; k < macros_in_slab; k++) {
+                        // This is split around, but essentialy
+                        // calculates
+                        //  size_t i = macros_in_slab * mod + k;
+                        // for mod and k starting both from 0
+                        i = mini_size * k;
                         for (size_t mod = 0; mod < fanout; mod++) {
-                                size_t i = macros_in_slab * mod + k;
-                                size_t j = fanout * k + mod;
-                                memcpy(out + j * mini_size, in + i * mini_size, mini_size);
+                                memcpy(out, in + i, mini_size);
+                                i += i_increment;
+                                out += mini_size;
                         }
                 }
+                in += slab_size;
         }
 }
 
