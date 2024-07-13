@@ -33,7 +33,8 @@ inline size_t intpow(size_t base, size_t exp) {
         return res;
 }
 
-void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout) {
+void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
+             unsigned int fanout) {
         // If we interpret in and out a series of mini_blocks, each single one
         // of size SIZE_MACRO / fanout, then the formula to shuffle them is actually quite simple
         //
@@ -42,9 +43,6 @@ void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned i
         //        i = (fanout ^ level) * (j % fanout) + floor(j / fanout)
         //        out[j] = in[j]
         // And then repeat for the remaining, with the approriate offset
-        if (level == 0)
-                return;
-
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
         size_t macros_in_slab = intpow(fanout, level);
@@ -65,7 +63,8 @@ void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned i
 }
 
 // This is the same as the previous one, but trying to optimize the stuff
-void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout) {
+void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
+                 unsigned int fanout) {
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
         size_t macros_in_slab = intpow(fanout, level);
@@ -129,9 +128,6 @@ void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsign
 //    but if it's too big it will error out.
 void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
                   unsigned int fanout) {
-        if (level == 0)
-                return;
-
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
         size_t macros_in_slab = intpow(fanout, level);

@@ -46,9 +46,6 @@ daemon: $(TEST)
 
 $(VERIFY): verify.o $(OBJECTS)
 
-ver: $(VERIFY)
-	@ ./$(VERIFY)
-
 # ------------ Cleaning
 
 clean:
