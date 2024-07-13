@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "config.h"
 
 #include <assert.h>
 #include <string.h>
@@ -41,6 +42,8 @@ void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned i
         //        i = (fanout ^ level) * (j % fanout) + floor(j / fanout)
         //        out[j] = in[j]
         // And then repeat for the remaining, with the approriate offset
+        if (level == 0)
+                return;
 
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
@@ -126,6 +129,9 @@ void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsign
 //    but if it's too big it will error out.
 void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
                   unsigned int fanout) {
+        if (level == 0)
+                return;
+
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
         size_t macros_in_slab = intpow(fanout, level);
@@ -152,37 +158,38 @@ void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigne
 
         free(is);
 }
-// void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
-//                   unsigned int fanout) {
-//         size_t mini_size      = SIZE_MACRO / fanout;
-//         byte *last            = out + in_size;
-//         size_t macros_in_slab = intpow(fanout, level);
-//         size_t slab_size      = macros_in_slab * SIZE_MACRO;
+/* void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level, */
+/*                   unsigned int fanout) { */
+/*         size_t mini_size      = SIZE_MACRO / fanout; */
+/*         byte *last            = out + in_size; */
+/*         size_t macros_in_slab = intpow(fanout, level); */
+/*         size_t slab_size      = macros_in_slab * SIZE_MACRO; */
 
-//         size_t j;
-//         size_t a = macros_in_slab;
-//         size_t b = slab_size - 1;
+/*         size_t j; */
+/*         size_t a = macros_in_slab; */
+/*         size_t b = slab_size - 1; */
 
-//         while (out < last) {
-//                 j = 0;
+/*         while (out < last) { */
+/*                 j = 0; */
 
-//                 for (size_t k = 0; k < macros_in_slab; k++) {
-//                         for (size_t mod = 0; mod < fanout; mod++) {
-//                                 // size_t i = macros_in_slab * mod + k;
-//                                 size_t i = a * j + b * (j / fanout);
-//                                 memcpy(out, in + i * mini_size, mini_size);
-//                                 j++; // We must increment by 1, otherwise the formula for i does
-//                                 not
-//                                      // work
-//                                 out += mini_size;
-//                         }
-//                 }
+/*                 for (size_t k = 0; k < macros_in_slab; k++) { */
+/*                         for (size_t mod = 0; mod < fanout; mod++) { */
+/*                                 // size_t i = macros_in_slab * mod + k; */
+/*                                 size_t i = a * j + b * (j / fanout); */
+/*                                 memcpy(out, in + i * mini_size, mini_size); */
+/*                                 j++; // We must increment by 1, otherwise the formula for i does
+ * not */
+/*                                      // work */
+/*                                 out += mini_size; */
+/*                         } */
+/*                 } */
 
-//                 in += slab_size;
-//         }
-// }
+/*                 in += slab_size; */
+/*         } */
+/* } */
 
-void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor) {
+void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
+          unsigned int diff_factor) {
         if (level == 0) {
                 return;
         }
@@ -190,31 +197,33 @@ void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int 
         int size_block = SIZE_MACRO / diff_factor;
 
         // divide the input into slabs based on the diff_factor
-        unsigned long prev_slab_blocks = diff_factor;
-        for (unsigned int i = 1; i < level; i++) {
-                prev_slab_blocks *= diff_factor;
-        }
-        unsigned long slab_blocks = prev_slab_blocks * diff_factor;
-        size_t slab_size          = slab_blocks * size_block;
-        unsigned long nof_slabs   = in_size / slab_size;
-        size_t prev_slab_size     = size_block * prev_slab_blocks;
+        unsigned long prev_slab_blocks = intpow(diff_factor, level);
+        size_t slab_size               = prev_slab_blocks * diff_factor * size_block;
+        unsigned long nof_slabs        = in_size / slab_size;
+        size_t prev_slab_size          = size_block * prev_slab_blocks;
 
-        D printf("swap, level %d, diff_factor %d, prev_slab_blocks %ld, slab_blocks %ld, slab_size "
+        D printf("swap, level %d, diff_factor %d, prev_slab_blocks %ld, slab_size "
                  "%ld, in_size %ld\n",
-                 level, diff_factor, prev_slab_blocks, slab_blocks, slab_size, in_size);
+                 level, diff_factor, prev_slab_blocks, slab_size, in_size);
 
-        unsigned long block = 0;
-        size_t OFFSET_SLAB  = 0;
+        size_t offset_slab      = 0;
+        size_t offset_prev_slab = 0;
+        size_t offset_out       = 0;
+        size_t offset_psb       = 0;
         for (; nof_slabs > 0; nof_slabs--) {
-                for (unsigned long psb = 0; psb < prev_slab_blocks; psb++) {
-                        for (unsigned int u = 0; u < diff_factor; u++) {
-                                memcpy(out + block * size_block,
-                                       in + OFFSET_SLAB + psb * size_block + prev_slab_size * u,
+                offset_prev_slab = offset_slab;
+                for (unsigned int di = 0; di < diff_factor; di++) {
+                        offset_psb = 0;
+                        offset_out = offset_slab + di * size_block;
+                        for (unsigned long psb = 0; psb < prev_slab_blocks; psb++) {
+                                memcpy(out + offset_out, in + offset_prev_slab + offset_psb,
                                        size_block);
-                                block++;
+                                offset_out += SIZE_MACRO;
+                                offset_psb += size_block;
                         }
+                        offset_prev_slab += prev_slab_size;
                 }
-                OFFSET_SLAB += slab_size;
+                offset_slab += slab_size;
         }
 }
 
