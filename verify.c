@@ -90,3 +90,20 @@ cleanup:
 
         return err;
 }
+
+// Use this to measure stuff, but try and leave verify.c to do only the
+// verification
+
+// double t;
+// double size_mib = (double)size / 1024 / 1024;
+
+// printf("-------- fanout %zu, size %.2f MiB (13th level)\n", fanout,
+//        size_mib);
+// t = MEASURE(swap(out_swap, in, size, l, fanout));
+// printf("Swap             %-5.2f (%5.2f MiB/s)\n", t, size_mib / (t / 1000));
+// t = MEASURE(shuffle(out_shuffle, in, size, l, fanout));
+// printf("Shuffle          %-5.2f (%5.2f MiB/s)\n", t, size_mib / (t / 1000));
+// t = MEASURE(shuffle_opt(out_shuffle_opt, in, size, l, fanout));
+// printf("Shuffle (opt)    %-5.2f (%5.2f MiB/s)\n", t, size_mib / (t / 1000));
+// t = MEASURE(shuffle_opt2(out_shuffle_opt2, in, size, l, fanout));
+// printf("Shuffle (opt2)   %-5.2f (%5.2f MiB/s)\n", t, size_mib / (t / 1000));
