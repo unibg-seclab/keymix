@@ -137,52 +137,23 @@ void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigne
         size_t tot_js = macros_in_slab * fanout;
         size_t b      = mini_size * (tot_js - 1);
 
-        size_t *is = malloc(tot_js * sizeof(size_t));
-        for (size_t j = 0; j < tot_js; j++) {
-                is[j] = a * j - b * (j / fanout);
-        }
+        // size_t *is = malloc(tot_js * sizeof(size_t));
+        // for (size_t j = 0; j < tot_js; j++) {
+        //         is[j] = a * j - b * (j / fanout);
+        // }
 
         while (out < last) {
                 for (size_t j = 0; j < tot_js; j++) {
-                        // size_t i = a * j - b * (j / fanout);
-                        // memcpy(out, in + i, mini_size);
-                        memcpy(out, in + is[j], mini_size);
+                        size_t i = a * j - b * (j / fanout);
+                        memcpy(out, in + i, mini_size);
+                        // memcpy(out, in + is[j], mini_size);
                         out += mini_size;
                 }
                 in += slab_size;
         }
 
-        free(is);
+        // free(is);
 }
-/* void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level, */
-/*                   unsigned int fanout) { */
-/*         size_t mini_size      = SIZE_MACRO / fanout; */
-/*         byte *last            = out + in_size; */
-/*         size_t macros_in_slab = intpow(fanout, level); */
-/*         size_t slab_size      = macros_in_slab * SIZE_MACRO; */
-
-/*         size_t j; */
-/*         size_t a = macros_in_slab; */
-/*         size_t b = slab_size - 1; */
-
-/*         while (out < last) { */
-/*                 j = 0; */
-
-/*                 for (size_t k = 0; k < macros_in_slab; k++) { */
-/*                         for (size_t mod = 0; mod < fanout; mod++) { */
-/*                                 // size_t i = macros_in_slab * mod + k; */
-/*                                 size_t i = a * j + b * (j / fanout); */
-/*                                 memcpy(out, in + i * mini_size, mini_size); */
-/*                                 j++; // We must increment by 1, otherwise the formula for i does
- * not */
-/*                                      // work */
-/*                                 out += mini_size; */
-/*                         } */
-/*                 } */
-
-/*                 in += slab_size; */
-/*         } */
-/* } */
 
 void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
           unsigned int diff_factor) {
