@@ -6,7 +6,7 @@
 #include <string.h>
 
 #define MIN_LEVEL 1
-#define MAX_LEVEL 14
+#define MAX_LEVEL 13
 
 void print_buffer(byte data[], size_t size, size_t fanout) {
         unsigned int addr = 0;
@@ -36,7 +36,7 @@ int main() {
         int err                = 0;
 
         for (size_t fanout = 2; fanout <= 4; fanout++)
-                for (size_t l = MIN_LEVEL; l < MAX_LEVEL; l++) {
+                for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                         size_t size      = (size_t)pow(fanout, l) * SIZE_MACRO;
                         in               = realloc(in, size);
                         out_swap         = realloc(out_swap, size);
