@@ -93,16 +93,17 @@ int main() {
 
                         mixing_config config = {&wolfssl, "wolfssl", fanout};
                         keymix(in, out_a, size, &config);
-                        COMPARE(out_a, out_b, size, "WoflSSL != OpenSSL\n");
 
                         config.mixfunc = &openssl;
                         config.descr   = "openssl";
                         keymix(in, out_b, size, &config);
-                        COMPARE(out_a, out_c, size, "WoflSSL != Aes-NI\n");
 
                         config.mixfunc = &aesni;
                         config.descr   = "aesni";
                         keymix(in, out_c, size, &config);
+
+                        COMPARE(out_a, out_b, size, "WolfSSL != OpenSSL\n");
+                        COMPARE(out_a, out_c, size, "WolfSSL != Aes-NI\n");
                         COMPARE(out_b, out_c, size, "OpenSSL != Aes-NI\n");
 
                         if (err)
