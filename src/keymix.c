@@ -18,7 +18,7 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         unsigned int levels = 1 + (unsigned int)(log(nof_macros) / log(config->diff_factor));
 
         for (unsigned int level = 0; level < levels; level++) {
-                // swap `out`, put the result into `swp`, then re-encrypt
+                // swap `out`, put the result into `buffer`, then re-encrypt
                 swap(buffer, out, seed_size, level, config->diff_factor);
                 D printf("encrypt level %d\n", level);
                 err = (*(config->mixfunc))(buffer, out, seed_size);

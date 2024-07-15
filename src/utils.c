@@ -119,6 +119,9 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
 void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
           unsigned int diff_factor) {
         if (level == 0) {
+                // NOTE: if we want to use this at level 0, it's not a NO-OP
+                // but is the identity function, so we have to copy `in` into `out`
+                memcpy(out, in, in_size);
                 return;
         }
 
