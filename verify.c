@@ -18,106 +18,108 @@
                 err++;                                                                             \
         }
 
-void print_buffer(byte data[], size_t size, size_t fanout) {
-        unsigned int addr = 0;
-        printf("%d\t", addr);
-        for (int i = 0; i < size; i++) {
-                printf("%02x", data[i]);
-                if ((i + 1) % (SIZE_MACRO / fanout) == 0) {
-                        printf(" | ");
-                        addr++;
-                }
-                if ((i + 1) % SIZE_MACRO == 0) {
-                        printf("\n");
-                        printf("%d\t", addr);
-                }
+void setup(byte *data, size_t size, int random) {
+        for (size_t i = 0; i < size; i++) {
+                data[i] = random ? (rand() % 256) : 0;
         }
-        printf("\n");
+}
+
+int verify_shuffles(size_t fanout, size_t level) {
+        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+
+        printf("> Testing swaps and shuffles AT level %zu (%.2f MiB)\n", level, MiB(size));
+
+        byte *in           = malloc(size);
+        byte *out_swap     = malloc(size);
+        byte *out_shuffle  = malloc(size);
+        byte *out_shuffle2 = malloc(size);
+
+        setup(in, size, 1);
+        setup(out_swap, size, 0);
+        setup(out_shuffle, size, 0);
+        setup(out_shuffle2, size, 0);
+
+        swap(out_swap, in, size, level, fanout);
+        shuffle(out_shuffle, in, size, level, fanout);
+        shuffle_opt(out_shuffle2, in, size, level, fanout);
+
+        int err = 0;
+        COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
+        COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
+        COMPARE(out_swap, out_shuffle2, size, "Swap != shuffle (opt)\n")
+
+        free(in);
+        free(out_swap);
+        free(out_shuffle);
+        free(out_shuffle2);
+
+        return err;
+}
+
+int verify_encs(size_t fanout, size_t level) {
+        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+
+        printf("> Testing encryption for size %.2f MiB\n", MiB(size));
+
+        byte *in          = malloc(size);
+        byte *out_wolfssl = malloc(size);
+        byte *out_openssl = malloc(size);
+        byte *out_aesni   = malloc(size);
+
+        setup(in, size, 1);
+        setup(out_wolfssl, size, 0);
+        setup(out_openssl, size, 0);
+        setup(out_aesni, size, 0);
+
+        mixing_config config = {NULL, "", fanout};
+
+        config.mixfunc = &wolfssl;
+        keymix(in, out_wolfssl, size, &config);
+
+        config.mixfunc = &openssl;
+        keymix(in, out_openssl, size, &config);
+
+        config.mixfunc = &aesni;
+        keymix(in, out_aesni, size, &config);
+
+        int err = 0;
+        COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
+        COMPARE(out_openssl, out_aesni, size, "OpenSSL != AES-NI (opt)\n");
+        COMPARE(out_wolfssl, out_aesni, size, "WolfSSL != AES-NI (opt)\n")
+
+        free(in);
+        free(out_wolfssl);
+        free(out_openssl);
+        free(out_aesni);
+
+        return err;
 }
 
 int main() {
         unsigned int seed = time(NULL);
         srand(seed);
 
-        byte *in    = NULL;
-        byte *out_a = NULL;
-        byte *out_b = NULL;
-        byte *out_c = NULL;
-
         int err = 0;
 
         for (size_t fanout = 2; fanout <= 4; fanout++) {
+                printf("Testing with fanout %zu\n", fanout);
                 for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
-                        printf("  Fanout %zu, level %zu...\n", fanout, l);
-                        size_t size = (size_t)pow(fanout, l) * SIZE_MACRO;
-                        in          = realloc(in, size);
-                        out_a       = realloc(out_a, size);
-                        out_b       = realloc(out_b, size);
-                        out_c       = realloc(out_c, size);
-
-                        // Setup random data, reset out
-
-                        for (int i = 0; i < size; i++) {
-                                in[i]    = rand() % 256;
-                                out_a[i] = 0;
-                                out_b[i] = 0;
-                                out_c[i] = 0;
-                        }
-
-                        // Validate swap/shuffle equivalence *at the specific level*
-
-                        err = 0;
-
-                        swap(out_a, in, size, l, fanout);
-                        shuffle(out_b, in, size, l, fanout);
-                        shuffle_opt(out_c, in, size, l, fanout);
-
-                        COMPARE(out_a, out_b, size, "Swap    != shuffle\n");
-                        COMPARE(out_b, out_c, size, "Shuffle != shuffle (opt)\n");
-                        COMPARE(out_a, out_c, size, "Swap    != shuffle (opt)\n")
-
+                        err = verify_shuffles(fanout, l);
                         if (err)
                                 goto cleanup;
-                        printf("  > [SWAPS OK]\n");
 
-                        // Validate keymix/keymix2 equivalence with various
-                        // implementations
-
-                        // Just reuse out_x to prevent extra RAM, anyhow they'll
-                        // get reallocated at the next iteration
-                        for (int i = 0; i < size; i++) {
-                                out_a[i] = 0;
-                                out_b[i] = 0;
-                                out_c[i] = 0;
-                        }
-
-                        mixing_config config = {&wolfssl, "wolfssl", fanout};
-                        keymix(in, out_a, size, &config);
-
-                        config.mixfunc = &openssl;
-                        config.descr   = "openssl";
-                        keymix(in, out_b, size, &config);
-
-                        config.mixfunc = &aesni;
-                        config.descr   = "aesni";
-                        keymix(in, out_c, size, &config);
-
-                        COMPARE(out_a, out_b, size, "WolfSSL != OpenSSL\n");
-                        COMPARE(out_a, out_c, size, "WolfSSL != Aes-NI\n");
-                        COMPARE(out_b, out_c, size, "OpenSSL != Aes-NI\n");
-
+                        err = verify_encs(fanout, l);
                         if (err)
                                 goto cleanup;
-                        printf("  > [ENC OK]\n");
                 }
+                printf("\n");
         }
 
 cleanup:
-        free(out_a);
-        free(out_b);
-        free(out_c);
         if (err)
                 printf("Failed, seed was %u\n", seed);
+        else
+                printf("All ok\n");
         return err;
 }
 

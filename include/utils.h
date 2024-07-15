@@ -17,6 +17,8 @@ void shuffle_opt2(byte *out, byte *in, size_t in_size, unsigned int level, unsig
 void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
 void swap_chunks(thread_data *args, int level);
 
+#define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)
+
 #define D if (DEBUG)
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 

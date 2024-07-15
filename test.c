@@ -14,7 +14,6 @@
 #define MINIMUM_SEED_SIZE (8 * SIZE_1MiB)
 #define MAXIMUM_SEED_SIZE (1.9 * SIZE_1GiB)
 
-#define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)
 #define MAX_EXPANSION 20
 
 #define DO_EXPANSION_TESTS
