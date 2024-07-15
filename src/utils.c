@@ -116,56 +116,6 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
         }
 }
 
-// This follows the same schema of the shuffle, but does not assume access to
-// the entire input to shuffle (e.g., because the entire input is produced
-// across a pull of threads). On the other hand, this function spreads the
-// output of the encryption produced by the single thread across multiple
-// slabs.
-void spread(thread_data *args, int level) {
-        D assert(level >= args->thread_levels);
-
-        unsigned int fanout = args->diff_factor;
-        size_t mini_size = SIZE_MACRO / fanout;
-
-        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
-        unsigned long macros_in_slab = fanout * prev_macros_in_slab;
-        size_t prev_slab_size = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size = macros_in_slab * SIZE_MACRO;
-
-        unsigned int prev_nof_threads_per_slab = intpow(fanout, level - args->thread_levels);
-        unsigned int nof_threads_per_slab = fanout * prev_nof_threads_per_slab;
-
-        unsigned long out_slab_offset = slab_size * (args->thread_id / nof_threads_per_slab);
-        unsigned long out_inside_slab_offset = 0;
-        if (level != args->thread_levels) {
-                out_inside_slab_offset = args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
-        }
-        unsigned long out_mini_offset;
-        if (level == args->thread_levels) {
-                out_mini_offset = mini_size * (args->thread_id % fanout);
-        } else {
-                out_mini_offset = mini_size * (args->thread_id / prev_nof_threads_per_slab);
-        }
-
-        byte *in = args->out;
-        byte *out = args->abs_swp + out_slab_offset + out_inside_slab_offset + out_mini_offset;
-
-        unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
-
-        unsigned long in_offset = 0;
-        unsigned long out_macro_offset = 0;
-
-        for (unsigned long macro = 0; macro < nof_macros; macro++) {
-                unsigned long out_mini_offset = 0;
-                for (unsigned int mini = 0; mini < fanout; mini++) {
-                        memcpy(out + out_macro_offset + out_mini_offset, in + in_offset, mini_size);
-                        in_offset += mini_size;
-                        out_mini_offset += prev_slab_size;
-                }
-                out_macro_offset += SIZE_MACRO;
-        }
-}
-
 void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
           unsigned int diff_factor) {
         D assert(level > 0);
@@ -228,5 +178,56 @@ void swap_chunks(thread_data *args, int level) {
         for (unsigned long block = 0; block < chunk_blocks; block++) {
                 memcpy(args->abs_swp + OFFSET, args->out + block * size_block, size_block);
                 OFFSET += SIZE_MACRO;
+        }
+}
+
+// This mixing function does not assume access to the entire input to shuffle
+// (e.g., because the entire input is produced across a pull of threads). On
+// the other hand, this function spreads the output of the encryption produced
+// by the single thread across multiple slabs.
+// NOTE: This is using a different mixing behavior with respect to the other
+// functions.
+void spread(thread_data *args, int level) {
+        D assert(level >= args->thread_levels);
+
+        unsigned int fanout = args->diff_factor;
+        size_t mini_size = SIZE_MACRO / fanout;
+
+        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
+        unsigned long macros_in_slab = fanout * prev_macros_in_slab;
+        size_t prev_slab_size = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size = macros_in_slab * SIZE_MACRO;
+
+        unsigned int prev_nof_threads_per_slab = intpow(fanout, level - args->thread_levels);
+        unsigned int nof_threads_per_slab = fanout * prev_nof_threads_per_slab;
+
+        unsigned long out_slab_offset = slab_size * (args->thread_id / nof_threads_per_slab);
+        unsigned long out_inside_slab_offset = 0;
+        if (level != args->thread_levels) {
+                out_inside_slab_offset = args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
+        }
+        unsigned long out_mini_offset;
+        if (level == args->thread_levels) {
+                out_mini_offset = mini_size * (args->thread_id % fanout);
+        } else {
+                out_mini_offset = mini_size * (args->thread_id / prev_nof_threads_per_slab);
+        }
+
+        byte *in = args->out;
+        byte *out = args->abs_swp + out_slab_offset + out_inside_slab_offset + out_mini_offset;
+
+        unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
+
+        unsigned long in_offset = 0;
+        unsigned long out_macro_offset = 0;
+
+        for (unsigned long macro = 0; macro < nof_macros; macro++) {
+                unsigned long out_mini_offset = 0;
+                for (unsigned int mini = 0; mini < fanout; mini++) {
+                        memcpy(out + out_macro_offset + out_mini_offset, in + in_offset, mini_size);
+                        in_offset += mini_size;
+                        out_mini_offset += prev_slab_size;
+                }
+                out_macro_offset += SIZE_MACRO;
         }
 }
