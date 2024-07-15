@@ -127,17 +127,14 @@ void shuffle_chunks(thread_data *args, int level) {
         size_t mini_size         = SIZE_MACRO / fanout;
         unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
 
-        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
-        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+        unsigned long macros_in_slab = intpow(fanout, level);
+        size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
         byte *in  = args->out;
         byte *out = args->abs_swp;
 
         unsigned long in_offset = 0;
-        unsigned long src_abs, src_rel;
-        unsigned long dst_abs, dst_rel;
+        unsigned long src_abs, src_rel, dst_abs, dst_rel;
 
         for (unsigned long macro = 0; macro < nof_macros; macro++) {
                 unsigned long out_mini_offset = 0;
@@ -145,8 +142,7 @@ void shuffle_chunks(thread_data *args, int level) {
                         src_abs = (args->thread_chunk_size * args->thread_id) / mini_size +
                                   fanout * macro + mini;
                         src_rel = src_abs % (fanout * macros_in_slab);
-                        dst_rel = fanout * (src_rel % intpow(fanout, level)) +
-                                  src_rel / intpow(fanout, level);
+                        dst_rel = fanout * (src_rel % macros_in_slab) + src_rel / macros_in_slab;
                         dst_abs = (src_abs - src_rel) + dst_rel;
                         memcpy(out + dst_abs * mini_size, in + in_offset, mini_size);
                         in_offset += mini_size;
