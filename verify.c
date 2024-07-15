@@ -36,7 +36,8 @@ void print_buffer(byte data[], size_t size, size_t fanout) {
 }
 
 int main() {
-        srand(time(NULL));
+        unsigned int seed = time(NULL);
+        srand(seed);
 
         byte *in    = NULL;
         byte *out_a = NULL;
@@ -109,6 +110,8 @@ cleanup:
         free(out_a);
         free(out_b);
         free(out_c);
+        if (err)
+                printf("Failed, seed was %u\n", seed);
         return err;
 }
 
