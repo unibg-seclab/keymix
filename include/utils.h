@@ -13,10 +13,12 @@ void print_buffer_hex(byte *buf, size_t size, char *descr);
 void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
 void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
 void shuffle_opt2(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
-void spread(thread_data *args, int level);
 
 void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
+
 void swap_chunks(thread_data *args, int level);
+void shuffle_chunks(thread_data *args, int level);
+void spread(thread_data *args, int level);
 
 #define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)
 
