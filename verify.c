@@ -13,10 +13,14 @@
 #define MAX_LEVEL 10
 
 #define COMPARE(a, b, size, msg)                                                                   \
-        if (memcmp(a, b, size)) {                                                                  \
-                printf(msg);                                                                       \
-                err++;                                                                             \
-        }
+        ({                                                                                         \
+                int _err = 0;                                                                      \
+                if (memcmp(a, b, size)) {                                                          \
+                        printf(msg);                                                               \
+                        _err = 1;                                                                  \
+                }                                                                                  \
+                _err;                                                                              \
+        })
 
 void setup(byte *data, size_t size, int random) {
         for (size_t i = 0; i < size; i++) {
@@ -44,9 +48,9 @@ int verify_shuffles(size_t fanout, size_t level) {
         shuffle_opt(out_shuffle2, in, size, level, fanout);
 
         int err = 0;
-        COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
-        COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
-        COMPARE(out_swap, out_shuffle2, size, "Swap != shuffle (opt)\n")
+        err += COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
+        err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
+        err += COMPARE(out_swap, out_shuffle2, size, "Swap != shuffle (opt)\n");
 
         free(in);
         free(out_swap);
@@ -83,9 +87,9 @@ int verify_encs(size_t fanout, size_t level) {
         keymix(in, out_aesni, size, &config);
 
         int err = 0;
-        COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
-        COMPARE(out_openssl, out_aesni, size, "OpenSSL != AES-NI (opt)\n");
-        COMPARE(out_wolfssl, out_aesni, size, "WolfSSL != AES-NI (opt)\n")
+        err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
+        err += COMPARE(out_openssl, out_aesni, size, "OpenSSL != AES-NI (opt)\n");
+        err += COMPARE(out_wolfssl, out_aesni, size, "WolfSSL != AES-NI (opt)\n");
 
         free(in);
         free(out_wolfssl);
