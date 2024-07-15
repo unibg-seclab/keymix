@@ -10,7 +10,7 @@
 #include <string.h>
 
 #define MIN_LEVEL 1
-#define MAX_LEVEL 10
+#define MAX_LEVEL 12
 
 #define COMPARE(a, b, size, msg)                                                                   \
         ({                                                                                         \
@@ -31,7 +31,7 @@ void setup(byte *data, size_t size, int random) {
 int verify_shuffles(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        printf("> Testing swaps and shuffles AT level %zu (%.2f MiB)\n", level, MiB(size));
+        printf("> Verifying swaps and shuffles AT level %zu (%.2f MiB)\n", level, MiB(size));
 
         byte *in           = malloc(size);
         byte *out_swap     = malloc(size);
@@ -63,7 +63,7 @@ int verify_shuffles(size_t fanout, size_t level) {
 int verify_encs(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        printf("> Testing encryption for size %.2f MiB\n", MiB(size));
+        printf("> Verifying encryption for size %.2f MiB\n", MiB(size));
 
         byte *in          = malloc(size);
         byte *out_wolfssl = malloc(size);
@@ -106,7 +106,7 @@ int main() {
         int err = 0;
 
         for (size_t fanout = 2; fanout <= 4; fanout++) {
-                printf("Testing with fanout %zu\n", fanout);
+                printf("Verifying with fanout %zu\n", fanout);
                 for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                         err = verify_shuffles(fanout, l);
                         if (err)
