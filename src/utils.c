@@ -124,15 +124,15 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
 void shuffle_chunks(thread_data *args, int level) {
         unsigned int fanout = args->diff_factor;
 
-        size_t mini_size = SIZE_MACRO / fanout;
+        size_t mini_size         = SIZE_MACRO / fanout;
         unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
 
         unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
-        unsigned long macros_in_slab = fanout * prev_macros_in_slab;
-        size_t prev_slab_size = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size = macros_in_slab * SIZE_MACRO;
+        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
 
-        byte *in = args->out;
+        byte *in  = args->out;
         byte *out = args->abs_swp;
 
         unsigned long in_offset = 0;
@@ -142,9 +142,11 @@ void shuffle_chunks(thread_data *args, int level) {
         for (unsigned long macro = 0; macro < nof_macros; macro++) {
                 unsigned long out_mini_offset = 0;
                 for (unsigned int mini = 0; mini < fanout; mini++) {
-                        src_abs = (args->thread_chunk_size * args->thread_id) / mini_size + fanout * macro + mini;
+                        src_abs = (args->thread_chunk_size * args->thread_id) / mini_size +
+                                  fanout * macro + mini;
                         src_rel = src_abs % (fanout * macros_in_slab);
-                        dst_rel = fanout * (src_rel % intpow(fanout, level)) + src_rel / intpow(fanout, level);
+                        dst_rel = fanout * (src_rel % intpow(fanout, level)) +
+                                  src_rel / intpow(fanout, level);
                         dst_abs = (src_abs - src_rel) + dst_rel;
                         memcpy(out + dst_abs * mini_size, in + in_offset, mini_size);
                         in_offset += mini_size;
@@ -227,20 +229,21 @@ void spread(thread_data *args, int level) {
         D assert(level >= args->thread_levels);
 
         unsigned int fanout = args->diff_factor;
-        size_t mini_size = SIZE_MACRO / fanout;
+        size_t mini_size    = SIZE_MACRO / fanout;
 
         unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
-        unsigned long macros_in_slab = fanout * prev_macros_in_slab;
-        size_t prev_slab_size = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size = macros_in_slab * SIZE_MACRO;
+        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
 
         unsigned int prev_nof_threads_per_slab = intpow(fanout, level - args->thread_levels);
-        unsigned int nof_threads_per_slab = fanout * prev_nof_threads_per_slab;
+        unsigned int nof_threads_per_slab      = fanout * prev_nof_threads_per_slab;
 
-        unsigned long out_slab_offset = slab_size * (args->thread_id / nof_threads_per_slab);
+        unsigned long out_slab_offset        = slab_size * (args->thread_id / nof_threads_per_slab);
         unsigned long out_inside_slab_offset = 0;
         if (level != args->thread_levels) {
-                out_inside_slab_offset = args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
+                out_inside_slab_offset =
+                    args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
         }
         unsigned long out_mini_offset;
         if (level == args->thread_levels) {
@@ -249,12 +252,12 @@ void spread(thread_data *args, int level) {
                 out_mini_offset = mini_size * (args->thread_id / prev_nof_threads_per_slab);
         }
 
-        byte *in = args->out;
+        byte *in  = args->out;
         byte *out = args->abs_swp + out_slab_offset + out_inside_slab_offset + out_mini_offset;
 
         unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
 
-        unsigned long in_offset = 0;
+        unsigned long in_offset        = 0;
         unsigned long out_macro_offset = 0;
 
         for (unsigned long macro = 0; macro < nof_macros; macro++) {
