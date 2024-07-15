@@ -33,16 +33,21 @@ inline size_t intpow(size_t base, size_t exp) {
         return res;
 }
 
+// If we interpret in and out a series of mini_blocks, each single one
+// of size SIZE_MACRO / fanout, then the formula to shuffle them is actually quite simple
+//
+// Consider the first (fanout ^ level) macro-blocks
+//    for each j in the indexes of the out part in this frist macro-blocks
+//        i = (fanout ^ level) * (j % fanout) + floor(j / fanout)
+//        out[j] = in[j]
+// And then repeat for the remaining, with the approriate offset.
+//
+// This is the slow version, with the formula as close to the original as
+// possible and clearly visible in the inner for. See `shuffle_opt` for a full
+// optimization on how we calculate the values.
 void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
              unsigned int fanout) {
-        // If we interpret in and out a series of mini_blocks, each single one
-        // of size SIZE_MACRO / fanout, then the formula to shuffle them is actually quite simple
-        //
-        // Consider the first (fanout ^ level) macro-blocks
-        //    for each j in the indexes of the out part in this frist macro-blocks
-        //        i = (fanout ^ level) * (j % fanout) + floor(j / fanout)
-        //        out[j] = in[j]
-        // And then repeat for the remaining, with the approriate offset
+        D assert(level > 0);
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
         size_t macros_in_slab = intpow(fanout, level);
@@ -64,45 +69,25 @@ void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int
 
 // This is the same as the previous one, but trying to optimize the stuff
 // Look further for a better optimization of this
-
-// void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
-//                  unsigned int fanout) {
-//         size_t mini_size      = SIZE_MACRO / fanout;
-//         byte *last            = out + in_size;
-//         size_t macros_in_slab = intpow(fanout, level);
-//         size_t slab_size      = macros_in_slab * SIZE_MACRO;
-
-//         for (; out < last; out += slab_size, in += slab_size) {
-//                 // Here we want to have indexes from 0 to (slab_size / mini_size)
-//                 // That is, from 0 to
-//                 // (macros_in_slab * SIZE_MACRO) / (SIZE_MACRO / fanout)
-//                 //    = macros_in_slab * fanout
-//                 //    = fanout ^ (level+1)
-//                 //
-//                 // E.g., with fanout = 3, we want 0,1,2,...,8 (a total of 3^2 = 9 indices)
-//                 // for level = 1
-//                 // This means we can use 2 for
-//                 //  - One external with k = 0,...,fanout^level - 1 (= 0,...,macros_in_slab-1)
-//                 //  - One internal with n = 0,...,fanout-1 (which we can call mod)
-//                 // And we get that
-//                 //  k = j / fanout
-//                 //  mod = j % fanout
-
-//                 // In this way, there are no fractions and no modules computed
-//                 // every time
-
-//                 for (size_t k = 0; k < macros_in_slab; k++) {
-//                         for (size_t mod = 0; mod < fanout; mod++) {
-//                                 size_t i = macros_in_slab * mod + k;
-//                                 size_t j = fanout * k + mod;
-//                                 memcpy(out + j * mini_size, in + i * mini_size, mini_size);
-//                         }
-//                 }
-//         }
-// }
-
+//
+// Here we want to have indexes from 0 to (slab_size / mini_size)
+// That is, from 0 to
+// (macros_in_slab * SIZE_MACRO) / (SIZE_MACRO / fanout)
+//    = macros_in_slab * fanout
+//    = fanout ^ (level+1)
+//
+// E.g., with fanout = 3, we want 0,1,2,...,8 (a total of 3^2 = 9 indices)
+// for level = 1
+// This means we can use 2 for
+//  - One external with k = 0,...,fanout^level - 1 (= 0,...,macros_in_slab-1)
+//  - One internal with n = 0,...,fanout-1 (which we can call mod)
+// And we get that
+//  k = j / fanout
+//  mod = j % fanout
 void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
                  unsigned int fanout) {
+        D assert(level > 0);
+
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
         size_t macros_in_slab = intpow(fanout, level);
@@ -115,8 +100,11 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
                 for (size_t k = 0; k < macros_in_slab; k++) {
                         // This is split around, but essentialy
                         // calculates
-                        //  size_t i = macros_in_slab * mod + k;
+                        //        size_t i = macros_in_slab * mod + k;
                         // for mod and k starting both from 0
+                        // We reset i to mini_size * k every time k changes,
+                        // and increment it by mini_size * macros_in_slab
+                        // for every mod. In this way, we use less multiplications.
                         i = mini_size * k;
                         for (size_t mod = 0; mod < fanout; mod++) {
                                 memcpy(out, in + i, mini_size);
@@ -126,62 +114,6 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
                 }
                 in += slab_size;
         }
-}
-
-// Let's start cheating
-// 1. We can user `restrict` for the input pointer to tell the compiler
-//    that `out` and `in` will always and surely point to different areas
-//    in memory. This is ok for us, we don't want any overlapping on those two.
-// 2. The formula from shuffle can be transformed to (knowing that a % b = a - b * (a / b) if a,b
-//    are integers)
-//        i = d^l * j + (1 - d^(l+1)) * (j/d)
-//                      ^^^^^^^^^^^^^ This is surely negative, let's make it positive
-//          = d^l * j - (d^(l+1) - 1) * (j/d) = aj - b(j/d)
-//    so we can precompute the necessary multipliers.
-//    Note that in the code d^l = macros_in_slab, while d^(l+1) = macros_in_slab * fanout =
-// 3. It's true that j = fanout * k + mod, but we can just make j start from 0
-//    at each new slab and increment it
-// 4. Since we go over `out` linearly, in order, we can just increment `out`
-//    by mini_size every time, instead of jumping a slab_size and then updating
-//    the individual elements one by one. This does not hold for `in`.
-// 5. As said in the previous shuffle_opt,
-//        tot_js = slab_size / mini_size = fanout^(level+1) = b + 1
-// 6. We can multiply a and b directly by mini_size, so that we don't do
-//    a lot of multiplications internally. j must always remain a "simple" integer.
-// 7. We don't have to calculate j/fanout every single time, since the fanout
-//    is known and j always has the same values. If we take this idea into
-//    account, we can setup already all the possible values that aj - b(j/fanout)
-//    takes once, before doing the for again and again.
-//    I am not 100% sure this is faster than just recomputing (since we need to malloc)
-//    but I'll try it and leave the old code commented. We could try an array,
-//    but if it's too big it will error out.
-void shuffle_opt2(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
-                  unsigned int fanout) {
-        size_t mini_size      = SIZE_MACRO / fanout;
-        byte *last            = out + in_size;
-        size_t macros_in_slab = intpow(fanout, level);
-        size_t slab_size      = macros_in_slab * SIZE_MACRO;
-
-        size_t a      = mini_size * macros_in_slab;
-        size_t tot_js = macros_in_slab * fanout;
-        size_t b      = mini_size * (tot_js - 1);
-
-        // size_t *is = malloc(tot_js * sizeof(size_t));
-        // for (size_t j = 0; j < tot_js; j++) {
-        //         is[j] = a * j - b * (j / fanout);
-        // }
-
-        while (out < last) {
-                for (size_t j = 0; j < tot_js; j++) {
-                        size_t i = a * j - b * (j / fanout);
-                        memcpy(out, in + i, mini_size);
-                        // memcpy(out, in + is[j], mini_size);
-                        out += mini_size;
-                }
-                in += slab_size;
-        }
-
-        // free(is);
 }
 
 void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
