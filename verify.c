@@ -83,21 +83,26 @@ int main() {
                         // Validate keymix/keymix2 equivalence with various
                         // implementations
 
-                        // Just reuse to prevent extra RAM, anyhow they'll
+                        // Just reuse out_x to prevent extra RAM, anyhow they'll
                         // get reallocated at the next iteration
+                        for (int i = 0; i < size; i++) {
+                                out_a[i] = 0;
+                                out_b[i] = 0;
+                                out_c[i] = 0;
+                        }
+
                         mixing_config config = {&wolfssl, "wolfssl", fanout};
                         keymix(in, out_a, size, &config);
+                        COMPARE(out_a, out_b, size, "WoflSSL != OpenSSL\n");
 
                         config.mixfunc = &openssl;
                         config.descr   = "openssl";
                         keymix(in, out_b, size, &config);
+                        COMPARE(out_a, out_c, size, "WoflSSL != Aes-NI\n");
 
                         config.mixfunc = &aesni;
                         config.descr   = "aesni";
                         keymix(in, out_c, size, &config);
-
-                        COMPARE(out_a, out_b, size, "WoflSSL != OpenSSL\n");
-                        COMPARE(out_a, out_c, size, "WoflSSL != Aes-NI\n");
                         COMPARE(out_b, out_c, size, "OpenSSL != Aes-NI\n");
 
                         if (err)
