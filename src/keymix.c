@@ -9,6 +9,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#define CHECKED(F)                                                                                 \
+        err = F;                                                                                   \
+        if (err)                                                                                   \
+                goto cleanup;
+
 // Mixes the seed into out
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
@@ -21,15 +26,36 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
                 // swap `out`, put the result into `buffer`, then re-encrypt
                 swap(buffer, out, seed_size, level, config->diff_factor);
                 D printf("encrypt level %d\n", level);
-                err = (*(config->mixfunc))(buffer, out, seed_size);
-                if (err)
-                        goto cleanup;
+                CHECKED((*(config->mixfunc))(buffer, out, seed_size));
         }
 cleanup:
         explicit_bzero(buffer, seed_size);
         free(buffer);
         return err;
 }
+
+// Just like the keymix, but starting from level 1, and doing the first
+// encryption separately
+int keymix2(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
+        byte *buffer = (byte *)malloc(seed_size);
+
+        int err             = 0;
+        size_t nof_macros   = seed_size / SIZE_MACRO;
+        unsigned int levels = 1 + (unsigned int)(log(nof_macros) / log(config->diff_factor));
+
+        CHECKED((*(config->mixfunc))(buffer, out, seed_size));
+
+        for (unsigned int level = 1; level < levels; level++) {
+                swap(buffer, out, seed_size, level, config->diff_factor);
+                CHECKED((*(config->mixfunc))(buffer, out, seed_size));
+        }
+cleanup:
+        explicit_bzero(buffer, seed_size);
+        free(buffer);
+        return err;
+}
+
+#undef CHECKED
 
 void *run(void *config) {
         thread_data *args  = (thread_data *)config;

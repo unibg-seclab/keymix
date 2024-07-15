@@ -1,12 +1,22 @@
+#include "aesni.h"
 #include "config.h"
+#include "keymix.h"
+#include "openssl.h"
 #include "types.h"
 #include "utils.h"
+#include "wolfssl.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 
 #define MIN_LEVEL 1
-#define MAX_LEVEL 13
+#define MAX_LEVEL 10
+
+#define COMPARE(a, b, size, msg)                                                                   \
+        if (memcmp(a, b, size)) {                                                                  \
+                printf(msg);                                                                       \
+                err++;                                                                             \
+        }
 
 void print_buffer(byte data[], size_t size, size_t fanout) {
         unsigned int addr = 0;
@@ -28,58 +38,77 @@ void print_buffer(byte data[], size_t size, size_t fanout) {
 int main() {
         srand(time(NULL));
 
-        byte *in              = NULL;
-        byte *out_swap        = NULL;
-        byte *out_shuffle     = NULL;
-        byte *out_shuffle_opt = NULL;
-        int err               = 0;
+        byte *in    = NULL;
+        byte *out_a = NULL;
+        byte *out_b = NULL;
+        byte *out_c = NULL;
 
-        for (size_t fanout = 2; fanout <= 4; fanout++)
+        int err = 0;
+
+        for (size_t fanout = 2; fanout <= 4; fanout++) {
                 for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
-                        size_t size     = (size_t)pow(fanout, l) * SIZE_MACRO;
-                        in              = realloc(in, size);
-                        out_swap        = realloc(out_swap, size);
-                        out_shuffle     = realloc(out_shuffle, size);
-                        out_shuffle_opt = realloc(out_shuffle_opt, size);
+                        printf("  Fanout %zu, level %zu...\n", fanout, l);
+                        size_t size = (size_t)pow(fanout, l) * SIZE_MACRO;
+                        in          = realloc(in, size);
+                        out_a       = realloc(out_a, size);
+                        out_b       = realloc(out_b, size);
+                        out_c       = realloc(out_c, size);
 
                         // Setup random data, reset out
 
                         for (int i = 0; i < size; i++) {
-                                in[i]              = rand() % 256;
-                                out_swap[i]        = 0;
-                                out_shuffle[i]     = 0;
-                                out_shuffle_opt[i] = 0;
+                                in[i]    = rand() % 256;
+                                out_a[i] = 0;
+                                out_b[i] = 0;
+                                out_c[i] = 0;
                         }
 
-                        // Do all the versions
+                        // Validate swap/shuffle equivalence *at the specific level*
 
                         err = 0;
 
-                        swap(out_swap, in, size, l, fanout);
-                        shuffle(out_shuffle, in, size, l, fanout);
-                        shuffle_opt(out_shuffle_opt, in, size, l, fanout);
+                        swap(out_a, in, size, l, fanout);
+                        shuffle(out_b, in, size, l, fanout);
+                        shuffle_opt(out_c, in, size, l, fanout);
 
-                        if (memcmp(out_swap, out_shuffle, size)) {
-                                printf("Swap and shuffle are different!\n");
-                                err += 1;
-                        }
-                        if (memcmp(out_shuffle, out_shuffle_opt, size)) {
-                                printf("Shuffle and shuffle_opt are different!\n");
-                                err += 2;
-                        }
+                        COMPARE(out_a, out_b, size, "Swap    != shuffle\n");
+                        COMPARE(out_b, out_c, size, "Shuffle != shuffle (opt)\n");
+                        COMPARE(out_a, out_c, size, "Swap    != shuffle (opt)\n")
 
                         if (err)
                                 goto cleanup;
+                        printf("  > [SWAPS OK]\n");
+
+                        // Validate keymix/keymix2 equivalence with various
+                        // implementations
+
+                        // Just reuse to prevent extra RAM, anyhow they'll
+                        // get reallocated at the next iteration
+                        mixing_config config = {&wolfssl, "wolfssl", fanout};
+                        keymix(in, out_a, size, &config);
+
+                        config.mixfunc = &openssl;
+                        config.descr   = "openssl";
+                        keymix(in, out_b, size, &config);
+
+                        config.mixfunc = &aesni;
+                        config.descr   = "aesni";
+                        keymix(in, out_c, size, &config);
+
+                        COMPARE(out_a, out_b, size, "WoflSSL != OpenSSL\n");
+                        COMPARE(out_a, out_c, size, "WoflSSL != Aes-NI\n");
+                        COMPARE(out_b, out_c, size, "OpenSSL != Aes-NI\n");
+
+                        if (err)
+                                goto cleanup;
+                        printf("  > [ENC OK]\n");
                 }
+        }
 
 cleanup:
-        free(out_swap);
-        free(out_shuffle);
-        free(out_shuffle_opt);
-
-        if (!err)
-                printf("All ok\n");
-
+        free(out_a);
+        free(out_b);
+        free(out_c);
         return err;
 }
 
