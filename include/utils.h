@@ -15,6 +15,8 @@ void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsign
 
 void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
 
+void spread(byte *out, byte *in, size_t size, unsigned int level, unsigned int fanout);
+
 void swap_chunks(thread_data *args, int level);
 void shuffle_chunks(thread_data *args, int level);
 void shuffle_chunks_opt(thread_data *args, int level);

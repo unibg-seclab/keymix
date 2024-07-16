@@ -46,6 +46,11 @@ inline size_t intpow(size_t base, size_t exp) {
 // This is the slow version, with the formula as close to the original as
 // possible and clearly visible in the inner for. See `shuffle_opt` for a full
 // optimization on how we calculate the values.
+//
+// Example:
+// size = 4 * SIZE_MACRO, fanout = 2
+// in  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+// out = 0 | 4 | 1 | 5 | 2 | 6 | 3 | 7
 void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
              unsigned int fanout) {
         D assert(level > 0);
@@ -252,6 +257,54 @@ void swap_chunks(thread_data *args, int level) {
         for (unsigned long block = 0; block < chunk_blocks; block++) {
                 memcpy(args->abs_swp + OFFSET, args->out + block * size_block, size_block);
                 OFFSET += SIZE_MACRO;
+        }
+}
+
+// This mixing function assumes access to the entire input to shuffle. On the
+// other hand, this function spreads the output of the encryption produced by
+// the single thread across multiple slabs.
+//
+// This is using a different mixing behavior with respect to the shuffle and
+// swap functions above.
+//
+// Note: despite the function could be executed inplace we are not doing it
+// here.
+//
+// Example:
+// size = 4 * SIZE_MACRO, fanout = 2
+// in  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+// out = 0 | 4 | 2 | 6 | 1 | 5 | 3 | 7
+void spread(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
+            unsigned int fanout) {
+        D assert(level > 0);
+
+        size_t mini_size = SIZE_MACRO / fanout;
+
+        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
+        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+
+        byte *last              = out + in_size;
+        unsigned long in_offset = 0;
+        unsigned long out_macro_offset, out_mini_offset;
+
+        // TODO: Improve caching management
+        while (out < last) {
+                for (unsigned int prev_slab = 0; prev_slab < fanout; prev_slab++) {
+                        out_macro_offset = 0;
+                        for (unsigned long macro = 0; macro < prev_macros_in_slab; macro++) {
+                                out_mini_offset = prev_slab * mini_size;
+                                for (unsigned int mini = 0; mini < fanout; mini++) {
+                                        memcpy(out + out_macro_offset + out_mini_offset,
+                                               in + in_offset, mini_size);
+                                        in_offset += mini_size;
+                                        out_mini_offset += prev_slab_size;
+                                }
+                                out_macro_offset += SIZE_MACRO;
+                        }
+                }
+                out += slab_size;
         }
 }
 
