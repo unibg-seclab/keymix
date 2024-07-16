@@ -51,7 +51,9 @@ void *run(void *config) {
         }
 
         for (unsigned int l = 0; l < args->thread_levels; l++) {
-                swap(args->swp, args->out, args->thread_chunk_size, l, args->diff_factor);
+                if (l) {
+                        shuffle_opt(args->swp, args->out, args->thread_chunk_size, l, args->diff_factor);
+                }
                 D printf("thread %d encrypting level %d\n", args->thread_id, l);
                 *thread_status = (*(args->mixfunc))(args->swp, args->out, args->thread_chunk_size);
                 if (*thread_status) {
@@ -78,7 +80,7 @@ void *run(void *config) {
                         if (*thread_status == 0) {
                                 D printf("thread %d sychronized swap, level %d\n", args->thread_id,
                                          l - 1);
-                                swap_chunks(args, l);
+                                shuffle_chunks(args, l);
                                 break;
                         }
                 }
