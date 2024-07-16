@@ -5,7 +5,9 @@
 #include "types.h"
 #include "utils.h"
 #include "wolfssl.h"
+#include <assert.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -28,16 +30,35 @@ void setup(byte *data, size_t size, int random) {
         }
 }
 
+typedef struct {
+        void (*func)(thread_data *, int);
+        thread_data thr_data;
+        int level;
+} run_thr_t;
+
+void *_run_thr(void *a) {
+        run_thr_t *arg = (run_thr_t *)a;
+        (*(arg->func))(&(arg->thr_data), arg->level);
+        return NULL;
+}
+
 void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *in, size_t size,
                             size_t level, size_t fanout) {
         int nof_threads =
             pow(fanout, fmin(level, 3)); // keep #threads under control w/o loss of generality
 
+        assert(size % nof_threads == 0);
+
+        pthread_t threads[nof_threads];
+        run_thr_t thread_args[nof_threads];
+
         size_t thread_chunk_size = size / nof_threads;
         int thread_levels        = level - fmin(level, 3);
 
         for (int t = 0; t < nof_threads; t++) {
-                thread_data args = {
+                run_thr_t *arg = thread_args + t;
+
+                thread_data thr_data = {
                     .thread_id         = t,
                     .out               = in + t * thread_chunk_size,
                     .swp               = out + t * thread_chunk_size,
@@ -46,10 +67,19 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
                     .seed_size         = size,
                     .thread_chunk_size = thread_chunk_size,
                     .diff_factor       = fanout,
-                    .thread_levels     = thread_levels,
-                    .total_levels      = level,
+                    .thread_levels     = thread_levels, // Not used
+                    .total_levels      = level,         // Not used
                 };
-                (*func)(&args, (int)level);
+
+                arg->func     = func;
+                arg->thr_data = thr_data;
+                arg->level    = level;
+
+                pthread_create(&threads[t], NULL, _run_thr, arg);
+        }
+
+        for (int t = 0; t < nof_threads; t++) {
+                pthread_join(threads[t], NULL);
         }
 }
 
