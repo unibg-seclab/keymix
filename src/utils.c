@@ -121,6 +121,15 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
 // across a pull of threads). On the other hand, this function spreads the
 // output of the encryption produced by the single thread across multiple
 // slabs.
+// Note that we use the "other viewpoint" of the formula used in shuffle.
+// If we consider i to be the index of a mini-block in a slab of the input,
+// and j to be the same thing for the output, then the rules that link these
+// two are
+//
+//      i = fanout^level * (j % fanout) + j / fanout
+//      j = fanout * (i % (fanout^level)) + j / (fanout^level)
+//
+// Note that fanout^level = macros_in_slab
 void shuffle_chunks(thread_data *args, int level) {
         unsigned int fanout = args->diff_factor;
 
@@ -133,14 +142,17 @@ void shuffle_chunks(thread_data *args, int level) {
         byte *in  = args->out;
         byte *out = args->abs_swp;
 
+        byte *in_abs = args->abs_out;
+
         unsigned long in_offset = 0;
         unsigned long src_abs, src_rel, dst_abs, dst_rel;
 
         for (unsigned long macro = 0; macro < nof_macros; macro++) {
-                unsigned long out_mini_offset = 0;
                 for (unsigned int mini = 0; mini < fanout; mini++) {
                         src_abs = (args->thread_chunk_size * args->thread_id) / mini_size +
                                   fanout * macro + mini;
+                        // Alternative
+                        // src_abs = (in - in_abs) / mini_size + fanout * macro + mini;
                         src_rel = src_abs % (fanout * macros_in_slab);
                         dst_rel = fanout * (src_rel % macros_in_slab) + src_rel / macros_in_slab;
                         dst_abs = (src_abs - src_rel) + dst_rel;
