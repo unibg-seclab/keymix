@@ -179,17 +179,15 @@ void shuffle_chunks_opt(thread_data *args, int level) {
 
         unsigned long minis_from_origin = (in - in_abs) / mini_size;
 
-        unsigned long current_mini = minis_from_origin % minis_in_slab;
-        unsigned long src, dst;
+        unsigned long src = minis_from_origin % minis_in_slab;
+        unsigned long dst;
 
         while (in < last) {
-                for (src = current_mini; src < minis_in_slab; src++) {
-                        dst = fanout * (src % macros_in_slab) + src / macros_in_slab;
-                        memcpy(out_abs + (current_mini - src + dst) * mini_size, in, mini_size);
+                dst = fanout * (src % macros_in_slab) + src / macros_in_slab;
+                memcpy(out_abs + dst * mini_size, in, mini_size);
 
-                        in += mini_size;
-                        current_mini++;
-                }
+                in += mini_size;
+                src++;
         }
 }
 
