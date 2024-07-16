@@ -28,34 +28,70 @@ void setup(byte *data, size_t size, int random) {
         }
 }
 
+void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *in, size_t size,
+                            size_t level, size_t fanout) {
+        int nof_threads =
+            pow(fanout, fmin(level, 3)); // keep #threads under control w/o loss of generality
+
+        size_t thread_chunk_size = size / nof_threads;
+        int thread_levels        = level - fmin(level, 3);
+
+        for (int t = 0; t < nof_threads; t++) {
+                thread_data args = {
+                    .thread_id         = t,
+                    .out               = in + t * thread_chunk_size,
+                    .swp               = out + t * thread_chunk_size,
+                    .abs_out           = in,
+                    .abs_swp           = out,
+                    .seed_size         = size,
+                    .thread_chunk_size = thread_chunk_size,
+                    .diff_factor       = fanout,
+                    .thread_levels     = thread_levels,
+                    .total_levels      = level,
+                };
+                (*func)(&args, (int)level);
+        }
+}
+
 int verify_shuffles(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         printf("> Verifying swaps and shuffles AT level %zu (%.2f MiB)\n", level, MiB(size));
 
-        byte *in           = malloc(size);
-        byte *out_swap     = malloc(size);
+        byte *in       = malloc(size);
+        byte *out_swap = malloc(size);
+        // byte *out_swap2    = malloc(size);
         byte *out_shuffle  = malloc(size);
         byte *out_shuffle2 = malloc(size);
+        byte *out_shuffle3 = malloc(size);
 
         setup(in, size, 1);
         setup(out_swap, size, 0);
+        // setup(out_swap2, size, 0);
         setup(out_shuffle, size, 0);
         setup(out_shuffle2, size, 0);
+        setup(out_shuffle3, size, 0);
 
         swap(out_swap, in, size, level, fanout);
+        // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
         shuffle(out_shuffle, in, size, level, fanout);
         shuffle_opt(out_shuffle2, in, size, level, fanout);
+        emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout);
 
         int err = 0;
         err += COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
+        // err += COMPARE(out_swap, out_swap2, size, "Swap != swap (chunks)\n");
+        // err += COMPARE(out_shuffle, out_swap2, size, "Swap (chunks) != shuffle\n");
         err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
-        err += COMPARE(out_swap, out_shuffle2, size, "Swap != shuffle (opt)\n");
+        err += COMPARE(out_shuffle2, out_shuffle3, size, "Shuffle (opt) != shuffle (chunks)\n");
+        err += COMPARE(out_shuffle3, out_swap, size, "Shuffle (chunks) != swap\n");
 
         free(in);
         free(out_swap);
+        // free(out_swap2);
         free(out_shuffle);
         free(out_shuffle2);
+        free(out_shuffle3);
 
         return err;
 }

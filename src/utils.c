@@ -187,6 +187,7 @@ void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int le
         }
 }
 
+// DOES NOT WORK!!!
 void swap_chunks(thread_data *args, int level) {
         int size_block = SIZE_MACRO / args->diff_factor;
 
@@ -221,7 +222,7 @@ void swap_chunks(thread_data *args, int level) {
 // by the single thread across multiple slabs.
 // NOTE: This is using a different mixing behavior with respect to the other
 // functions.
-void spread(thread_data *args, int level) {
+void spread_chunks(thread_data *args, int level) {
         D assert(level >= args->thread_levels);
 
         unsigned int fanout = args->diff_factor;
