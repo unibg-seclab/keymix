@@ -53,6 +53,9 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
 
+        int thread_levels = level - fmin(level, 3); // only accurate when the nof_threads input to
+                                                    // the function is 0
+
         pthread_t threads[nof_threads];
         run_thr_t thread_args[nof_threads];
 
@@ -73,8 +76,8 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
                     .seed_size         = size,
                     .thread_chunk_size = thread_chunk_size,
                     .diff_factor       = fanout,
-                    // .thread_levels     = thread_levels, // Not used
-                    // .total_levels      = level,         // Not used
+                    .thread_levels     = 1 + thread_levels,
+                    .total_levels      = 1 + level,
                 };
 
                 arg->func     = func;
@@ -101,6 +104,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         byte *out_shuffle2 = setup(size, 0);
         byte *out_shuffle3 = setup(size, 0);
         byte *out_shuffle4 = setup(size, 0);
+        byte *out_spread   = setup(size, 0);
+        byte *out_spread2  = setup(size, 0);
 
         swap(out_swap, in, size, level, fanout);
         // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
@@ -108,6 +113,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         shuffle_opt(out_shuffle2, in, size, level, fanout);
         emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout, 0);
         emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, level, fanout, 0);
+        spread(out_spread, in, size, level, fanout);
+        emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, level, fanout, 0);
 
         int err = 0;
         err += COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
@@ -120,6 +127,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         err += COMPARE(out_shuffle3, out_shuffle4, size,
                        "Shuffle (chunks) != shuffle (chunks, opt)\n");
 
+        err += COMPARE(out_spread, out_spread2, size, "Spread != spread (chunks)\n");
+
         free(in);
         free(out_swap);
         // free(out_swap2);
@@ -127,6 +136,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         free(out_shuffle2);
         free(out_shuffle3);
         free(out_shuffle4);
+        free(out_spread);
+        free(out_spread2);
 
         return err;
 }
