@@ -96,12 +96,14 @@ int verify_shuffles(size_t fanout, size_t level) {
         byte *out_shuffle  = setup(size, 0);
         byte *out_shuffle2 = setup(size, 0);
         byte *out_shuffle3 = setup(size, 0);
+        byte *out_shuffle4 = setup(size, 0);
 
         swap(out_swap, in, size, level, fanout);
         // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
         shuffle(out_shuffle, in, size, level, fanout);
         shuffle_opt(out_shuffle2, in, size, level, fanout);
         emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout);
+        emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, level, fanout);
 
         int err = 0;
         err += COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
@@ -110,6 +112,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
         err += COMPARE(out_shuffle2, out_shuffle3, size, "Shuffle (opt) != shuffle (chunks)\n");
         err += COMPARE(out_shuffle3, out_swap, size, "Shuffle (chunks) != swap\n");
+        err += COMPARE(out_shuffle3, out_shuffle4, size,
+                       "Shuffle (chunks) != shuffle (chunks, opt)\n");
 
         free(in);
         free(out_swap);
@@ -117,6 +121,7 @@ int verify_shuffles(size_t fanout, size_t level) {
         free(out_shuffle);
         free(out_shuffle2);
         free(out_shuffle3);
+        free(out_shuffle4);
 
         return err;
 }

@@ -17,6 +17,7 @@ void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int 
 
 void swap_chunks(thread_data *args, int level);
 void shuffle_chunks(thread_data *args, int level);
+void shuffle_chunks_opt(thread_data *args, int level);
 void spread_chunks(thread_data *args, int level);
 
 #define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)

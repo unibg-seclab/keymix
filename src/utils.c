@@ -162,6 +162,37 @@ void shuffle_chunks(thread_data *args, int level) {
         }
 }
 
+// Same as before, but trying to optimize the calculations with the same
+// ideas as for shuffle_opt
+void shuffle_chunks_opt(thread_data *args, int level) {
+        unsigned int fanout = args->diff_factor;
+
+        size_t mini_size             = SIZE_MACRO / fanout;
+        unsigned long macros_in_slab = intpow(fanout, level);
+        unsigned long minis_in_slab  = fanout * macros_in_slab;
+
+        byte *in     = args->out;
+        byte *in_abs = args->abs_out;
+        byte *last   = in + args->thread_chunk_size;
+
+        byte *out_abs = args->abs_swp;
+
+        unsigned long minis_from_origin = (in - in_abs) / mini_size;
+
+        unsigned long current_mini = minis_from_origin % minis_in_slab;
+        unsigned long src, dst;
+
+        while (in < last) {
+                for (src = current_mini; src < minis_in_slab; src++) {
+                        dst = fanout * (src % macros_in_slab) + src / macros_in_slab;
+                        memcpy(out_abs + (current_mini - src + dst) * mini_size, in, mini_size);
+
+                        in += mini_size;
+                        current_mini++;
+                }
+        }
+}
+
 void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
           unsigned int diff_factor) {
         D assert(level > 0);
