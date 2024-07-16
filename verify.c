@@ -14,11 +14,11 @@
 #define MIN_LEVEL 1
 #define MAX_LEVEL 12
 
-#define COMPARE(a, b, size, msg)                                                                   \
+#define COMPARE(a, b, size, ...)                                                                   \
         ({                                                                                         \
                 int _err = 0;                                                                      \
                 if (memcmp(a, b, size)) {                                                          \
-                        printf(msg);                                                               \
+                        printf(__VA_ARGS__);                                                       \
                         _err = 1;                                                                  \
                 }                                                                                  \
                 _err;                                                                              \
@@ -45,17 +45,21 @@ void *_run_thr(void *a) {
 }
 
 void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *in, size_t size,
-                            size_t level, size_t fanout) {
-        int nof_threads =
-            pow(fanout, fmin(level, 3)); // keep #threads under control w/o loss of generality
+                            size_t level, size_t fanout, int nof_threads) {
+        nof_threads = nof_threads == 0
+                          ? pow(fanout, fmin(level, 3))
+                          : nof_threads; // keep #threads under control w/o loss of generality
 
-        assert(size % nof_threads == 0);
+        if (nof_threads > (size / SIZE_MACRO))
+                nof_threads = fanout;
 
         pthread_t threads[nof_threads];
         run_thr_t thread_args[nof_threads];
 
         size_t thread_chunk_size = size / nof_threads;
-        int thread_levels        = level - fmin(level, 3);
+
+        assert(size % nof_threads == 0);
+        assert(thread_chunk_size % SIZE_MACRO == 0);
 
         for (int t = 0; t < nof_threads; t++) {
                 run_thr_t *arg = thread_args + t;
@@ -69,8 +73,8 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
                     .seed_size         = size,
                     .thread_chunk_size = thread_chunk_size,
                     .diff_factor       = fanout,
-                    .thread_levels     = thread_levels, // Not used
-                    .total_levels      = level,         // Not used
+                    // .thread_levels     = thread_levels, // Not used
+                    // .total_levels      = level,         // Not used
                 };
 
                 arg->func     = func;
@@ -102,8 +106,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
         shuffle(out_shuffle, in, size, level, fanout);
         shuffle_opt(out_shuffle2, in, size, level, fanout);
-        emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout);
-        emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, level, fanout);
+        emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout, 0);
+        emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, level, fanout, 0);
 
         int err = 0;
         err += COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
@@ -112,6 +116,7 @@ int verify_shuffles(size_t fanout, size_t level) {
         err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
         err += COMPARE(out_shuffle2, out_shuffle3, size, "Shuffle (opt) != shuffle (chunks)\n");
         err += COMPARE(out_shuffle3, out_swap, size, "Shuffle (chunks) != swap\n");
+        err += COMPARE(out_shuffle3, out_shuffle, size, "Shuffle (chunks) != shuffle\n");
         err += COMPARE(out_shuffle3, out_shuffle4, size,
                        "Shuffle (chunks) != shuffle (chunks, opt)\n");
 
@@ -160,6 +165,53 @@ int verify_encs(size_t fanout, size_t level) {
         return err;
 }
 
+int verify_multithreaded_shuffle(size_t fanout, size_t level) {
+        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+
+        printf("> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n", level,
+               MiB(size));
+
+        byte *in = setup(size, 1);
+
+        byte *out1 = setup(size, 0);
+        byte *out2 = setup(size, 0);
+        byte *out3 = setup(size, 0);
+
+        byte *out4 = setup(size, 0);
+        byte *out5 = setup(size, 0);
+        byte *out6 = setup(size, 0);
+
+        // Note, if fanout^2 is too high a number of threads, i.e., each thread
+        // would get less than 1 macro, then the number of threads is brought
+        // down to fanout
+        emulate_shuffle_chunks(shuffle_chunks, out1, in, size, level, fanout, 1);
+        emulate_shuffle_chunks(shuffle_chunks, out2, in, size, level, fanout, fanout);
+        emulate_shuffle_chunks(shuffle_chunks, out3, in, size, level, fanout, fanout * fanout);
+
+        emulate_shuffle_chunks(shuffle_chunks_opt, out4, in, size, level, fanout, 1);
+        emulate_shuffle_chunks(shuffle_chunks_opt, out5, in, size, level, fanout, fanout);
+        emulate_shuffle_chunks(shuffle_chunks_opt, out6, in, size, level, fanout, fanout * fanout);
+
+        int err = 0;
+        err += COMPARE(out1, out2, size, "1 thr != %zu thr\n", fanout);
+        err += COMPARE(out2, out3, size, "%zu thr != %zu thr\n", fanout, fanout * fanout);
+        err += COMPARE(out1, out3, size, "1 thr != %zu thr\n", fanout * fanout);
+
+        err += COMPARE(out4, out5, size, "1 thr != %zu thr (opt)\n", fanout);
+        err += COMPARE(out5, out6, size, "%zu thr != %zu thr (opt)\n", fanout, fanout * fanout);
+        err += COMPARE(out4, out6, size, "1 thr != %zu thr (opt)\n", fanout * fanout);
+
+        free(in);
+        free(out1);
+        free(out2);
+        free(out3);
+        free(out4);
+        free(out5);
+        free(out6);
+
+        return err;
+}
+
 int main() {
         unsigned int seed = time(NULL);
         srand(seed);
@@ -174,6 +226,10 @@ int main() {
                                 goto cleanup;
 
                         err = verify_encs(fanout, l);
+                        if (err)
+                                goto cleanup;
+
+                        err = verify_multithreaded_shuffle(fanout, l);
                         if (err)
                                 goto cleanup;
                 }

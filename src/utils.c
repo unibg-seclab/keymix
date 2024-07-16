@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/types.h>
 
 byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
@@ -171,19 +172,16 @@ void shuffle_chunks_opt(thread_data *args, int level) {
         unsigned long macros_in_slab = intpow(fanout, level);
         unsigned long minis_in_slab  = fanout * macros_in_slab;
 
-        byte *in     = args->out;
-        byte *in_abs = args->abs_out;
-        byte *last   = in + args->thread_chunk_size;
-
+        byte *in      = args->out;
+        byte *in_abs  = args->abs_out;
+        byte *last    = in + args->thread_chunk_size;
         byte *out_abs = args->abs_swp;
 
         unsigned long minis_from_origin = (in - in_abs) / mini_size;
-
-        unsigned long src = minis_from_origin % minis_in_slab;
-        unsigned long dst;
+        unsigned long src               = minis_from_origin % minis_in_slab;
 
         while (in < last) {
-                dst = fanout * (src % macros_in_slab) + src / macros_in_slab;
+                unsigned long dst = fanout * (src % macros_in_slab) + src / macros_in_slab;
                 memcpy(out_abs + dst * mini_size, in, mini_size);
 
                 in += mini_size;
