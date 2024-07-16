@@ -24,10 +24,12 @@
                 _err;                                                                              \
         })
 
-void setup(byte *data, size_t size, int random) {
+byte *setup(size_t size, int random) {
+        byte *data = (byte *)malloc(size);
         for (size_t i = 0; i < size; i++) {
                 data[i] = random ? (rand() % 256) : 0;
         }
+        return data;
 }
 
 typedef struct {
@@ -88,19 +90,12 @@ int verify_shuffles(size_t fanout, size_t level) {
 
         printf("> Verifying swaps and shuffles AT level %zu (%.2f MiB)\n", level, MiB(size));
 
-        byte *in       = malloc(size);
-        byte *out_swap = malloc(size);
-        // byte *out_swap2    = malloc(size);
-        byte *out_shuffle  = malloc(size);
-        byte *out_shuffle2 = malloc(size);
-        byte *out_shuffle3 = malloc(size);
-
-        setup(in, size, 1);
-        setup(out_swap, size, 0);
-        // setup(out_swap2, size, 0);
-        setup(out_shuffle, size, 0);
-        setup(out_shuffle2, size, 0);
-        setup(out_shuffle3, size, 0);
+        byte *in       = setup(size, 1);
+        byte *out_swap = setup(size, 0);
+        // byte *out_swap2 = setup(out_swap2, size, 0);
+        byte *out_shuffle  = setup(size, 0);
+        byte *out_shuffle2 = setup(size, 0);
+        byte *out_shuffle3 = setup(size, 0);
 
         swap(out_swap, in, size, level, fanout);
         // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
@@ -131,15 +126,10 @@ int verify_encs(size_t fanout, size_t level) {
 
         printf("> Verifying encryption for size %.2f MiB\n", MiB(size));
 
-        byte *in          = malloc(size);
-        byte *out_wolfssl = malloc(size);
-        byte *out_openssl = malloc(size);
-        byte *out_aesni   = malloc(size);
-
-        setup(in, size, 1);
-        setup(out_wolfssl, size, 0);
-        setup(out_openssl, size, 0);
-        setup(out_aesni, size, 0);
+        byte *in          = setup(size, 1);
+        byte *out_wolfssl = setup(size, 0);
+        byte *out_openssl = setup(size, 0);
+        byte *out_aesni   = setup(size, 0);
 
         mixing_config config = {NULL, "", fanout};
 
