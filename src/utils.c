@@ -259,10 +259,11 @@ void swap_chunks(thread_data *args, int level) {
 // (e.g., because the entire input is produced across a pull of threads). On
 // the other hand, this function spreads the output of the encryption produced
 // by the single thread across multiple slabs.
-// NOTE: This is using a different mixing behavior with respect to the other
-// functions.
+//
+// This is using a different mixing behavior with respect to the shuffle and
+// swap functions above.
 void spread_chunks(thread_data *args, int level) {
-        D assert(level >= args->thread_levels);
+        D assert(level > args->thread_levels);
 
         unsigned int fanout = args->diff_factor;
         size_t mini_size    = SIZE_MACRO / fanout;
@@ -272,20 +273,23 @@ void spread_chunks(thread_data *args, int level) {
         size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
         size_t slab_size                  = macros_in_slab * SIZE_MACRO;
 
-        unsigned int prev_nof_threads_per_slab = intpow(fanout, level - args->thread_levels);
-        unsigned int nof_threads_per_slab      = fanout * prev_nof_threads_per_slab;
+        unsigned long nof_threads = intpow(fanout, args->total_levels - args->thread_levels);
+        unsigned long nof_slabs   = args->seed_size / slab_size;
+        unsigned long nof_threads_per_slab      = nof_threads / nof_slabs;
+        unsigned long prev_nof_threads_per_slab = nof_threads_per_slab / fanout;
 
         unsigned long out_slab_offset        = slab_size * (args->thread_id / nof_threads_per_slab);
         unsigned long out_inside_slab_offset = 0;
-        if (level != args->thread_levels) {
+        if (prev_nof_threads_per_slab > 1) {
                 out_inside_slab_offset =
                     args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
         }
         unsigned long out_mini_offset;
-        if (level == args->thread_levels) {
+        if (prev_nof_threads_per_slab <= 1) {
                 out_mini_offset = mini_size * (args->thread_id % fanout);
         } else {
-                out_mini_offset = mini_size * (args->thread_id / prev_nof_threads_per_slab);
+                out_mini_offset = mini_size * ((args->thread_id % nof_threads_per_slab) /
+                                               prev_nof_threads_per_slab);
         }
 
         byte *in  = args->out;
