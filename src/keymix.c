@@ -9,33 +9,23 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CHECKED(F)                                                                                 \
-        err = F;                                                                                   \
-        if (err)                                                                                   \
-                goto cleanup;
-
 // Mixes the seed into out
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
 
-        int err             = 0;
         size_t nof_macros   = seed_size / SIZE_MACRO;
         unsigned int levels = 1 + (unsigned int)(log(nof_macros) / log(config->diff_factor));
 
-        // seed -> (mixctr) -> out
-        CHECKED((*(config->mixfunc))(seed, out, seed_size));
+        (*(config->mixfunc))(seed, out, seed_size);
 
         for (unsigned int level = 1; level < levels; level++) {
-                // out -> (swap) -> buffer
-                swap(buffer, out, seed_size, level, config->diff_factor);
-                D printf("encrypt level %d\n", level);
-                // buffer -> (mixctr) -> out
-                CHECKED((*(config->mixfunc))(buffer, out, seed_size));
+                shuffle(buffer, out, seed_size, level, config->diff_factor);
+                (*(config->mixfunc))(buffer, out, seed_size);
         }
-cleanup:
+
         explicit_bzero(buffer, seed_size);
         free(buffer);
-        return err;
+        return 0;
 }
 
 #undef CHECKED
@@ -52,7 +42,8 @@ void *run(void *config) {
 
         for (unsigned int l = 0; l < args->thread_levels; l++) {
                 if (l) {
-                        shuffle_opt(args->swp, args->out, args->thread_chunk_size, l, args->diff_factor);
+                        shuffle_opt(args->swp, args->out, args->thread_chunk_size, l,
+                                    args->diff_factor);
                 }
                 D printf("thread %d encrypting level %d\n", args->thread_id, l);
                 *thread_status = (*(args->mixfunc))(args->swp, args->out, args->thread_chunk_size);

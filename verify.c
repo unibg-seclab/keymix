@@ -131,40 +131,6 @@ int verify_shuffles(size_t fanout, size_t level) {
         return err;
 }
 
-int verify_encs(size_t fanout, size_t level) {
-        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
-
-        printf("> Verifying encryption for size %.2f MiB\n", MiB(size));
-
-        byte *in          = setup(size, 1);
-        byte *out_wolfssl = setup(size, 0);
-        byte *out_openssl = setup(size, 0);
-        byte *out_aesni   = setup(size, 0);
-
-        mixing_config config = {NULL, "", fanout};
-
-        config.mixfunc = &wolfssl;
-        keymix(in, out_wolfssl, size, &config);
-
-        config.mixfunc = &openssl;
-        keymix(in, out_openssl, size, &config);
-
-        config.mixfunc = &aesni;
-        keymix(in, out_aesni, size, &config);
-
-        int err = 0;
-        err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
-        err += COMPARE(out_openssl, out_aesni, size, "OpenSSL != AES-NI (opt)\n");
-        err += COMPARE(out_wolfssl, out_aesni, size, "WolfSSL != AES-NI (opt)\n");
-
-        free(in);
-        free(out_wolfssl);
-        free(out_openssl);
-        free(out_aesni);
-
-        return err;
-}
-
 int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
@@ -212,6 +178,75 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         return err;
 }
 
+int verify_encs(size_t fanout, size_t level) {
+        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+
+        printf("> Verifying encryption for size %.2f MiB\n", MiB(size));
+
+        byte *in          = setup(size, 1);
+        byte *out_wolfssl = setup(size, 0);
+        byte *out_openssl = setup(size, 0);
+        byte *out_aesni   = setup(size, 0);
+
+        mixing_config config = {NULL, "", fanout};
+
+        config.mixfunc = &wolfssl;
+        keymix(in, out_wolfssl, size, &config);
+
+        config.mixfunc = &openssl;
+        keymix(in, out_openssl, size, &config);
+
+        config.mixfunc = &aesni;
+        keymix(in, out_aesni, size, &config);
+
+        int err = 0;
+        err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
+        err += COMPARE(out_openssl, out_aesni, size, "OpenSSL != AES-NI (opt)\n");
+        err += COMPARE(out_wolfssl, out_aesni, size, "WolfSSL != AES-NI (opt)\n");
+
+        free(in);
+        free(out_wolfssl);
+        free(out_openssl);
+        free(out_aesni);
+
+        return err;
+}
+
+int verify_multithreaded_encs(size_t fanout, size_t level) {
+        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+
+        printf("> Verifying encryption for size %.2f MiB\n", MiB(size));
+
+        byte *in         = setup(size, 1);
+        byte *out_simple = setup(size, 0);
+        byte *out1       = setup(size, 0);
+        byte *out2       = setup(size, 0);
+        byte *out3       = setup(size, 0);
+
+        mixing_config config = {&aesni, "", fanout};
+
+        // 1 thread
+        keymix(in, out_simple, size, &config);
+        parallel_keymix(in, out1, size, &config, 1);
+
+        // Comparisons
+        int err = 0;
+        err += COMPARE(out_simple, out1, size, "Keymix != p-Keymix (1)\n");
+
+        free(in);
+        free(out_simple);
+        free(out1);
+        free(out2);
+        free(out3);
+
+        return err;
+}
+
+#define CHECKED(F)                                                                                 \
+        err = F;                                                                                   \
+        if (err)                                                                                   \
+                goto cleanup;
+
 int main() {
         unsigned int seed = time(NULL);
         srand(seed);
@@ -221,17 +256,10 @@ int main() {
         for (size_t fanout = 2; fanout <= 4; fanout++) {
                 printf("Verifying with fanout %zu\n", fanout);
                 for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
-                        err = verify_shuffles(fanout, l);
-                        if (err)
-                                goto cleanup;
-
-                        err = verify_encs(fanout, l);
-                        if (err)
-                                goto cleanup;
-
-                        err = verify_multithreaded_shuffle(fanout, l);
-                        if (err)
-                                goto cleanup;
+                        CHECKED(verify_shuffles(fanout, l));
+                        CHECKED(verify_multithreaded_shuffle(fanout, l));
+                        CHECKED(verify_encs(fanout, l));
+                        // CHECKED(verify_multithreaded_encs(fanout, l));
                 }
                 printf("\n");
         }
@@ -243,6 +271,8 @@ cleanup:
                 printf("All ok\n");
         return err;
 }
+
+#undef CHECKED
 
 // Use this to measure stuff, but try and leave verify.c to do only the
 // verification
