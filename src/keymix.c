@@ -19,7 +19,7 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         (*(config->mixfunc))(seed, out, seed_size);
 
         for (unsigned int level = 1; level < levels; level++) {
-                shuffle(buffer, out, seed_size, level, config->diff_factor);
+                shuffle_opt(buffer, out, seed_size, level, config->diff_factor);
                 (*(config->mixfunc))(buffer, out, seed_size);
         }
 
