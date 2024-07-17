@@ -41,6 +41,7 @@ void csv_header() {
         fprintf(fout, "implementation,");   // AES implementation/library used
         fprintf(fout, "diff_factor,");      // Fanout
         fprintf(fout, "time\n");            // Time in ms
+        fflush(fout);
 }
 void csv_line(size_t seed_size, size_t expansion, int internal_threads, int external_threads,
               char *implementation, int diff_factor, double time) {
@@ -51,6 +52,7 @@ void csv_line(size_t seed_size, size_t expansion, int internal_threads, int exte
         fprintf(fout, "%s,", implementation);
         fprintf(fout, "%d,", diff_factor);
         fprintf(fout, "%.2f\n", time);
+        fflush(fout);
 }
 
 size_t first_x_that_surpasses(double bar, size_t diff_factor) {
