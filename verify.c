@@ -1,6 +1,7 @@
 #include "aesni.h"
 #include "config.h"
 #include "keymix.h"
+#include "keymix_t.h"
 #include "openssl.h"
 #include "types.h"
 #include "utils.h"
@@ -274,6 +275,54 @@ int verify_multithreaded_encs(size_t fanout, size_t level) {
         return err;
 }
 
+int verify_keymix_t(size_t fanout, size_t level) {
+        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+
+        printf("> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
+
+        byte *in         = setup(size, 1);
+        byte *in_simple  = setup(size, 0);
+        byte *out_simple = setup(size, 0);
+        byte *out1       = setup(size, 0);
+        byte *out2_thr1  = setup(2 * size, 0);
+        byte *out2_thr2  = setup(2 * size, 0);
+        byte *out3_thr1  = setup(3 * size, 0);
+        byte *out3_thr2  = setup(3 * size, 0);
+
+        mixing_config conf = {&aesni, "", fanout};
+
+        __uint128_t iv       = rand() % (1 << sizeof(__uint128_t));
+        int internal_threads = 1;
+
+        // Note: Keymix T applies the IV, so we have to do that manually
+        // to the input of Keymix
+        for (size_t i = 0; i < size; i++) {
+                in_simple[i] = in[i];
+        }
+        *(__uint128_t *)in_simple ^= iv;
+        keymix(in_simple, out_simple, size, &conf);
+        keymix_t(in, size, out1, size, &conf, 1, internal_threads, iv);
+
+        keymix_t(in, size, out2_thr1, 2 * size, &conf, 1, internal_threads, iv);
+        keymix_t(in, size, out2_thr2, 2 * size, &conf, 2, internal_threads, iv);
+        keymix_t(in, size, out3_thr1, 3 * size, &conf, 1, internal_threads, iv);
+        keymix_t(in, size, out3_thr2, 3 * size, &conf, 2, internal_threads, iv);
+
+        int err = 0;
+        err += COMPARE(out_simple, out1, size, "Keymix T (x1, 1thr) != Keymix\n");
+        err += COMPARE(out2_thr1, out2_thr2, size, "Keymix T (x2, 1thr) != Keymix T (x2, 2thr)\n");
+        err += COMPARE(out3_thr1, out3_thr2, size, "Keymix T (x3, 1thr) != Keymix T (x3, 2thr)\n");
+
+        free(in);
+        free(out1);
+        free(out2_thr1);
+        free(out2_thr2);
+        free(out3_thr1);
+        free(out3_thr2);
+
+        return err;
+}
+
 #define CHECKED(F)                                                                                 \
         err = F;                                                                                   \
         if (err)                                                                                   \
@@ -292,6 +341,7 @@ int main() {
                         CHECKED(verify_multithreaded_shuffle(fanout, l));
                         CHECKED(verify_encs(fanout, l));
                         CHECKED(verify_multithreaded_encs(fanout, l));
+                        CHECKED(verify_keymix_t(fanout, l));
                 }
                 printf("\n");
         }
