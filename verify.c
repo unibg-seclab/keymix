@@ -270,7 +270,7 @@ int main() {
                         CHECKED(verify_shuffles(fanout, l));
                         CHECKED(verify_multithreaded_shuffle(fanout, l));
                         CHECKED(verify_encs(fanout, l));
-                        // CHECKED(verify_multithreaded_encs(fanout, l));
+                        CHECKED(verify_multithreaded_encs(fanout, l));
                 }
                 printf("\n");
         }

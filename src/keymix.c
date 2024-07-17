@@ -40,18 +40,9 @@ void *run(void *config) {
                 goto thread_exit;
         }
 
-        for (unsigned int l = 0; l < args->thread_levels; l++) {
-                if (l) {
-                        shuffle_opt(args->swp, args->out, args->thread_chunk_size, l,
-                                    args->diff_factor);
-                }
-                D printf("thread %d encrypting level %d\n", args->thread_id, l);
-                *thread_status = (*(args->mixfunc))(args->swp, args->out, args->thread_chunk_size);
-                if (*thread_status) {
-                        printf("[e] thread %d encryption error\n", args->thread_id);
-                        goto thread_exit;
-                }
-        }
+        mixing_config conf = {args->mixfunc, "", args->diff_factor};
+        keymix(args->in, args->out, args->thread_chunk_size, &conf);
+
         D printf("thread %d finished the thread-layers\n", args->thread_id);
         // notify the coordinator
         if (args->thread_levels != args->total_levels) {
