@@ -38,6 +38,8 @@ flycheck_*.el
 keymix
 test
 main
+verify
+keymixer
 
 # perf data
 perf.*
@@ -53,4 +55,8 @@ venv
 graphs/*.pdf
 graphs/__pycache__
 log
-verify
+
+# secrets
+secret
+resource.txt
+resource.txt.enc

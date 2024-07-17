@@ -2,6 +2,8 @@
 #include "config.h"
 
 #include <assert.h>
+#include <errno.h>
+#include <stddef.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -24,6 +26,31 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
                 printf("%02x", buf[i]);
         }
         printf("|\n");
+}
+
+void memxor(byte *dst, byte *src, size_t n) {
+        for (; n > 0; n--) {
+                *dst++ ^= *src++;
+        }
+}
+
+size_t get_file_size(FILE *fstr) {
+        if (fstr == NULL) {
+                return 0;
+        }
+        // move the cursor to the end of the file
+        if (fseek(fstr, 0, SEEK_END) < 0) {
+                return 0;
+        }
+        // get the current offset
+        long size = ftell(fstr);
+        // move the cursor back to the beginning of the file
+        if (fseek(fstr, 0, SEEK_SET) < 0) {
+                // undefined behavior if code enters this branch
+                LOG("(!) fseek cannot set the cursor to the beginning of the buffer\n");
+                exit(errno);
+        }
+        return size;
 }
 
 inline size_t intpow(size_t base, size_t exp) {

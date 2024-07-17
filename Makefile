@@ -7,6 +7,11 @@ OUT = main
 TEST = test
 VERIFY = verify
 PERFDATA = perf.data
+KEYMIXER = keymixer
+
+RESOURCE = resource.txt
+ENC_RESOURCE = resource.txt.enc
+SECRET = secret
 
 # ------------ Compiler flags
 
@@ -46,12 +51,19 @@ daemon: $(TEST)
 
 $(VERIFY): verify.o $(OBJECTS)
 
+# ------------ Keymixer
+
+$(KEYMIXER): keymixer.o $(OBJECTS)
+
 # ------------ Cleaning
 
 clean:
 	@ rm -rf $(OBJECTS)
-	@ rm -rf $(OUT).o $(TEST).o
-	@ rm -rf $(OUT) $(TEST)
+	@ rm -rf $(OUT).o $(TEST).o $(KEYMIXER).o
+	@ rm -rf $(OUT) $(TEST) $(KEYMIXER)
+
+clean_resources:
+	@ rm -f $(RESOURCE) $(SECRET) $(ENC_RESOURCE)
 
 # ------------ Performance and flamegraph
 
@@ -71,3 +83,16 @@ perf-flame: $(PERFDATA)
 
 graph.%:
 	@ python graphs/$*.py
+
+# ------------ Resources
+
+$(RESOURCE):
+#	create a 1GB resource for test
+#	@dd if=/dev/zero of=$@ bs=648 count=1
+#	@dd if=/dev/zero of=$@ bs=48 count=1594323
+	@dd if=/dev/zero of=$@ bs=48 count=129140163
+$(SECRET):
+#	create a 1GB resource for test
+#	@dd if=/dev/zero of=$@ bs=432 count=1
+#	@dd if=/dev/zero of=$@ bs=48 count=1594323
+	@dd if=/dev/zero of=$@ bs=48 count=129140163

@@ -9,6 +9,7 @@
 
 byte *checked_malloc(size_t size);
 void print_buffer_hex(byte *buf, size_t size, char *descr);
+size_t get_file_size(FILE *fstr);
 
 void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
 void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
@@ -16,6 +17,8 @@ void shuffle_opt2(byte *out, byte *in, size_t in_size, unsigned int level, unsig
 
 void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
 void swap_chunks(thread_data *args, int level);
+
+void memxor(byte *dst, byte *src, size_t n);
 
 #define D if (DEBUG)
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
@@ -46,6 +49,13 @@ void swap_chunks(thread_data *args, int level);
                 __typeof__(a) _a = (a);                                                            \
                 __typeof__(b) _b = (b);                                                            \
                 _a > _b ? _a : _b;                                                                 \
+        })
+
+#define MIN(a, b)                                                                                  \
+        ({                                                                                         \
+                __typeof__(a) _a = (a);                                                            \
+                __typeof__(b) _b = (b);                                                            \
+                _a > _b ? _b : _a;                                                                 \
         })
 
 #endif
