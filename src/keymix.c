@@ -4,7 +4,6 @@
 #include "types.h"
 #include "utils.h"
 #include <errno.h>
-#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,7 +13,7 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
 
         size_t nof_macros   = seed_size / SIZE_MACRO;
-        unsigned int levels = 1 + (unsigned int)(log(nof_macros) / log(config->diff_factor));
+        unsigned int levels = 1 + LOG(nof_macros, config->diff_factor);
 
         (*(config->mixfunc))(seed, out, seed_size);
 
@@ -28,17 +27,15 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         return 0;
 }
 
-#undef CHECKED
-
 void *run(void *config) {
         thread_data *args  = (thread_data *)config;
         int *thread_status = malloc(sizeof(int));
-        *thread_status     = 0;
         if (thread_status == NULL) {
                 D printf("thread %d crashed at init time\n", args->thread_id);
                 *thread_status = ENOMEM;
                 goto thread_exit;
         }
+        *thread_status = 0;
 
         mixing_config conf = {args->mixfunc, "", args->diff_factor};
         keymix(args->in, args->out, args->thread_chunk_size, &conf);
@@ -131,16 +128,18 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
         int routine_errno = 0;
 
-        if (nof_threads < 1 || nof_threads > 128) {
-                D printf("Unsupported number of threads\n");
+        if (!ISPOWEROF(nof_threads, config->diff_factor)) {
+                D printf("Unsupported number of threads, use a power of %u\n", config->diff_factor);
                 return EPERM;
         }
 
         size_t nof_macros = seed_size / SIZE_MACRO;
-        unsigned int thread_levels =
-            1 + log10(((double)nof_macros) / nof_threads) / log10(config->diff_factor);
-        unsigned int total_levels =
-            1 + (unsigned int)(log10(nof_macros) / log10(config->diff_factor));
+        // We can't assign more than 1 thread to a single macro, so we will
+        // never spawn more than nof_macros threads
+        nof_threads = MIN(nof_threads, nof_macros);
+
+        unsigned int thread_levels = 1 + LOG((double)nof_macros / nof_threads, config->diff_factor);
+        unsigned int total_levels  = 1 + LOG(nof_macros, config->diff_factor);
 
         D printf("thread levels:\t\t%d\n", thread_levels);
         D printf("total levels:\t\t%d\n", total_levels);

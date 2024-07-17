@@ -9,7 +9,7 @@
 byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
         if (buf == NULL) {
-                LOG("(!) Error occured while allocating memory\n");
+                DLOG("(!) Error occured while allocating memory\n");
                 // No need to free, as free is a no-op when the ptr is NULL
                 exit(1);
         }

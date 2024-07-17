@@ -24,7 +24,7 @@
 #define SAFE_REALLOC(PTR, SIZE)                                                                    \
         PTR = realloc(PTR, SIZE);                                                                  \
         if (PTR == NULL) {                                                                         \
-                LOG("Out of memory :(\n");                                                         \
+                DLOG("Out of memory :(\n");                                                        \
                 goto cleanup;                                                                      \
         }
 
@@ -123,25 +123,25 @@ void setup_valid_internal_threads(size_t diff_factor, int internal_threads[],
 
 void test_keymix(byte *seed, byte *out, size_t seed_size, size_t expansion, int internal_threads,
                  int external_threads, mixing_config *config) {
-        LOG("[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
-            external_threads, config->descr, config->diff_factor, expansion);
+        DLOG("[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
+             external_threads, config->descr, config->diff_factor, expansion);
 
         for (int test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE(keymix_t(seed, seed_size, out, expansion * seed_size, config,
                                                external_threads, internal_threads, 0));
                 csv_line(seed_size, expansion, internal_threads, external_threads, config->descr,
                          config->diff_factor, time);
-                LOG(".");
+                DLOG(".");
         }
-        LOG("\n");
+        DLOG("\n");
 }
 
 // -------------------------------------------------- Main loops
 
 int main(int argc, char *argv[]) {
         if (argc < 3) {
-                LOG("Usage:\n");
-                LOG("  test [EXP OUTPUT] [ENC OUTPUT]\n");
+                DLOG("Usage:\n");
+                DLOG("  test [EXP OUTPUT] [ENC OUTPUT]\n");
                 return 1;
         }
 
@@ -167,7 +167,7 @@ int main(int argc, char *argv[]) {
         size_t configs_count     = sizeof(configs) / sizeof(__typeof__(*configs));
 
 #ifdef DO_EXPANSION_TESTS
-        LOG("Doing %d tests (each dot = 1 test)\n", NUM_OF_TESTS);
+        DLOG("Doing %d tests (each dot = 1 test)\n", NUM_OF_TESTS);
 
         fout = fopen(argv[1], "w");
         csv_header();
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
 
                 FOR_EVERY(size, seed_sizes, seed_sizes_count) {
                         // Setup seed
-                        LOG("Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
+                        DLOG("Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
                         SAFE_REALLOC(seed, *size);
 
                         FOR_EVERY(config, configs, configs_count)

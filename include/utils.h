@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "types.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -25,13 +26,13 @@ void spread_chunks(thread_data *args, int level);
 #define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)
 
 #define D if (DEBUG)
-#define LOG(...) fprintf(stderr, __VA_ARGS__)
+#define DLOG(...) fprintf(stderr, __VA_ARGS__)
 
 #ifdef NO_MEASURE
 #define MEASURE(F) 0
 #define PRINT_TIME_DELTA(DESC, MS)
 #else
-#define PRINT_TIME_DELTA(DESC, MS) LOG("%s: %.2f", (DESC), (MS));
+#define PRINT_TIME_DELTA(DESC, MS) DLOG("%s: %.2f", (DESC), (MS));
 #define MEASURE(F)                                                                                 \
         ({                                                                                         \
                 double t;                                                                          \
@@ -54,5 +55,15 @@ void spread_chunks(thread_data *args, int level);
                 __typeof__(b) _b = (b);                                                            \
                 _a > _b ? _a : _b;                                                                 \
         })
+
+#define MIN(a, b)                                                                                  \
+        ({                                                                                         \
+                __typeof__(a) _a = (a);                                                            \
+                __typeof__(b) _b = (b);                                                            \
+                _a < _b ? _a : _b;                                                                 \
+        })
+
+#define LOG(x, base) (log(x) / log(base))
+#define ISPOWEROF(x, base) (x == pow(base, (int)LOG(x, base)))
 
 #endif

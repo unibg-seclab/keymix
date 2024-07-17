@@ -87,8 +87,7 @@ int main() {
                         print_buffer_hex(out, seed_size, "out");
                 }
                 unsigned int nof_macros = seed_size / 48;
-                unsigned int levels =
-                    1 + (unsigned int)(log10(nof_macros) / log10(configs[i].diff_factor));
+                unsigned int levels     = 1 + LOG(nof_macros, configs[i].diff_factor);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", configs[i].descr);
