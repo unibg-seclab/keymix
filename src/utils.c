@@ -9,7 +9,7 @@
 byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
         if (buf == NULL) {
-                DLOG("(!) Error occured while allocating memory\n");
+                LOG("(!) Error occured while allocating memory\n");
                 // No need to free, as free is a no-op when the ptr is NULL
                 exit(1);
         }
@@ -146,7 +146,7 @@ void shuffle_chunks(thread_data *args, int level) {
         size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
         byte *in  = args->out;
-        byte *out = args->abs_swp;
+        byte *out = args->abs_buf;
 
         byte *in_abs = args->abs_out;
 
@@ -180,7 +180,7 @@ void shuffle_chunks_opt(thread_data *args, int level) {
         byte *in      = args->out;
         byte *in_abs  = args->abs_out;
         byte *last    = in + args->thread_chunk_size;
-        byte *out_abs = args->abs_swp;
+        byte *out_abs = args->abs_buf;
 
         unsigned long minis_from_origin = (in - in_abs) / mini_size;
         unsigned long src               = minis_from_origin % minis_in_slab;
@@ -255,7 +255,7 @@ void swap_chunks(thread_data *args, int level) {
                  prev_slab_size, slab_size, args->thread_chunk_size, OFFSET);
 
         for (unsigned long block = 0; block < chunk_blocks; block++) {
-                memcpy(args->abs_swp + OFFSET, args->out + block * size_block, size_block);
+                memcpy(args->abs_buf + OFFSET, args->out + block * size_block, size_block);
                 OFFSET += SIZE_MACRO;
         }
 }
@@ -346,7 +346,7 @@ void spread_chunks(thread_data *args, int level) {
         }
 
         byte *in  = args->out;
-        byte *out = args->abs_swp + out_slab_offset + out_inside_slab_offset + out_mini_offset;
+        byte *out = args->abs_buf + out_slab_offset + out_inside_slab_offset + out_mini_offset;
 
         unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
 

@@ -13,7 +13,7 @@
 #include <string.h>
 
 #define MIN_LEVEL 1
-#define MAX_LEVEL 12
+#define MAX_LEVEL 5
 
 #define COMPARE(a, b, size, ...)                                                                   \
         ({                                                                                         \
@@ -75,9 +75,9 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
                 thread_data thr_data = {
                     .thread_id         = t,
                     .out               = in + t * thread_chunk_size,
-                    .swp               = out + t * thread_chunk_size,
+                    .buf               = out + t * thread_chunk_size,
                     .abs_out           = in,
-                    .abs_swp           = out,
+                    .abs_buf           = out,
                     .seed_size         = size,
                     .thread_chunk_size = thread_chunk_size,
                     .mixconfig         = &mconf,

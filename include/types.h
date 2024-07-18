@@ -24,9 +24,10 @@ typedef struct {
         sem_t *coord_sem;
         byte *in;
         byte *out;
-        byte *swp;
+        byte *buf;
+        byte *abs_in;
         byte *abs_out;
-        byte *abs_swp;
+        byte *abs_buf;
         size_t seed_size;
         size_t thread_chunk_size;
         unsigned int thread_levels;

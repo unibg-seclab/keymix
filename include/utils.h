@@ -26,13 +26,11 @@ void spread_chunks(thread_data *args, int level);
 #define MiB(SIZE) ((double)(SIZE) / 1024 / 1024)
 
 #define D if (DEBUG)
-#define DLOG(...) fprintf(stderr, __VA_ARGS__)
+#define LOG(...) fprintf(stderr, __VA_ARGS__)
 
 #ifdef NO_MEASURE
 #define MEASURE(F) 0
-#define PRINT_TIME_DELTA(DESC, MS)
 #else
-#define PRINT_TIME_DELTA(DESC, MS) DLOG("%s: %.2f", (DESC), (MS));
 #define MEASURE(F)                                                                                 \
         ({                                                                                         \
                 double t;                                                                          \
@@ -63,7 +61,7 @@ void spread_chunks(thread_data *args, int level);
                 _a < _b ? _a : _b;                                                                 \
         })
 
-#define LOG(x, base) (log(x) / log(base))
-#define ISPOWEROF(x, base) (x == pow(base, (int)LOG(x, base)))
+#define LOGBASE(x, base) (log(x) / log(base))
+#define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
 #endif
