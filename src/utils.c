@@ -6,16 +6,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-byte *checked_malloc(size_t size) {
-        byte *buf = (byte *)malloc(size);
-        if (buf == NULL) {
-                LOG("(!) Error occured while allocating memory\n");
-                // No need to free, as free is a no-op when the ptr is NULL
-                exit(1);
-        }
-        return buf;
-}
-
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);
         for (size_t i = 0; i < size; i++) {

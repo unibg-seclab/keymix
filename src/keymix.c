@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
-// Mixes the seed into out
+// -------------------------------- Simple single-threaded keymix
+
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         byte *buffer = (byte *)malloc(seed_size);
 
@@ -27,77 +28,65 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         return 0;
 }
 
+// -------------------------------- Multi-threaded keymix
+
+#define WAIT(action)                                                                               \
+        ({                                                                                         \
+                int _err;                                                                          \
+                while (1) {                                                                        \
+                        _err = action;                                                             \
+                        if (_err == 0)                                                             \
+                                break;                                                             \
+                }                                                                                  \
+                _err;                                                                              \
+        })
+
 void *run(void *config) {
-        thread_data *args  = (thread_data *)config;
-        int *thread_status = malloc(sizeof(int));
-        if (thread_status == NULL) {
+        thread_data *args = (thread_data *)config;
+        int *err          = malloc(sizeof(int));
+        if (err == NULL) {
                 D LOG("thread %d crashed at init time\n", args->thread_id);
-                *thread_status = ENOMEM;
                 goto thread_exit;
         }
-        *thread_status = 0;
+        *err = 0;
 
+        // No need to sync among other threads here
         keymix(args->in, args->out, args->thread_chunk_size, args->mixconfig);
 
+        // notify the main thread to start the remaining levels
         D LOG("thread %d finished the thread-layers\n", args->thread_id);
-        // notify the coordinator
         if (args->thread_levels != args->total_levels) {
-                while (1) {
-                        *thread_status = sem_post(args->coord_sem);
-                        if (*thread_status == 0) {
-                                break;
-                        }
-                }
+                WAIT(sem_post(args->coord_sem));
         }
         // synchronized encryption layers
         for (unsigned int l = args->thread_levels; l < args->total_levels; l++) {
-                *thread_status = 0;
+                *err = 0;
                 // synchronized swap
-                while (1) {
-                        *thread_status = sem_wait(args->thread_sem);
-                        if (*thread_status == 0) {
-                                D LOG("thread %d sychronized swap, level %d\n", args->thread_id,
-                                      l - 1);
-                                shuffle_chunks(args, l);
-                                break;
-                        }
-                }
-                // notify the coordinator
-                while (1) {
-                        *thread_status = sem_post(args->coord_sem);
-                        if (*thread_status == 0) {
-                                D LOG("thread %d notified the coordinator after swap\n",
-                                      args->thread_id);
-                                break;
-                        }
-                }
+                *err = WAIT(sem_wait(args->thread_sem));
+                D LOG("thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
+                shuffle_chunks(args, l);
+
+                // notify the main thread that swap has finished
+                *err = WAIT(sem_post(args->coord_sem));
+                D LOG("thread %d notified the coordinator after swap\n", args->thread_id);
+
                 // synchronized encryption
-                while (1) {
-                        *thread_status = sem_wait(args->thread_sem);
-                        if (*thread_status == 0) {
-                                D LOG("thread %d sychronized encryption, level %d\n",
-                                      args->thread_id, l);
-                                *thread_status = (*(args->mixconfig->mixfunc))(
-                                    args->buf, args->out, args->thread_chunk_size);
-                                if (*thread_status != 0) {
-                                        goto thread_exit;
-                                }
-                                break;
-                        }
+                *err = WAIT(sem_wait(args->thread_sem));
+                D LOG("thread %d sychronized encryption, level %d\n", args->thread_id, l);
+                *err = (*(args->mixconfig->mixfunc))(args->buf, args->out, args->thread_chunk_size);
+                if (*err) {
+                        goto thread_exit;
                 }
-                // notify the coordinator
-                while (1) {
-                        *thread_status = sem_post(args->coord_sem);
-                        if (*thread_status == 0) {
-                                D LOG("thread %d notified the coordinator after encryption\n",
-                                      args->thread_id);
-                                break;
-                        }
-                }
+                // notify the main thread that everything for this level has finished
+                *err = WAIT(sem_post(args->coord_sem));
+                D LOG("thread %d notified the coordinator after encryption\n", args->thread_id);
         }
+
 thread_exit:
-        pthread_exit(thread_status);
+        pthread_exit(err);
 }
+
+#undef WAIT
 
 // Mixes the seed into out using a number of threads equal to a power of diff_factor
 int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
@@ -123,12 +112,14 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
         pthread_t threads[nof_threads];
         thread_data args[nof_threads];
-        // todo: explicit check
         size_t thread_chunk_size = seed_size / nof_threads;
 
-        byte *buffer = checked_malloc(seed_size);
+        byte *buffer = malloc(seed_size);
+        if (buffer == NULL) {
+                D LOG("Cannot allocate more memory\n");
+                goto cleanup;
+        }
 
-        // int tmp_ret = 0;
         D LOG("[i] preparing the threads\n");
         for (unsigned int t = 0; t < nof_threads; t++) {
                 args[t].thread_id  = t;
@@ -173,10 +164,9 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
         D LOG("[i] spawning the threads\n");
         for (unsigned int t = 0; t < nof_threads; t++) {
-                int err = pthread_create(&threads[t], NULL, run, &args[t]);
+                err = pthread_create(&threads[t], NULL, run, &args[t]);
                 if (err) {
                         D LOG("pthread_create error %d\n", err);
-                        err = err;
                         goto cleanup;
                 }
         }

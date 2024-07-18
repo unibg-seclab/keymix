@@ -13,7 +13,7 @@
 #include <string.h>
 
 #define MIN_LEVEL 1
-#define MAX_LEVEL 5
+#define MAX_LEVEL 12
 
 #define COMPARE(a, b, size, ...)                                                                   \
         ({                                                                                         \
