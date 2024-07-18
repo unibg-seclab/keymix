@@ -108,7 +108,7 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 counter += thread_seeds;
         }
         if (DEBUG)
-                printf("Started %d threads\n", started_threads);
+                _log(LOG_DEBUG, "Started %d threads\n", started_threads);
 
         assert(remaining == 0);
 

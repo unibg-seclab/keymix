@@ -19,7 +19,7 @@
         ({                                                                                         \
                 int _err = 0;                                                                      \
                 if (memcmp(a, b, size)) {                                                          \
-                        printf(__VA_ARGS__);                                                       \
+                        _log(LOG_INFO, __VA_ARGS__);                                               \
                         _err = 1;                                                                  \
                 }                                                                                  \
                 _err;                                                                              \
@@ -100,7 +100,8 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
 int verify_shuffles(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        printf("> Verifying swaps and shuffles AT level %zu (%.2f MiB)\n", level, MiB(size));
+        _log(LOG_INFO, "> Verifying swaps and shuffles AT level %zu (%.2f MiB)\n", level,
+             MiB(size));
 
         byte *in       = setup(size, 1);
         byte *out_swap = setup(size, 0);
@@ -150,8 +151,8 @@ int verify_shuffles(size_t fanout, size_t level) {
 int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        printf("> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n", level,
-               MiB(size));
+        _log(LOG_INFO, "> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n",
+             level, MiB(size));
 
         byte *in = setup(size, 1);
 
@@ -197,7 +198,7 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
 int verify_encs(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        printf("> Verifying encryption for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying encryption for size %.2f MiB\n", MiB(size));
 
         byte *in          = setup(size, 1);
         byte *out_wolfssl = setup(size, 0);
@@ -231,7 +232,7 @@ int verify_encs(size_t fanout, size_t level) {
 int verify_multithreaded_encs(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        printf("> Verifying parallel-keymix equivalence for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying parallel-keymix equivalence for size %.2f MiB\n", MiB(size));
 
         byte *in         = setup(size, 1);
         byte *out_simple = setup(size, 0);
@@ -282,7 +283,7 @@ int verify_multithreaded_encs(size_t fanout, size_t level) {
 int verify_keymix_t(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        printf("> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
 
         byte *in         = setup(size, 1);
         byte *in_simple  = setup(size, 0);
@@ -339,7 +340,7 @@ int main() {
         int err = 0;
 
         for (size_t fanout = 2; fanout <= 4; fanout++) {
-                printf("Verifying with fanout %zu\n", fanout);
+                _log(LOG_INFO, "Verifying with fanout %zu\n", fanout);
                 for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                         CHECKED(verify_shuffles(fanout, l));
                         CHECKED(verify_multithreaded_shuffle(fanout, l));
@@ -347,30 +348,15 @@ int main() {
                         CHECKED(verify_multithreaded_encs(fanout, l));
                         CHECKED(verify_keymix_t(fanout, l));
                 }
-                printf("\n");
+                _log(LOG_INFO, "\n");
         }
 
 cleanup:
         if (err)
-                printf("Failed, seed was %u\n", seed);
+                _log(LOG_INFO, "Failed, seed was %u\n", seed);
         else
-                printf("All ok\n");
+                _log(LOG_INFO, "All ok\n");
         return err;
 }
 
 #undef CHECKED
-
-// Use this to measure stuff, but try and leave verify.c to do only the
-// verification
-
-// double t;
-// double size_mib = (double)size / 1024 / 1024;
-
-// printf("-------- fanout %zu, size %.2f MiB (13th level)\n", fanout,
-//        size_mib);
-// t = MEASURE(swap(out_swap, in, size, l, fanout));
-// printf("Swap             %-5.2f (%5.2f MiB/s)\n", t, size_mib / (t / 1000));
-// t = MEASURE(shuffle(out_shuffle, in, size, l, fanout));
-// printf("Shuffle          %-5.2f (%5.2f MiB/s)\n", t, size_mib / (t / 1000));
-// t = MEASURE(shuffle_opt(out_shuffle_opt, in, size, l, fanout));
-// printf("Shuffle (opt)    %-5.2f (%5.2f MiB/s)\n", t, size_mib / (t / 1000));
