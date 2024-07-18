@@ -44,8 +44,12 @@ int main() {
         printf("Seed has size %zu MiB\n", seed_size / 1024 / 1024);
         printf("====\n");
 
-        byte *seed = checked_malloc(seed_size);
-        byte *out  = checked_malloc(seed_size);
+        byte *seed = malloc(seed_size);
+        byte *out  = malloc(seed_size);
+        if (seed == NULL || out == NULL) {
+                LOG("Cannot allocate more memory\n");
+                goto clean;
+        }
 
         // {function_name, descr, diff_factor}
         mixing_config configs[] = {
@@ -87,7 +91,7 @@ int main() {
                         print_buffer_hex(out, seed_size, "out");
                 }
                 unsigned int nof_macros = seed_size / 48;
-                unsigned int levels     = 1 + LOG(nof_macros, configs[i].diff_factor);
+                unsigned int levels     = 1 + LOGBASE(nof_macros, configs[i].diff_factor);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
