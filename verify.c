@@ -65,6 +65,10 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
         assert(size % nof_threads == 0);
         assert(thread_chunk_size % SIZE_MACRO == 0);
 
+        // We are emulating only shuffling around, no need to set an encryption
+        // function
+        mixing_config mconf = {NULL, fanout};
+
         for (int t = 0; t < nof_threads; t++) {
                 run_thr_t *arg = thread_args + t;
 
@@ -76,7 +80,7 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
                     .abs_swp           = out,
                     .seed_size         = size,
                     .thread_chunk_size = thread_chunk_size,
-                    .diff_factor       = fanout,
+                    .mixconfig         = &mconf,
                     .thread_levels     = 1 + thread_levels,
                     .total_levels      = 1 + level,
                 };
@@ -200,7 +204,7 @@ int verify_encs(size_t fanout, size_t level) {
         byte *out_openssl = setup(size, 0);
         byte *out_aesni   = setup(size, 0);
 
-        mixing_config config = {NULL, "", fanout};
+        mixing_config config = {NULL, fanout};
 
         config.mixfunc = &wolfssl;
         keymix(in, out_wolfssl, size, &config);
@@ -241,7 +245,7 @@ int verify_multithreaded_encs(size_t fanout, size_t level) {
         size_t thrff  = fanout * fanout;
         size_t thrfff = fanout * fanout * fanout;
 
-        mixing_config config = {&aesni, "", fanout};
+        mixing_config config = {&aesni, fanout};
 
         keymix(in, out_simple, size, &config);
         parallel_keymix(in, out1, size, &config, thr1);
@@ -289,7 +293,7 @@ int verify_keymix_t(size_t fanout, size_t level) {
         byte *out3_thr1  = setup(3 * size, 0);
         byte *out3_thr2  = setup(3 * size, 0);
 
-        mixing_config conf = {&aesni, "", fanout};
+        mixing_config conf = {&aesni, fanout};
 
         __uint128_t iv       = rand() % (1 << sizeof(__uint128_t));
         int internal_threads = 1;

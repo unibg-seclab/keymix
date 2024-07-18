@@ -137,7 +137,7 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
 //
 // Note that fanout^level = macros_in_slab
 void shuffle_chunks(thread_data *args, int level) {
-        unsigned int fanout = args->diff_factor;
+        unsigned int fanout = args->mixconfig->diff_factor;
 
         size_t mini_size         = SIZE_MACRO / fanout;
         unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
@@ -171,7 +171,7 @@ void shuffle_chunks(thread_data *args, int level) {
 // Same as before, but trying to optimize the calculations with the same
 // ideas as for shuffle_opt
 void shuffle_chunks_opt(thread_data *args, int level) {
-        unsigned int fanout = args->diff_factor;
+        unsigned int fanout = args->mixconfig->diff_factor;
 
         size_t mini_size             = SIZE_MACRO / fanout;
         unsigned long macros_in_slab = intpow(fanout, level);
@@ -233,26 +233,26 @@ void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int le
 
 // DOES NOT WORK!!!
 void swap_chunks(thread_data *args, int level) {
-        int size_block = SIZE_MACRO / args->diff_factor;
+        int size_block = SIZE_MACRO / args->mixconfig->diff_factor;
 
         size_t prev_slab_size = size_block;
         for (unsigned int i = 0; i < level; i++) {
-                prev_slab_size *= args->diff_factor;
+                prev_slab_size *= args->mixconfig->diff_factor;
         }
-        size_t slab_size              = args->diff_factor * prev_slab_size;
+        size_t slab_size              = args->mixconfig->diff_factor * prev_slab_size;
         unsigned long chunk_blocks    = args->thread_chunk_size / size_block;
         unsigned long chunk_start_pos = args->thread_id * args->thread_chunk_size;
         unsigned long slab_start_pos  = chunk_start_pos - chunk_start_pos % slab_size;
         unsigned long UPFRONT_BLOCKS_OFFSET =
-            args->diff_factor * (chunk_start_pos % prev_slab_size);
+            args->mixconfig->diff_factor * (chunk_start_pos % prev_slab_size);
 
         size_t OFFSET = slab_start_pos + UPFRONT_BLOCKS_OFFSET;
 
         D printf("swap, level %d, thread_id %d, diff_factor %d, thread_id %d, PREV_SLAB_SIZE %ld, "
                  "SIZE_SLAB %ld, "
                  "chunk_size %ld, OFFSET %ld\n",
-                 level, args->thread_id, args->diff_factor, args->thread_id, prev_slab_size,
-                 slab_size, args->thread_chunk_size, OFFSET);
+                 level, args->thread_id, args->mixconfig->diff_factor, args->thread_id,
+                 prev_slab_size, slab_size, args->thread_chunk_size, OFFSET);
 
         for (unsigned long block = 0; block < chunk_blocks; block++) {
                 memcpy(args->abs_swp + OFFSET, args->out + block * size_block, size_block);
@@ -318,7 +318,7 @@ void spread(byte *restrict out, byte *restrict in, size_t in_size, unsigned int 
 void spread_chunks(thread_data *args, int level) {
         D assert(level > args->thread_levels);
 
-        unsigned int fanout = args->diff_factor;
+        unsigned int fanout = args->mixconfig->diff_factor;
         size_t mini_size    = SIZE_MACRO / fanout;
 
         unsigned long prev_macros_in_slab = intpow(fanout, level - 1);

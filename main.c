@@ -1,4 +1,3 @@
-#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,15 +49,16 @@ int main() {
 
         // {function_name, descr, diff_factor}
         mixing_config configs[] = {
-            {&wolfssl, "wolf (128)", 3},
-            {&openssl, "openssl (128)", 3},
-            {&aesni, "aesni (128)", 3},
+            {&wolfssl, 3},
+            {&openssl, 3},
+            {&aesni, 3},
         };
+        char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
-        mixing_config mconf    = {&wolfssl, "wolf (128)", 3};
+        mixing_config mconf    = {&wolfssl, 3};
         unsigned int threads[] = {1, 3, 9, 27, 81};
         for (unsigned int t = 0; t < sizeof(threads) / sizeof(unsigned int); t++) {
-                printf("Multi-threaded %s with %d threads\n", mconf.descr, threads[t]);
+                printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
                 int pe          = 0;
                 int nof_threads = threads[t];
                 double time =
@@ -90,7 +90,7 @@ int main() {
                 unsigned int levels     = 1 + LOG(nof_macros, configs[i].diff_factor);
 
                 printf("levels:\t\t\t%d\n", levels);
-                printf("%s mixing...\n", configs[i].descr);
+                printf("%s mixing...\n", descr[i]);
                 printf("diff_factor:\t\t%d\n", configs[i].diff_factor);
 
                 double time = MEASURE({ err = keymix(seed, out, seed_size, &configs[i]); });

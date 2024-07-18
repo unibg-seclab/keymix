@@ -37,8 +37,7 @@ void *run(void *config) {
         }
         *thread_status = 0;
 
-        mixing_config conf = {args->mixfunc, "", args->diff_factor};
-        keymix(args->in, args->out, args->thread_chunk_size, &conf);
+        keymix(args->in, args->out, args->thread_chunk_size, args->mixconfig);
 
         D printf("thread %d finished the thread-layers\n", args->thread_id);
         // notify the coordinator
@@ -78,8 +77,8 @@ void *run(void *config) {
                         if (*thread_status == 0) {
                                 D printf("thread %d sychronized encryption, level %d\n",
                                          args->thread_id, l);
-                                *thread_status = (*(args->mixfunc))(args->swp, args->out,
-                                                                    args->thread_chunk_size);
+                                *thread_status = (*(args->mixconfig->mixfunc))(
+                                    args->swp, args->out, args->thread_chunk_size);
                                 if (*thread_status != 0) {
                                         goto thread_exit;
                                 }
@@ -188,10 +187,9 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
                 args[t].abs_swp           = swp;
                 args[t].seed_size         = seed_size;
                 args[t].thread_chunk_size = thread_chunk_size;
-                args[t].diff_factor       = config->diff_factor;
                 args[t].thread_levels     = thread_levels;
                 args[t].total_levels      = total_levels;
-                args[t].mixfunc           = config->mixfunc;
+                args[t].mixconfig         = config;
         }
 
         D printf("[i] spawning the threads\n");

@@ -80,15 +80,12 @@ void setup_seeds(size_t diff_factor, size_t **seed_sizes, size_t *seed_sizes_cou
 
 void setup_configs(size_t diff_factor, mixing_config *configs) {
         configs[0].diff_factor = diff_factor;
-        configs[0].descr       = "wolfssl";
         configs[0].mixfunc     = &wolfssl;
 
         configs[1].diff_factor = diff_factor;
-        configs[1].descr       = "openssl";
         configs[1].mixfunc     = &openssl;
 
         configs[2].diff_factor = diff_factor;
-        configs[2].descr       = "intel (aesni)";
         configs[2].mixfunc     = &aesni;
 }
 
@@ -125,13 +122,21 @@ void setup_valid_internal_threads(size_t diff_factor, int internal_threads[],
 
 void test_keymix(byte *seed, byte *out, size_t seed_size, size_t expansion, int internal_threads,
                  int external_threads, mixing_config *config) {
+        char *impl = "(unspecified)";
+        if (config->mixfunc == &aesni) {
+                impl = "aesni";
+        } else if (config->mixfunc == &openssl) {
+                impl = "openssl";
+        } else if (config->mixfunc == &wolfssl) {
+                impl = "wolfssl";
+        }
         DLOG("[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
-             external_threads, config->descr, config->diff_factor, expansion);
+             external_threads, impl, config->diff_factor, expansion);
 
         for (int test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE(keymix_t(seed, seed_size, out, expansion * seed_size, config,
                                                external_threads, internal_threads, 0));
-                csv_line(seed_size, expansion, internal_threads, external_threads, config->descr,
+                csv_line(seed_size, expansion, internal_threads, external_threads, impl,
                          config->diff_factor, time);
                 DLOG(".");
         }
