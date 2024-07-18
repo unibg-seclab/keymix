@@ -76,7 +76,8 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
 
         __uint128_t counter = 0;
 
-        D assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
+        if (DEBUG)
+                assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
 
         size_t remaining             = out_size / seed_size;
         size_t offset                = 0;
@@ -106,7 +107,8 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 out += thread_seeds * seed_size;
                 counter += thread_seeds;
         }
-        D printf("Started %d threads\n", started_threads);
+        if (DEBUG)
+                printf("Started %d threads\n", started_threads);
 
         assert(remaining == 0);
 

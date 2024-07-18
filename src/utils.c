@@ -2,20 +2,20 @@
 #include "config.h"
 
 #include <assert.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
 
-void print_buffer_hex(byte *buf, size_t size, char *descr) {
-        printf("%s\n", descr);
-        for (size_t i = 0; i < size; i++) {
-                if (i % 16 == 0) {
-                        printf("|");
-                }
-                printf("%02x", buf[i]);
-        }
-        printf("|\n");
+void _log(log_level_t level, const char *fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        if (level >= LOG_LEVEL)
+                vfprintf(stderr, fmt, args);
+        va_end(args);
 }
+
+inline double MiB(double size) { return size / 1024 / 1024; }
 
 inline size_t intpow(size_t base, size_t exp) {
         size_t res = 1;
@@ -43,21 +43,22 @@ inline size_t intpow(size_t base, size_t exp) {
 // out = 0 | 4 | 1 | 5 | 2 | 6 | 3 | 7
 void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
              unsigned int fanout) {
-        D assert(level > 0);
+        if (DEBUG)
+                assert(level > 0);
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
         size_t macros_in_slab = intpow(fanout, level);
         size_t slab_size      = macros_in_slab * SIZE_MACRO;
 
-        D printf("Moving pieces of %zu B\n", mini_size);
-        D printf("Over a total of %zu slabs\n", in_size / slab_size);
+        _log(LOG_DEBUG, "Moving pieces of %zu B\n", mini_size);
+        _log(LOG_DEBUG, "Over a total of %zu slabs\n", in_size / slab_size);
 
         for (; out < last; out += slab_size, in += slab_size) {
-                D printf("New slab\n");
+                _log(LOG_DEBUG, "New slab\n");
 
                 for (size_t j = 0; j < (slab_size / mini_size); j++) {
                         size_t i = macros_in_slab * (j % fanout) + j / fanout;
-                        D printf("%zu -> %zu\n", i, j);
+                        _log(LOG_DEBUG, "%zu -> %zu\n", i, j);
                         memcpy(out + j * mini_size, in + i * mini_size, mini_size);
                 }
         }
@@ -82,7 +83,8 @@ void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int
 //  mod = j % fanout
 void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
                  unsigned int fanout) {
-        D assert(level > 0);
+        if (DEBUG)
+                assert(level > 0);
 
         size_t mini_size      = SIZE_MACRO / fanout;
         byte *last            = out + in_size;
@@ -186,7 +188,8 @@ void shuffle_chunks_opt(thread_data *args, int level) {
 
 void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
           unsigned int diff_factor) {
-        D assert(level > 0);
+        if (DEBUG)
+                assert(level > 0);
 
         int size_block = SIZE_MACRO / diff_factor;
 
@@ -196,9 +199,10 @@ void swap(byte *restrict out, byte *restrict in, size_t in_size, unsigned int le
         unsigned long nof_slabs        = in_size / slab_size;
         size_t prev_slab_size          = size_block * prev_slab_blocks;
 
-        D printf("swap, level %d, diff_factor %d, prev_slab_blocks %ld, slab_size "
-                 "%ld, in_size %ld\n",
-                 level, diff_factor, prev_slab_blocks, slab_size, in_size);
+        _log(LOG_DEBUG,
+             "swap, level %d, diff_factor %d, prev_slab_blocks %ld, slab_size "
+             "%ld, in_size %ld\n",
+             level, diff_factor, prev_slab_blocks, slab_size, in_size);
 
         size_t offset_slab      = 0;
         size_t offset_prev_slab = 0;
@@ -238,11 +242,13 @@ void swap_chunks(thread_data *args, int level) {
 
         size_t OFFSET = slab_start_pos + UPFRONT_BLOCKS_OFFSET;
 
-        D printf("swap, level %d, thread_id %d, diff_factor %d, thread_id %d, PREV_SLAB_SIZE %ld, "
-                 "SIZE_SLAB %ld, "
-                 "chunk_size %ld, OFFSET %ld\n",
-                 level, args->thread_id, args->mixconfig->diff_factor, args->thread_id,
-                 prev_slab_size, slab_size, args->thread_chunk_size, OFFSET);
+        _log(LOG_DEBUG,
+             "swap, level %d, thread_id %d, diff_factor %d, thread_id %d, "
+             "PREV_SLAB_SIZE %ld, "
+             "SIZE_SLAB %ld, "
+             "chunk_size %ld, OFFSET %ld\n",
+             level, args->thread_id, args->mixconfig->diff_factor, args->thread_id, prev_slab_size,
+             slab_size, args->thread_chunk_size, OFFSET);
 
         for (unsigned long block = 0; block < chunk_blocks; block++) {
                 memcpy(args->abs_buf + OFFSET, args->out + block * size_block, size_block);
@@ -266,7 +272,8 @@ void swap_chunks(thread_data *args, int level) {
 // out = 0 | 4 | 2 | 6 | 1 | 5 | 3 | 7
 void spread(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
             unsigned int fanout) {
-        D assert(level > 0);
+        if (DEBUG)
+                assert(level > 0);
 
         size_t mini_size = SIZE_MACRO / fanout;
 
@@ -306,7 +313,8 @@ void spread(byte *restrict out, byte *restrict in, size_t in_size, unsigned int 
 // This is using a different mixing behavior with respect to the shuffle and
 // swap functions above.
 void spread_chunks(thread_data *args, int level) {
-        D assert(level > args->thread_levels);
+        if (DEBUG)
+                assert(level > args->thread_levels);
 
         unsigned int fanout = args->mixconfig->diff_factor;
         size_t mini_size    = SIZE_MACRO / fanout;

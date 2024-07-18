@@ -23,7 +23,22 @@
 #include "utils.h"
 #include "wolfssl.h"
 
+void print_buffer_hex(byte *buf, size_t size, char *descr) {
+        printf("%s\n", descr);
+        for (size_t i = 0; i < size; i++) {
+                if (i % 16 == 0) {
+                        printf("|");
+                }
+                printf("%02x", buf[i]);
+        }
+        printf("|\n");
+}
+
 int main() {
+        _log(LOG_DEBUG, "[debug] Hello %d\n", 123);
+        _log(LOG_INFO, "[info] Hello %d\n", 123);
+
+        return 0;
         // todo: rewrite code to test different encryption suites
         // todo: write on a real file
         // todo: recover and check correct parameters
@@ -47,7 +62,7 @@ int main() {
         byte *seed = malloc(seed_size);
         byte *out  = malloc(seed_size);
         if (seed == NULL || out == NULL) {
-                LOG("Cannot allocate more memory\n");
+                _log(LOG_DEBUG, "Cannot allocate more memory\n");
                 goto clean;
         }
 

@@ -1,7 +1,6 @@
 #include "openssl.h"
 
 #include "types.h"
-#include "utils.h"
 #include <assert.h>
 #include <openssl/evp.h>
 
@@ -17,7 +16,8 @@ int openssl(byte *seed, byte *out, size_t seed_size) {
                 __uint128_t data = *(__uint128_t *)(seed + 2 * SIZE_BLOCK);
 
                 __uint128_t in[] = {data, data + 1, data + 2};
-                D assert(sizeof(in) == SIZE_MACRO);
+                if (DEBUG)
+                        assert(sizeof(in) == SIZE_MACRO);
                 EVP_EncryptInit(ctx, NULL, key, NULL);
                 EVP_EncryptUpdate(ctx, out, &outl, (byte *)in, SIZE_MACRO);
         }

@@ -35,4 +35,9 @@ typedef struct {
         mixing_config *mixconfig;
 } thread_data;
 
+typedef enum {
+        LOG_DEBUG,
+        LOG_INFO,
+} log_level_t;
+
 #endif

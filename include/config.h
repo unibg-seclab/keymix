@@ -11,7 +11,8 @@
 #define BLOCKS_PER_MACRO 3
 #define SIZE_MACRO 48
 
-// Enable or disable debug-time checks
+// Enable or disable debug-time checks and logs
+#define LOG_LEVEL LOG_INFO
 #define DEBUG 0
 
 #endif
