@@ -14,7 +14,7 @@
 #define SIZE_MACRO 48
 
 // enable or disable debug-time checks
-#define DEBUG 0
+#define DEBUG 1
 
 // threads
 #define MAX_THREAS 128
