@@ -23,6 +23,8 @@ int wolfssl(byte *seed, byte *out, size_t seed_size) {
                 if (err)
                         goto cleanup;
 
+                // We could also use this
+                // wc_AesEcbEncrypt(&aes, out, (byte *)in, SIZE_MACRO);
                 for (int b = 0; b < 3; b++) {
                         err = wc_AesEncryptDirect(&aes, out + b * SIZE_BLOCK, (byte *)(in + b));
                         if (err)
