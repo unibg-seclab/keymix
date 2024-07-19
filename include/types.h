@@ -14,7 +14,6 @@ typedef unsigned char byte;
 
 typedef struct {
         int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
-        char *descr;
         unsigned int diff_factor; // diffusion factor (swap functio): 3 (128 bits), 4
                                   // (96 bits), 6 (64 bits), 12 (32 bits)
 } mixing_config;
@@ -25,15 +24,20 @@ typedef struct {
         sem_t *coord_sem;
         byte *in;
         byte *out;
-        byte *swp;
+        byte *buf;
+        byte *abs_in;
         byte *abs_out;
-        byte *abs_swp;
+        byte *abs_buf;
         size_t seed_size;
         size_t thread_chunk_size;
-        unsigned int diff_factor;
         unsigned int thread_levels;
         unsigned int total_levels;
-        int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
+        mixing_config *mixconfig;
 } thread_data;
+
+typedef enum {
+        LOG_DEBUG,
+        LOG_INFO,
+} log_level_t;
 
 #endif

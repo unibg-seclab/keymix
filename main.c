@@ -1,4 +1,3 @@
-#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +23,22 @@
 #include "utils.h"
 #include "wolfssl.h"
 
+void print_buffer_hex(byte *buf, size_t size, char *descr) {
+        printf("%s\n", descr);
+        for (size_t i = 0; i < size; i++) {
+                if (i % 16 == 0) {
+                        printf("|");
+                }
+                printf("%02x", buf[i]);
+        }
+        printf("|\n");
+}
+
 int main() {
+        _log(LOG_DEBUG, "[debug] Hello %d\n", 123);
+        _log(LOG_INFO, "[info] Hello %d\n", 123);
+
+        return 0;
         // todo: rewrite code to test different encryption suites
         // todo: write on a real file
         // todo: recover and check correct parameters
@@ -45,20 +59,25 @@ int main() {
         printf("Seed has size %zu MiB\n", seed_size / 1024 / 1024);
         printf("====\n");
 
-        byte *seed = checked_malloc(seed_size);
-        byte *out  = checked_malloc(seed_size);
+        byte *seed = malloc(seed_size);
+        byte *out  = malloc(seed_size);
+        if (seed == NULL || out == NULL) {
+                _log(LOG_DEBUG, "Cannot allocate more memory\n");
+                goto clean;
+        }
 
         // {function_name, descr, diff_factor}
         mixing_config configs[] = {
-            {&wolfssl, "wolf (128)", 3},
-            {&openssl, "openssl (128)", 3},
-            {&aesni, "aesni (128)", 3},
+            {&wolfssl, 3},
+            {&openssl, 3},
+            {&aesni, 3},
         };
+        char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
-        mixing_config mconf    = {&wolfssl, "wolf (128)", 3};
+        mixing_config mconf    = {&wolfssl, 3};
         unsigned int threads[] = {1, 3, 9, 27, 81};
         for (unsigned int t = 0; t < sizeof(threads) / sizeof(unsigned int); t++) {
-                printf("Multi-threaded %s with %d threads\n", mconf.descr, threads[t]);
+                printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
                 int pe          = 0;
                 int nof_threads = threads[t];
                 double time =
@@ -87,11 +106,10 @@ int main() {
                         print_buffer_hex(out, seed_size, "out");
                 }
                 unsigned int nof_macros = seed_size / 48;
-                unsigned int levels =
-                    1 + (unsigned int)(log10(nof_macros) / log10(configs[i].diff_factor));
+                unsigned int levels     = 1 + LOGBASE(nof_macros, configs[i].diff_factor);
 
                 printf("levels:\t\t\t%d\n", levels);
-                printf("%s mixing...\n", configs[i].descr);
+                printf("%s mixing...\n", descr[i]);
                 printf("diff_factor:\t\t%d\n", configs[i].diff_factor);
 
                 double time = MEASURE({ err = keymix(seed, out, seed_size, &configs[i]); });
