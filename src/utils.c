@@ -8,11 +8,12 @@
 #include <sys/types.h>
 
 void _log(log_level_t level, const char *fmt, ...) {
-        va_list args;
-        va_start(args, fmt);
-        if (level >= LOG_LEVEL)
+        if (level >= LOG_LEVEL) {
+                va_list args;
+                va_start(args, fmt);
                 vfprintf(stderr, fmt, args);
-        va_end(args);
+                va_end(args);
+        }
 }
 
 inline double MiB(double size) { return size / 1024 / 1024; }
