@@ -1,20 +1,45 @@
-# Quickstart
+# Keymix
 
-1. Clone the repo
-2. Run `git config --local core.hooksPath githooks`
-3. Run `git config --local pull.rebase true`
-4. Install `perf`
-   - May be necessary to install `linux-tools-common linux-tools-generic linux-tools-$(uname -r)` or the equivalent
-     in your distro
-5. Retrieve [FlameGraph](https://github.com/brendangregg/FlameGraph) on your system,
-   write install path into `.FlameGraphDir`
-6. Clone and install system-wide [wolfSSL](https://github.com/wolfSSL/wolfssl.git)
-   - Enable `aesni`, `intelasm`, `aesctr`, `aescbc`, `aesecb`
-   - Use `pkgs/wolfssl-ecb/install.sh` if you want
+## Setup instructions
 
-# Workflow
+- Install OpenSSL (packaged version for your system is fine)
+- Install wolfSSL with `make wolfssl`
+- Compile everything with `make`
 
-- `clang-format` is executed as a pre-commit hook
-- Formatted files are highlighted in red and stored in the working directory
-- Commit is aborted, the changes must be re-staged
-- Only C/C++ source files are currently formatted
+## CLI
+
+TODO
+
+## Development
+
+### Code style
+
+The file `.clang-format` should work out of the box. In `githooks` you'll find
+some git hooks to enable with `git config --local core.hooksPath githooks`,
+which formats the project before a commit and modified files are brought back
+from staging.
+
+### Configuration
+
+Change the values in `config.h`. In particular:
+
+- `DEBUG` is used to enable debug-time checks
+- `DISABLE_LOG` to disable all logging (removing the code too)
+- `LOG_LEVEL` which can be set to either `LOG_DEBUG` or `LOG_INFO` and acts
+   as a filter for which logs to show
+
+Logs are shown on `stderr`.
+
+### Performance and tests
+
+1. Perf and flame graphs
+   - Install `perf`
+   - Clone [FlameGraph](https://github.com/brendangregg/FlameGraph)
+   - Write the install path in the `.FlameGraphDir` file
+   - `make perf`, `make perf-report`, and `make perf-flamegraph`
+2. Automatic performance tests
+   - `make test` to compile
+   - `make run-test` to run them
+   - `make daemon` to run tests as a daemon (they take quite a lot of time)
+3. Verifying equivalence between various implementations (i.e., sanity check)
+   - `make verify` and then run `./verify`
