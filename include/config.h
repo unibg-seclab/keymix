@@ -14,7 +14,7 @@
 #define SIZE_MACRO 48
 
 // enable or disable debug-time checks and logs
-#define LOG_LEVEL LOG_INFO
+#define LOG_LEVEL LOG_DEBUG
 #define DEBUG 1
 
 // threads

@@ -54,7 +54,7 @@ static void check_missing_arguments(struct argp_state *state) {
         struct arguments *arguments = state->input;
         if (arguments->resource_path == NULL || arguments->output_path == NULL ||
             arguments->secret_path == NULL || arguments->iv == NULL) {
-                LOG("(!) Missing arguments -- resource, output, secret and iv are mandatory\n");
+                printf("(!) Missing arguments -- resource, output, secret and iv are mandatory\n");
                 goto cleanup;
         }
         return;
@@ -91,7 +91,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'i':
                 arguments->iv = checked_malloc(SIZE_BLOCK);
                 if (strlen(arg) != SIZE_BLOCK) {
-                        LOG("(!) A 16-Byte initialization vector is required\n");
+                        printf("(!) A 16-Byte initialization vector is required\n");
                         goto cleanup;
                 }
                 for (int i = 0; i < SIZE_BLOCK; i++) {
@@ -109,7 +109,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         }
                 }
                 if (found == 0) {
-                        LOG("(!) Invalid DIFFUSION input -- choose among 2, 3, 4, 6, 8, 12\n");
+                        _log(LOG_INFO,
+                             "(!) Invalid DIFFUSION input -- choose among 2, 3, 4, 6, 8, 12\n");
                         goto cleanup;
                 } else if (arguments->diffusion > 4) {
                         printf("Consider selecting DIFFUSION of 2, 3 or 4 for better protection\n");
@@ -126,14 +127,15 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         arguments->mixfunc       = &aesni;
                         arguments->mixfunc_descr = "aesni";
                 } else {
-                        LOG("(!) Invalid LIBRARY -- choose among wolfssl, openssl, aesni\n");
+                        _log(LOG_INFO,
+                             "(!) Invalid LIBRARY -- choose among wolfssl, openssl, aesni\n");
                         goto cleanup;
                 }
                 break;
         case 't':
                 arguments->threads = atoi(arg);
                 if (arguments->threads < 1 || arguments->threads > 128) {
-                        LOG("(!) Unsupported number of threads\n");
+                        _log(LOG_INFO, "(!) Unsupported number of threads\n");
                         goto cleanup;
                 }
                 break;
@@ -223,9 +225,11 @@ int storage_write(FILE *fstr_output, FILE *fstr_resource, size_t resource_size, 
                 write_status = ERR_FREAD;
                 goto clean_write;
         }
-        D print_buffer_hex(out + offset, remainder, "out");
+        // todo: remove
+        print_buffer_hex(out + offset, remainder, "out");
         memxor(out + offset, resource_page, remainder);
-        D print_buffer_hex(out + offset, remainder, "out xor resource");
+        // todo: remove
+        print_buffer_hex(out + offset, remainder, "out xor resource");
         if (remainder != fwrite(out + offset, 1, remainder, fstr_output)) {
                 write_status = ERR_FWRITE;
                 goto clean_write;
@@ -279,26 +283,28 @@ int encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resource,
         // apply keymix
         if (arguments->threads == 1) { // use keymix
                 if (arguments->verbose)
-                        LOG("Using keymix (no parallelism)\n");
+                        printf("Using keymix (no parallelism)\n");
                 // T, T+1, ...
                 unsigned long epochs = (unsigned long)(ceil(((double)resource_size) / seed_size));
                 if (arguments->verbose)
                         printf("epochs:\t\t%ld\n", epochs);
                 // set the mixing function
-                mixing_config mix_conf = {arguments->mixfunc, arguments->mixfunc_descr,
-                                          arguments->diffusion};
+                mixing_config mix_conf = {arguments->mixfunc, arguments->diffusion};
                 // prepare the memory
                 byte *out = checked_malloc(seed_size);
                 // apply the iv (16 bytes) to the first seed block
-                D print_buffer_hex(secret, SIZE_MACRO, "secret before iv");
+                // todo: remove
+                print_buffer_hex(secret, SIZE_MACRO, "secret before iv");
                 memxor(secret, arguments->iv, SIZE_BLOCK);
-                D print_buffer_hex(secret, SIZE_MACRO, "secret after iv");
+                // todo: remove
+                print_buffer_hex(secret, SIZE_MACRO, "secret after iv");
                 // mix T, T+1, ...
                 for (unsigned long e = 0; e < epochs; e++) {
-                        D printf("~~>epoch %ld\n", e);
+                        _log(LOG_DEBUG, "~~>epoch %ld\n", e);
                         // apply the counter
-                        // encrypt_status = increment_counter(secret);
-                        D print_buffer_hex(secret, SIZE_MACRO, "secret after ctr");
+                        encrypt_status = increment_counter(secret);
+                        // todo: remove
+                        print_buffer_hex(secret, SIZE_MACRO, "secret after ctr");
                         if (encrypt_status != 0)
                                 break; // stop and fail
                         encrypt_status = keymix(secret, out, seed_size, &mix_conf);
@@ -363,7 +369,7 @@ int main(int argc, char **argv) {
         // prepare the streams
         FILE *fstr_resource = fopen(arguments.resource_path, "r");
         if (fstr_resource == NULL) {
-                LOG("(!) Cannot open resource file\n");
+                printf("(!) Cannot open resource file\n");
                 prog_status = errno;
                 goto close_fstr_resource;
         }
@@ -373,22 +379,22 @@ int main(int argc, char **argv) {
                 fclose(fstr_output);
                 if (remove(arguments.output_path) == 0) {
                         if (arguments.verbose)
-                                LOG("Previous encrypted resource correctly removed\n");
+                                printf("Previous encrypted resource correctly removed\n");
                 } else {
-                        LOG("(!) Unable to delete the previously encrypted resource\n");
+                        printf("(!) Unable to delete the previously encrypted resource\n");
                         prog_status = errno;
                         goto close_fstr_secret;
                 }
         }
         fstr_output = fopen(arguments.output_path, "w");
         if (fstr_output == NULL) {
-                LOG("(!) Cannot open create encrypted file file\n");
+                printf("(!) Cannot open create encrypted file file\n");
                 prog_status = errno;
                 goto close_fstr_output;
         }
         FILE *fstr_secret = fopen(arguments.secret_path, "r");
         if (fstr_secret == NULL) {
-                LOG("(!) Cannot open secret file\n");
+                printf("(!) Cannot open secret file\n");
                 prog_status = errno;
                 goto close_fstr_secret;
         }

@@ -25,6 +25,27 @@ void memxor(byte *dst, byte *src, size_t n) {
         }
 }
 
+byte *checked_malloc(size_t size) {
+        byte *buf = (byte *)malloc(size);
+        if (buf == NULL) {
+                printf("(!) Error occured while allocating memory\n");
+                // No need to free, as free is a no-op when the ptr is NULL
+                exit(1);
+        }
+        return buf;
+}
+
+void print_buffer_hex(byte *buf, size_t size, char *descr) {
+        printf("%s\n", descr);
+        for (size_t i = 0; i < size; i++) {
+                if (i % 16 == 0) {
+                        printf("|");
+                }
+                printf("%02x", buf[i]);
+        }
+        printf("|\n");
+}
+
 size_t get_file_size(FILE *fstr) {
         if (fstr == NULL) {
                 return 0;
@@ -38,7 +59,7 @@ size_t get_file_size(FILE *fstr) {
         // move the cursor back to the beginning of the file
         if (fseek(fstr, 0, SEEK_SET) < 0) {
                 // undefined behavior if code enters this branch
-                LOG("(!) fseek cannot set the cursor to the beginning of the buffer\n");
+                printf("(!) fseek cannot set the cursor to the beginning of the buffer\n");
                 exit(errno);
         }
         return size;
