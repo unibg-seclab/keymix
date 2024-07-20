@@ -1,6 +1,7 @@
 #include "aesni.h"
 #include "config.h"
 #include "keymix.h"
+#include "keymix_seq.h"
 #include "keymix_t.h"
 #include "openssl.h"
 #include "types.h"
@@ -36,19 +37,6 @@ static struct argp_option options[] = {
     {"threads", 't', "UINT", 0, "Number of threads available", 6},
     {"verbose", 'v', 0, 0, "Verbose mode", 7},
     {0}};
-
-struct arguments {
-        char *resource_path;
-        char *output_path;
-        char *secret_path;
-        byte *iv;
-        unsigned int diffusion;
-        int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
-        unsigned int threads;
-        unsigned short verbose;
-        // other
-        char *mixfunc_descr;
-};
 
 static void check_missing_arguments(struct argp_state *state) {
         struct arguments *arguments = state->input;
@@ -225,11 +213,7 @@ int storage_write(FILE *fstr_output, FILE *fstr_resource, size_t resource_size, 
                 write_status = ERR_FREAD;
                 goto clean_write;
         }
-        // todo: remove
-        print_buffer_hex(out + offset, remainder, "out");
         memxor(out + offset, resource_page, remainder);
-        // todo: remove
-        print_buffer_hex(out + offset, remainder, "out xor resource");
         if (remainder != fwrite(out + offset, 1, remainder, fstr_output)) {
                 write_status = ERR_FWRITE;
                 goto clean_write;
@@ -241,112 +225,75 @@ clean_write:
         return write_status;
 }
 
-int increment_counter(byte *macro) {
-        byte carry           = 0x01;
-        unsigned short start = 2 * SIZE_BLOCK - 1;
-        while (start > 2 * SIZE_BLOCK - 9) {
-                if (macro[start] == 0xff) {
-                        macro[start] = 0x00;
-                        start--;
-                } else {
-                        macro[start] += carry;
-                        return 0;
-                }
-        }
-        return ERR_RLIMIT;
-}
-
 int encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resource,
             FILE *fstr_secret) {
 
         // encrypt local config
         int encrypt_status    = 0;
-        size_t size_threshold = 4 * SIZE_1MiB;
+        size_t size_threshold = SIZE_1MiB;
 
         // get the size of the secret and the resource
-        size_t seed_size     = get_file_size(fstr_secret);
+        size_t secret_size   = get_file_size(fstr_secret);
         size_t resource_size = get_file_size(fstr_resource);
         if (arguments->verbose) {
                 printf("Resource size is %ld bytes, secret size is %ld bytes\n", resource_size,
-                       seed_size);
+                       secret_size);
         }
 
         // get the size of storage pages
         int page_size = getpagesize();
 
         // read the secret
-        byte *secret   = checked_malloc(seed_size);
-        encrypt_status = storage_read(secret, fstr_secret, seed_size, page_size);
+        byte *secret   = checked_malloc(secret_size);
+        encrypt_status = storage_read(secret, fstr_secret, secret_size, page_size);
         if (encrypt_status != 0)
-                goto cleanup_bufs;
+                goto cleanup;
 
-        // apply keymix
-        if (arguments->threads == 1) { // use keymix
-                if (arguments->verbose)
-                        printf("Using keymix (no parallelism)\n");
-                // T, T+1, ...
-                unsigned long epochs = (unsigned long)(ceil(((double)resource_size) / seed_size));
-                if (arguments->verbose)
-                        printf("epochs:\t\t%ld\n", epochs);
-                // set the mixing function
-                mixing_config mix_conf = {arguments->mixfunc, arguments->diffusion};
-                // prepare the memory
-                byte *out = checked_malloc(seed_size);
-                // apply the iv (16 bytes) to the first seed block
-                // todo: remove
-                print_buffer_hex(secret, SIZE_MACRO, "secret before iv");
-                memxor(secret, arguments->iv, SIZE_BLOCK);
-                // todo: remove
-                print_buffer_hex(secret, SIZE_MACRO, "secret after iv");
-                // mix T, T+1, ...
-                for (unsigned long e = 0; e < epochs; e++) {
-                        _log(LOG_DEBUG, "~~>epoch %ld\n", e);
-                        // apply the counter
-                        encrypt_status = increment_counter(secret);
-                        // todo: remove
-                        print_buffer_hex(secret, SIZE_MACRO, "secret after ctr");
-                        if (encrypt_status != 0)
-                                break; // stop and fail
-                        encrypt_status = keymix(secret, out, seed_size, &mix_conf);
-                        if (encrypt_status != 0)
-                                break; // stop and fail
-                        // shorten the resource in the last epoch if
-                        // seed_size extends beyond the last portion
-                        // of the resource
-                        if (e == epochs - 1 && resource_size % seed_size != 0) {
-                                resource_size = resource_size % seed_size;
-                        }
-                        // write to storage out xor resource
-                        encrypt_status = storage_write(fstr_output, fstr_resource, resource_size,
-                                                       out, seed_size, page_size);
-                }
-                // resource encrypted
-                explicit_bzero(out, seed_size);
-                free(out);
-                goto cleanup_bufs;
-        } else if (resource_size < size_threshold) {
-                // use inter keymix
-                // todo
-        } else {
-                // use a mix of intra and inter keymix based on the
-                // number of thread available
-                unsigned short encrypt_case = 0;
-                unsigned int pow            = 1;
-                while (pow * arguments->diffusion <= arguments->threads)
-                        pow *= arguments->diffusion;
-                if (pow == arguments->threads) {
-                        // use only intra keymix
-                        // todo
-                } else {
-                        // use many intra keymix with variable number of threads available
-                        // todo
-                }
+        // determine the encryption mode
+        int (*mixseqfunc)(struct arguments *, FILE *, FILE *, size_t, size_t, byte *, size_t) =
+            NULL;
+        char *description = NULL;
+        unsigned int pow  = 1;
+        while (pow * arguments->diffusion <= arguments->threads)
+                pow *= arguments->diffusion;
+        if (arguments->threads == 1) {
+                // 1 core -> single-threaded
+                mixseqfunc  = &keymix_seq;
+                description = "Encrypting with single-core keymix";
+        } else if (secret_size < size_threshold) {
+                // small seed + many threads -> inter-keymix
+                mixseqfunc  = &keymix_inter_seq;
+                description = "Encrypting with inter-keymix";
+        } else if (arguments->threads % pow != 0) {
+                // large seed + unbalanced number of threads -> inter-mix
+                mixseqfunc  = &keymix_inter_seq;
+                description = "Encrypting with inter-keymix";
+        } else if (arguments->threads == pow) {
+                //  large seed + power nof threads -> intra-keymix
+                mixseqfunc  = &keymix_intra_seq;
+                description = "Encrypting with intra-keymix";
+        } else if (arguments->threads % pow == 0) {
+                // large seed + multiple of power nof threads -> inter & intra-keymix
+                mixseqfunc  = &keymix_inter_intra_seq;
+                description = "Encrypting with inter-intra-keymix";
         }
 
-cleanup_bufs:
-        explicit_bzero(secret, seed_size);
+        // keymix
+        if (mixseqfunc == NULL) {
+                printf("No suitable encryption mode found\n");
+                encrypt_status = ERR_MODE;
+                goto cleanup;
+        }
+        if (arguments->verbose)
+                printf("%s\n", description);
+        encrypt_status = (*(mixseqfunc))(arguments, fstr_output, fstr_resource, page_size,
+                                         resource_size, secret, secret_size);
+        if (encrypt_status != 0)
+                goto cleanup;
+
+cleanup:
+        explicit_bzero(secret, secret_size);
         free(secret);
-ret:
         return encrypt_status;
 }
 

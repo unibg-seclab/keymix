@@ -35,6 +35,34 @@ typedef struct {
         mixing_config *mixconfig;
 } thread_data;
 
+typedef struct {
+        byte *out;
+        byte *secret;
+        size_t seed_size;
+        mixing_config *mixconfig;
+} inter_keymix_data;
+
+typedef struct {
+        byte *out;
+        byte *secret;
+        size_t seed_size;
+        mixing_config *mixconfig;
+        unsigned int nof_threads;
+} inter_intra_keymix_data;
+
+struct arguments {
+        char *resource_path;
+        char *output_path;
+        char *secret_path;
+        byte *iv;
+        unsigned int diffusion;
+        int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
+        unsigned int threads;
+        unsigned short verbose;
+        // other
+        char *mixfunc_descr;
+};
+
 typedef enum {
         LOG_DEBUG,
         LOG_INFO,

@@ -7,6 +7,7 @@
 #define ERR_FREAD 3
 #define ERR_FWRITE 4
 #define ERR_RLIMIT 5
+#define ERR_MODE 6
 
 // sizes
 #define SIZE_BLOCK 16
@@ -14,8 +15,8 @@
 #define SIZE_MACRO 48
 
 // enable or disable debug-time checks and logs
-#define LOG_LEVEL LOG_DEBUG
-#define DEBUG 1
+#define LOG_LEVEL LOG_INFO
+#define DEBUG 0
 
 // threads
 #define MAX_THREAS 128

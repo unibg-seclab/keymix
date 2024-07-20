@@ -35,6 +35,21 @@ byte *checked_malloc(size_t size) {
         return buf;
 }
 
+int increment_counter(byte *macro) {
+        byte carry           = 0x01;
+        unsigned short start = 2 * SIZE_BLOCK - 1;
+        while (start > 2 * SIZE_BLOCK - 9) {
+                if (macro[start] == 0xff) {
+                        macro[start] = 0x00;
+                        start--;
+                } else {
+                        macro[start] += carry;
+                        return 0;
+                }
+        }
+        return ERR_RLIMIT;
+}
+
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);
         for (size_t i = 0; i < size; i++) {

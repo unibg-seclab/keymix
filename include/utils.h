@@ -27,6 +27,8 @@ void spread_chunks(thread_data *args, int level);
 void shuffle_chunks(thread_data *args, int level);
 void shuffle_chunks_opt(thread_data *args, int level);
 
+int increment_counter(byte *macro);
+
 double MiB(double size);
 
 #ifdef NO_MEASURE
