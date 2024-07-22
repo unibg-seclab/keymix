@@ -318,7 +318,9 @@ void memswap(byte *a, byte *b, size_t bytes) {
 // the single thread across multiple slabs inplace.
 void spread_inplace(byte *restrict buffer, size_t in_size, unsigned int level,
                     unsigned int fanout) {
-        D assert(level > 0);
+        if (DEBUG) {
+                assert(level > 0);
+        }
 
         byte *in  = buffer;
         byte *out = buffer;
