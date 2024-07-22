@@ -171,6 +171,10 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         byte *out5 = setup(size, 0);
         byte *out6 = setup(size, 0);
 
+        byte *out7 = setup(size, 0);
+        byte *out8 = setup(size, 0);
+        byte *out9 = setup(size, 0);
+
         // Note, if fanout^2 is too high a number of threads, i.e., each thread
         // would get less than 1 macro, then the number of threads is brought
         // down to fanout
@@ -182,6 +186,13 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         emulate_shuffle_chunks(shuffle_chunks_opt, out5, in, size, level, fanout, fanout);
         emulate_shuffle_chunks(shuffle_chunks_opt, out6, in, size, level, fanout, fanout * fanout);
 
+        spread(out7, in, size, level, fanout);
+
+        // Note, we are not testing spread_chunks with one thread because it is meant to be used
+        // only with multiple threads
+        emulate_shuffle_chunks(spread_chunks, out8, in, size, level, fanout, fanout);
+        emulate_shuffle_chunks(spread_chunks, out9, in, size, level, fanout, fanout * fanout);
+
         int err = 0;
         err += COMPARE(out1, out2, size, "1 thr != %zu thr\n", fanout);
         err += COMPARE(out2, out3, size, "%zu thr != %zu thr\n", fanout, fanout * fanout);
@@ -191,6 +202,10 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         err += COMPARE(out5, out6, size, "%zu thr != %zu thr (opt)\n", fanout, fanout * fanout);
         err += COMPARE(out4, out6, size, "1 thr != %zu thr (opt)\n", fanout * fanout);
 
+        err += COMPARE(out7, out8, size, "1 thr (spread) != %zu thr (spread chunks)\n", fanout);
+        err += COMPARE(out8, out9, size, "%zu thr (spread chunks) != %zu thr (spread chunks)\n", fanout, fanout * fanout);
+        err += COMPARE(out9, out7, size, "1 thr (spread) != %zu thr (spread chunks)\n", fanout * fanout);
+
         free(in);
         free(out1);
         free(out2);
@@ -198,6 +213,9 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         free(out4);
         free(out5);
         free(out6);
+        free(out7);
+        free(out8);
+        free(out9);
 
         return err;
 }
