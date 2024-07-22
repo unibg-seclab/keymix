@@ -132,14 +132,14 @@ int verify_shuffles(size_t fanout, size_t level) {
         // err += COMPARE(out_shuffle, out_swap2, size, "Swap (chunks) != shuffle\n");
         err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
         err += COMPARE(out_shuffle2, out_shuffle3, size, "Shuffle (opt) != shuffle (chunks)\n");
-        err += COMPARE(out_shuffle3, out_swap, size, "Shuffle (chunks) != swap\n");
-        err += COMPARE(out_shuffle3, out_shuffle, size, "Shuffle (chunks) != shuffle\n");
         err += COMPARE(out_shuffle3, out_shuffle4, size,
                        "Shuffle (chunks) != shuffle (chunks, opt)\n");
+        err += COMPARE(out_shuffle4, out_swap, size, "Shuffle (chunks, opt) != swap\n");
 
         err += COMPARE(out_spread, out_spread_inplace, size, "Spread != spread (inplace)\n");
-        err +=
-            COMPARE(out_spread_inplace, out_spread2, size, "Spread (inplace) != spread (chunks)\n");
+        err += COMPARE(out_spread_inplace, out_spread2, size,
+                       "Spread (inplace) != spread (chunks)\n");
+        err += COMPARE(out_spread2, out_spread, size, "Spread (chunks) != spread\n");
 
         free(in);
         free(out_swap);
@@ -203,8 +203,10 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         err += COMPARE(out4, out6, size, "1 thr != %zu thr (opt)\n", fanout * fanout);
 
         err += COMPARE(out7, out8, size, "1 thr (spread) != %zu thr (spread chunks)\n", fanout);
-        err += COMPARE(out8, out9, size, "%zu thr (spread chunks) != %zu thr (spread chunks)\n", fanout, fanout * fanout);
-        err += COMPARE(out9, out7, size, "1 thr (spread) != %zu thr (spread chunks)\n", fanout * fanout);
+        err += COMPARE(out8, out9, size, "%zu thr (spread chunks) != %zu thr (spread chunks)\n",
+                       fanout, fanout * fanout);
+        err += COMPARE(out9, out7, size, "1 thr (spread) != %zu thr (spread chunks)\n",
+                       fanout * fanout);
 
         free(in);
         free(out1);
