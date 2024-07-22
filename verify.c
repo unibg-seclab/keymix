@@ -54,8 +54,9 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
 
-        int thread_levels = level - fmin(level, 3); // only accurate when the nof_threads input to
-                                                    // the function is 0
+        int thread_levels = level - LOGBASE(nof_threads, fanout); // only accurate when the
+                                                                  // nof_threads is a power of
+                                                                  // fanout
 
         pthread_t threads[nof_threads];
         run_thr_t thread_args[nof_threads];
