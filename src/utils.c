@@ -370,7 +370,7 @@ void spread_inplace(byte *restrict buffer, size_t in_size, unsigned int level,
 // swap functions above.
 void spread_chunks(thread_data *args, int level) {
         if (DEBUG)
-                assert(level > args->thread_levels);
+                assert(level >= args->thread_levels);
 
         unsigned int fanout = args->mixconfig->diff_factor;
         size_t mini_size    = SIZE_MACRO / fanout;

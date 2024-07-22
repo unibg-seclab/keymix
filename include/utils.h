@@ -58,7 +58,7 @@ double MiB(double size);
                 _a < _b ? _a : _b;                                                                 \
         })
 
-#define LOGBASE(x, base) (log(x) / log(base))
+#define LOGBASE(x, base) (round(log(x) / log(base)))
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
 #endif
