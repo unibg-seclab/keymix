@@ -1,8 +1,10 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include "config.h"
 #include <semaphore.h>
+#include <stdbool.h>
+
+#include "config.h"
 
 // Custom common types
 typedef unsigned char byte;
@@ -14,8 +16,9 @@ typedef unsigned char byte;
 
 typedef struct {
         int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
-        unsigned int diff_factor; // diffusion factor (swap functio): 3 (128 bits), 4
+        unsigned int diff_factor; // diffusion factor (swap function): 3 (128 bits), 4
                                   // (96 bits), 6 (64 bits), 12 (32 bits)
+        bool inplace;
 } mixing_config;
 
 typedef struct {

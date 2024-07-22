@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,13 +69,13 @@ int main() {
 
         // {function_name, descr, diff_factor}
         mixing_config configs[] = {
-            {&wolfssl, 3},
-            {&openssl, 3},
-            {&aesni, 3},
+            {&wolfssl, 3, false},
+            {&openssl, 3, false},
+            {&aesni, 3, false},
         };
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
-        mixing_config mconf    = {&wolfssl, 3};
+        mixing_config mconf    = {&wolfssl, 3, false};
         unsigned int threads[] = {1, 3, 9, 27, 81};
         for (unsigned int t = 0; t < sizeof(threads) / sizeof(unsigned int); t++) {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);

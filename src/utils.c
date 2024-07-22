@@ -287,7 +287,6 @@ void spread(byte *restrict out, byte *restrict in, size_t in_size, unsigned int 
         unsigned long in_offset = 0;
         unsigned long out_macro_offset, out_mini_offset;
 
-        // TODO: Improve caching management
         while (out < last) {
                 for (unsigned int prev_slab = 0; prev_slab < fanout; prev_slab++) {
                         out_macro_offset = 0;
@@ -297,6 +296,60 @@ void spread(byte *restrict out, byte *restrict in, size_t in_size, unsigned int 
                                         memcpy(out + out_macro_offset + out_mini_offset,
                                                in + in_offset, mini_size);
                                         in_offset += mini_size;
+                                        out_mini_offset += prev_slab_size;
+                                }
+                                out_macro_offset += SIZE_MACRO;
+                        }
+                }
+                out += slab_size;
+        }
+}
+
+void memswap(byte *a, byte *b, size_t bytes) {
+        byte *a_end = a + bytes;
+        while (a < a_end) {
+                char tmp = *a;
+                *a++     = *b;
+                *b++     = tmp;
+        }
+}
+
+// This function spreads the output of the encryption produced by
+// the single thread across multiple slabs inplace.
+void spread_inplace(byte *restrict buffer, size_t in_size, unsigned int level,
+                    unsigned int fanout) {
+        D assert(level > 0);
+
+        byte *in  = buffer;
+        byte *out = buffer;
+
+        size_t mini_size = SIZE_MACRO / fanout;
+
+        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
+        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+
+        byte *last                   = out + in_size;
+        unsigned long in_mini_offset = 0;
+        unsigned long out_macro_offset, out_mini_offset;
+
+        while (out < last) {
+                for (unsigned int prev_slab = 0; prev_slab < fanout - 1; prev_slab++) {
+                        out_macro_offset = 0;
+                        for (unsigned long macro = 0; macro < prev_macros_in_slab; macro++) {
+                                // With inplace swap we never have to look back on the previous
+                                // slab parts. Moreover, when we get to the last slab part we
+                                // have nothing to do, previous swap operations have already
+                                // managed to set this last slab part right.
+
+                                in_mini_offset += (prev_slab + 1) * mini_size;
+                                out_mini_offset =
+                                    (prev_slab + 1) * prev_slab_size + prev_slab * mini_size;
+                                for (unsigned int mini = prev_slab + 1; mini < fanout; mini++) {
+                                        memswap(out + out_macro_offset + out_mini_offset,
+                                                in + in_mini_offset, mini_size);
+                                        in_mini_offset += mini_size;
                                         out_mini_offset += prev_slab_size;
                                 }
                                 out_macro_offset += SIZE_MACRO;

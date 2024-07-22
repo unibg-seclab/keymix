@@ -11,7 +11,7 @@
 // -------------------------------- Simple single-threaded keymix
 
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
-        byte *buffer = (byte *)malloc(seed_size);
+        byte *buffer = (!config->inplace ? (byte *)malloc(seed_size) : out);
 
         size_t nof_macros   = seed_size / SIZE_MACRO;
         unsigned int levels = 1 + LOGBASE(nof_macros, config->diff_factor);
@@ -19,12 +19,18 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         (*(config->mixfunc))(seed, out, seed_size);
 
         for (unsigned int level = 1; level < levels; level++) {
-                shuffle_opt(buffer, out, seed_size, level, config->diff_factor);
+                if (!config->inplace) {
+                        shuffle_opt(buffer, out, seed_size, level, config->diff_factor);
+                } else {
+                        spread_inplace(out, seed_size, level, config->diff_factor);
+                }
                 (*(config->mixfunc))(buffer, out, seed_size);
         }
 
-        explicit_bzero(buffer, seed_size);
-        free(buffer);
+        if (!config->inplace) {
+                explicit_bzero(buffer, seed_size);
+                free(buffer);
+        }
         return 0;
 }
 
@@ -53,7 +59,12 @@ void *run(void *config) {
                 // synchronized swap
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
-                shuffle_chunks(args, l);
+                if (!args->mixconfig->inplace) {
+                        shuffle_chunks(args, l);
+                } else {
+                        // TODO: Add inplace solution
+                        spread_chunks(args, l);
+                }
 
                 // notify the main thread that swap has finished
                 sem_post(args->coord_sem);

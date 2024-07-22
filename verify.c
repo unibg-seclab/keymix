@@ -106,12 +106,13 @@ int verify_shuffles(size_t fanout, size_t level) {
         byte *in       = setup(size, 1);
         byte *out_swap = setup(size, 0);
         // byte *out_swap2 = setup(out_swap2, size, 0);
-        byte *out_shuffle  = setup(size, 0);
-        byte *out_shuffle2 = setup(size, 0);
-        byte *out_shuffle3 = setup(size, 0);
-        byte *out_shuffle4 = setup(size, 0);
-        byte *out_spread   = setup(size, 0);
-        byte *out_spread2  = setup(size, 0);
+        byte *out_shuffle        = setup(size, 0);
+        byte *out_shuffle2       = setup(size, 0);
+        byte *out_shuffle3       = setup(size, 0);
+        byte *out_shuffle4       = setup(size, 0);
+        byte *out_spread         = setup(size, 0);
+        byte *out_spread_inplace = setup(size, 0);
+        byte *out_spread2        = setup(size, 0);
 
         swap(out_swap, in, size, level, fanout);
         // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
@@ -120,6 +121,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout, 0);
         emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, level, fanout, 0);
         spread(out_spread, in, size, level, fanout);
+        memcpy(out_spread_inplace, in, size);
+        spread_inplace(out_spread_inplace, size, level, fanout);
         emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, level, fanout, 0);
 
         int err = 0;
@@ -133,7 +136,9 @@ int verify_shuffles(size_t fanout, size_t level) {
         err += COMPARE(out_shuffle3, out_shuffle4, size,
                        "Shuffle (chunks) != shuffle (chunks, opt)\n");
 
-        err += COMPARE(out_spread, out_spread2, size, "Spread != spread (chunks)\n");
+        err += COMPARE(out_spread, out_spread_inplace, size, "Spread != spread (inplace)\n");
+        err +=
+            COMPARE(out_spread_inplace, out_spread2, size, "Spread (inplace) != spread (chunks)\n");
 
         free(in);
         free(out_swap);
@@ -143,6 +148,7 @@ int verify_shuffles(size_t fanout, size_t level) {
         free(out_shuffle3);
         free(out_shuffle4);
         free(out_spread);
+        free(out_spread_inplace);
         free(out_spread2);
 
         return err;

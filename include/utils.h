@@ -17,6 +17,7 @@ void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int 
 void swap_chunks(thread_data *args, int level);
 
 void spread(byte *out, byte *in, size_t size, unsigned int level, unsigned int fanout);
+void spread_inplace(byte *buffer, size_t size, unsigned int level, unsigned int fanout);
 void spread_chunks(thread_data *args, int level);
 
 void shuffle_chunks(thread_data *args, int level);
