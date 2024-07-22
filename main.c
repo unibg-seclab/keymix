@@ -36,10 +36,6 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        _log(LOG_DEBUG, "[debug] Hello %d\n", 123);
-        _log(LOG_INFO, "[info] Hello %d\n", 123);
-
-        return 0;
         // todo: rewrite code to test different encryption suites
         // todo: write on a real file
         // todo: recover and check correct parameters
@@ -75,7 +71,7 @@ int main() {
         };
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
-        mixing_config mconf    = {&wolfssl, 3, false};
+        mixing_config mconf    = {&wolfssl, 3, true};
         unsigned int threads[] = {1, 3, 9, 27, 81};
         for (unsigned int t = 0; t < sizeof(threads) / sizeof(unsigned int); t++) {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
