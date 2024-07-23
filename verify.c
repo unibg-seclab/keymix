@@ -105,8 +105,6 @@ int verify_shuffles(size_t fanout, size_t level) {
              MiB(size));
 
         byte *in       = setup(size, 1);
-        byte *out_swap = setup(size, 0);
-        // byte *out_swap2 = setup(out_swap2, size, 0);
         byte *out_shuffle        = setup(size, 0);
         byte *out_shuffle2       = setup(size, 0);
         byte *out_shuffle3       = setup(size, 0);
@@ -115,8 +113,6 @@ int verify_shuffles(size_t fanout, size_t level) {
         byte *out_spread_inplace = setup(size, 0);
         byte *out_spread2        = setup(size, 0);
 
-        swap(out_swap, in, size, level, fanout);
-        // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
         shuffle(out_shuffle, in, size, level, fanout);
         shuffle_opt(out_shuffle2, in, size, level, fanout);
         emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout, 0);
@@ -127,14 +123,11 @@ int verify_shuffles(size_t fanout, size_t level) {
         emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, level, fanout, 0);
 
         int err = 0;
-        err += COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
-        // err += COMPARE(out_swap, out_swap2, size, "Swap != swap (chunks)\n");
-        // err += COMPARE(out_shuffle, out_swap2, size, "Swap (chunks) != shuffle\n");
         err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
         err += COMPARE(out_shuffle2, out_shuffle3, size, "Shuffle (opt) != shuffle (chunks)\n");
         err += COMPARE(out_shuffle3, out_shuffle4, size,
                        "Shuffle (chunks) != shuffle (chunks, opt)\n");
-        err += COMPARE(out_shuffle4, out_swap, size, "Shuffle (chunks, opt) != swap\n");
+        err += COMPARE(out_shuffle4, out_shuffle, size, "Shuffle (chunks, opt) != shuffle\n");
 
         err += COMPARE(out_spread, out_spread_inplace, size, "Spread != spread (inplace)\n");
         err +=
@@ -142,8 +135,6 @@ int verify_shuffles(size_t fanout, size_t level) {
         err += COMPARE(out_spread2, out_spread, size, "Spread (chunks) != spread\n");
 
         free(in);
-        free(out_swap);
-        // free(out_swap2);
         free(out_shuffle);
         free(out_shuffle2);
         free(out_shuffle3);

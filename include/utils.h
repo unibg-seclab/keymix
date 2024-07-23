@@ -13,9 +13,6 @@ void _log(log_level_t log_level, const char *fmt, ...);
 void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
 void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
 
-void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
-void swap_chunks(thread_data *args, int level);
-
 void spread(byte *out, byte *in, size_t size, unsigned int level, unsigned int fanout);
 void spread_inplace(byte *buffer, size_t size, unsigned int level, unsigned int fanout);
 void spread_chunks(thread_data *args, int level);
