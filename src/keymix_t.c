@@ -35,12 +35,13 @@ void *w_keymix(void *a) {
         // First block -> XOR with (unchanging) IV
         // Second block -> XOR with a counter
 
-        __uint128_t *buffer_as_blocks = (__uint128_t *)buffer;
+        __uint128_t *buffer_as_blocks     = (__uint128_t *)buffer;
+        __uint128_t second_block_original = buffer_as_blocks[1];
 
         buffer_as_blocks[0] ^= args->iv;
 
         for (size_t i = 0; i < args->num_seeds; i++) {
-                buffer_as_blocks[1] ^= counter;
+                buffer_as_blocks[1] = second_block_original ^ counter;
                 if (args->internal_threads == 1)
                         keymix(buffer, args->out, args->seed_size, args->config);
                 else
