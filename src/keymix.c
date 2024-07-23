@@ -21,11 +21,10 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         for (unsigned int level = 1; level < levels; level++) {
                 if (!config->inplace) {
                         shuffle_opt(buffer, out, seed_size, level, config->diff_factor);
-                        (*(config->mixfunc))(buffer, out, seed_size);
                 } else {
-                        spread_inplace(out, seed_size, level, config->diff_factor);
-                        (*(config->mixfunc))(out, out, seed_size);
+                        spread_inplace(buffer, seed_size, level, config->diff_factor);
                 }
+                (*(config->mixfunc))(buffer, out, seed_size);
         }
 
         if (!config->inplace) {
