@@ -8,18 +8,12 @@
 #include <stdio.h>
 #include <string.h>
 
-void keymix_inner(byte *seed, byte *out, byte *buffer, size_t size, mixing_config *config,
+void keymix_inner(byte *seed, byte *out, size_t size, mixing_config *config,
                   uint32_t levels) {
-        byte *bp = config->inplace ? out : buffer;
-
         (*(config->mixfunc))(seed, out, size);
         for (uint32_t l = 1; l < levels; l++) {
-                if (config->inplace) {
-                        spread_inplace(bp, size, l, config->diff_factor);
-                } else {
-                        shuffle_opt(bp, out, size, l, config->diff_factor);
-                }
-                (*(config->mixfunc))(bp, out, size);
+                spread_inplace(out, size, l, config->diff_factor);
+                (*(config->mixfunc))(out, out, size);
         }
 }
 
@@ -27,8 +21,11 @@ void *w_thread_keymix(void *a) {
         thread_data *args = (thread_data *)a;
 
         // No need to sync among other threads here
-        keymix_inner(args->in, args->out, args->buf, args->thread_chunk_size, args->mixconfig,
+        keymix_inner(args->in, args->out, args->thread_chunk_size, args->mixconfig,
                      args->thread_levels);
+
+        // Input buffer for the encryption
+        byte *in = (!args->mixconfig->inplace ? args->buf : args->out);
 
         // notify the main thread to start the remaining levels
         _log(LOG_DEBUG, "thread %d finished the thread-layers\n", args->thread_id);
@@ -42,9 +39,6 @@ void *w_thread_keymix(void *a) {
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
                 if (!args->mixconfig->inplace) {
-                        shuffle_chunks(args, l);
-                } else {
-                        // TODO: Add inplace solution
                         spread_chunks(args, l);
                 }
 
@@ -55,8 +49,7 @@ void *w_thread_keymix(void *a) {
                 // synchronized encryption
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->thread_id, l);
-                int err =
-                    (*(args->mixconfig->mixfunc))(args->buf, args->out, args->thread_chunk_size);
+                int err = (*(args->mixconfig->mixfunc))(in, args->out, args->thread_chunk_size);
                 if (err) {
                         _log(LOG_DEBUG, "thread %d, error from mixfunc %d\n", args->thread_id, err);
                         goto thread_exit;
@@ -86,15 +79,16 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint3
 
         _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
 
-        byte *buffer = malloc(seed_size);
-
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
-                keymix_inner(seed, out, buffer, seed_size, config, levels);
-                safe_explicit_bzero(buffer, seed_size);
-                free(buffer);
+                keymix_inner(seed, out, seed_size, config, levels);
                 return 0;
+        }
+
+        byte *buffer = NULL;
+        if (!config->inplace) {
+                buffer = malloc(seed_size);
         }
 
         size_t thread_chunk_size = seed_size / nof_threads;
@@ -165,6 +159,13 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint3
                         // wait until all the threads have completed the levels
                         for (int i = 0; i < nof_threads; i++)
                                 sem_wait(args[i].coord_sem);
+
+                        uint32_t level = thread_levels + l / 2;
+                        if (l % 2 == 0 && level < total_levels && config->inplace) {
+                                // For the moment let's keep the inplace swap among threads simple
+                                // by running it centralized in the parent thread
+                                spread_inplace(out, seed_size, level, config->diff_factor);
+                        }
 
                         // synchronization is done, notify the threads back
                         for (uint32_t t = 0; t < nof_threads; t++) {

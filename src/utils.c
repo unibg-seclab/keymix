@@ -296,9 +296,6 @@ void spread_inplace(byte *restrict buffer, size_t in_size, uint32_t level, uint3
                                 out_mini_offset =
                                     (prev_slab + 1) * prev_slab_size + prev_slab * mini_size;
                                 for (uint32_t mini = prev_slab + 1; mini < fanout; mini++) {
-                                        // printf("swapping: %ld <-> %ld\n", in_mini_offset /
-                                        // mini_size, (out_macro_offset + out_mini_offset) /
-                                        // mini_size);
                                         memswap(out + out_macro_offset + out_mini_offset,
                                                 in + in_mini_offset, mini_size);
                                         in_mini_offset += mini_size;
