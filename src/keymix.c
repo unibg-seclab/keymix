@@ -208,8 +208,10 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
 cleanup:
         _log(LOG_DEBUG, "[i] safe obj destruction\n");
-        explicit_bzero(buffer, seed_size);
-        free(buffer);
+        if (buffer) {
+                explicit_bzero(buffer, seed_size);
+                free(buffer);
+        }
         for (unsigned int i = 0; i < nof_threads; i++) {
                 if (!sem_destroy(args[i].coord_sem)) {
                         free(args[i].coord_sem);
