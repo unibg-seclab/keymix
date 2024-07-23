@@ -47,10 +47,6 @@ void *_run_thr(void *a) {
 
 void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *in, size_t size,
                             size_t level, size_t fanout, int nof_threads) {
-        nof_threads = nof_threads == 0
-                          ? pow(fanout, fmin(level, 3))
-                          : nof_threads; // keep #threads under control w/o loss of generality
-
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
 
@@ -98,10 +94,14 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
         }
 }
 
+// Verify equivalence of the shuffling operations for mixing a seed of size
+// fanout^level macro blocks.
+// Note, since shuffle and spread use two different mixing schemas these do
+// not produce the same results, hence we do not compare them.
 int verify_shuffles(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying swaps and shuffles AT level %zu (%.2f MiB)\n", level,
+        _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
              MiB(size));
 
         byte *in       = setup(size, 1);
@@ -113,26 +113,51 @@ int verify_shuffles(size_t fanout, size_t level) {
         byte *out_spread_inplace = setup(size, 0);
         byte *out_spread2        = setup(size, 0);
 
-        shuffle(out_shuffle, in, size, level, fanout);
-        shuffle_opt(out_shuffle2, in, size, level, fanout);
-        emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout, 0);
-        emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, level, fanout, 0);
-        spread(out_spread, in, size, level, fanout);
-        memcpy(out_spread_inplace, in, size);
-        spread_inplace(out_spread_inplace, size, level, fanout);
-        emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, level, fanout, 0);
-
         int err = 0;
-        err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
-        err += COMPARE(out_shuffle2, out_shuffle3, size, "Shuffle (opt) != shuffle (chunks)\n");
-        err += COMPARE(out_shuffle3, out_shuffle4, size,
-                       "Shuffle (chunks) != shuffle (chunks, opt)\n");
-        err += COMPARE(out_shuffle4, out_shuffle, size, "Shuffle (chunks, opt) != shuffle\n");
+        for (int l = 1; l <= level; l++) {
+                int nof_threads = pow(fanout, fmin(l, 3));
+                bool is_shuffle_chunks_level = (level - l < fmin(l, 3));
 
-        err += COMPARE(out_spread, out_spread_inplace, size, "Spread != spread (inplace)\n");
-        err +=
-            COMPARE(out_spread_inplace, out_spread2, size, "Spread (inplace) != spread (chunks)\n");
-        err += COMPARE(out_spread2, out_spread, size, "Spread (chunks) != spread\n");
+                shuffle(out_shuffle, in, size, l, fanout);
+                shuffle_opt(out_shuffle2, in, size, l, fanout);
+                spread(out_spread, in, size, l, fanout);
+                memcpy(out_spread_inplace, in, size);
+                spread_inplace(out_spread_inplace, size, l, fanout);
+
+                if (is_shuffle_chunks_level) {
+                        emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, l, fanout,
+                                               nof_threads);
+                        emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, l,
+                                               fanout, nof_threads);
+                        emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, l, fanout,
+                                               nof_threads);
+                }
+
+                // Note shuffle chunks opt is not working properly
+                err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
+                if (is_shuffle_chunks_level) {
+                        err += COMPARE(out_shuffle2, out_shuffle3, size,
+                                       "Shuffle (opt) != shuffle (chunks)\n");
+                        err += COMPARE(out_shuffle3, out_shuffle4, size,
+                                       "Shuffle (chunks) != shuffle (chunks, opt)\n");
+                        err += COMPARE(out_shuffle4, out_shuffle, size,
+                                       "Shuffle (chunks, opt) != shuffle\n");
+                }
+
+                err += COMPARE(out_spread, out_spread_inplace, size,
+                               "Spread != spread (inplace)\n");
+                if (is_shuffle_chunks_level) {
+                        err += COMPARE(out_spread_inplace, out_spread2, size,
+                                       "Spread (inplace) != spread (chunks)\n");
+                        err += COMPARE(out_spread2, out_spread, size,
+                                       "Spread (chunks) != spread\n");
+                }
+
+                if (err) {
+                        printf("Error at level %d/%ld (with %d threads)", l, level, nof_threads);
+                        break;
+                }
+        }
 
         free(in);
         free(out_shuffle);
