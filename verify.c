@@ -222,7 +222,7 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         return err;
 }
 
-int verify_encs(size_t fanout, size_t level, bool inplace) {
+int verify_encs(size_t fanout, size_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying encryption for size %.2f MiB\n", MiB(size));
@@ -232,7 +232,7 @@ int verify_encs(size_t fanout, size_t level, bool inplace) {
         byte *out_openssl = setup(size, 0);
         byte *out_aesni   = setup(size, 0);
 
-        mixing_config config = {NULL, fanout, inplace};
+        mixing_config config = {NULL, fanout};
 
         config.mixfunc = &wolfssl;
         keymix(in, out_wolfssl, size, &config);
@@ -371,8 +371,7 @@ int main() {
                 for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                         CHECKED(verify_shuffles(fanout, l));
                         CHECKED(verify_multithreaded_shuffle(fanout, l));
-                        CHECKED(verify_encs(fanout, l, true));
-                        CHECKED(verify_encs(fanout, l, false));
+                        CHECKED(verify_encs(fanout, l));
                         CHECKED(verify_multithreaded_encs(fanout, l, true));
                         CHECKED(verify_multithreaded_encs(fanout, l, false));
                         CHECKED(verify_keymix_t(fanout, l));
