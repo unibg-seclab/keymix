@@ -18,8 +18,12 @@ int wolfssl(byte *seed, byte *out, size_t seed_size) {
                         assert(sizeof(in) == SIZE_MACRO);
 
                 wc_AesSetKey(&aes, key, 2 * SIZE_BLOCK, NULL, AES_ENCRYPTION);
-                wc_AesEcbEncrypt(&aes, out, (byte *)in, SIZE_MACRO);
+
+                for (int b = 0; b < 3; b++) {
+                        wc_AesEncryptDirect(&aes, out + b * SIZE_BLOCK, (byte *)(in + b));
+                }
         }
+
 cleanup:
         wc_AesFree(&aes);
         return 0;
