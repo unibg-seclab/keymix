@@ -51,7 +51,7 @@ $(VERIFY): verify.o $(OBJECTS)
 clean:
 	@ rm -rf $(OBJECTS)
 	@ rm -rf *.o
-	@ rm -rf $(OUT) $(TEST)
+	@ rm -rf $(OUT) $(TEST) $(VERIFY)
 
 # ------------ Performance and flamegraph
 
