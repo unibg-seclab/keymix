@@ -36,7 +36,7 @@ void csv_header() {
         fprintf(fout, "seed_size,"); // Seed size in B
         fprintf(fout, "expansion,"); // How many Ts to generate (each seed_size big)
         fprintf(fout,
-                "internal_threads,"); // Number of threads for parallel_keymix, if 1 use keymix
+                "internal_threads,");       // Number of internal threads
         fprintf(fout, "external_threads,"); // Number of threads to generate the different Ts
         fprintf(fout, "implementation,");   // AES implementation/library used
         fprintf(fout, "diff_factor,");      // Fanout

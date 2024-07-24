@@ -259,13 +259,13 @@ int verify_encs(size_t fanout, size_t level) {
         mixing_config config = {NULL, fanout};
 
         config.mixfunc = &wolfssl;
-        keymix(in, out_wolfssl, size, &config);
+        keymix(in, out_wolfssl, size, &config, 1);
 
         config.mixfunc = &openssl;
-        keymix(in, out_openssl, size, &config);
+        keymix(in, out_openssl, size, &config, 1);
 
         config.mixfunc = &aesni;
-        keymix(in, out_aesni, size, &config);
+        keymix(in, out_aesni, size, &config, 1);
 
         int err = 0;
         err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
@@ -285,14 +285,14 @@ int verify_encs(size_t fanout, size_t level) {
 int verify_multithreaded_encs(size_t fanout, size_t level, bool inplace) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying parallel-keymix equivalence for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying keymix%s equivalence for size %.2f MiB\n", MiB(size),
+             inplace ? " (inplace)" : "");
 
-        byte *in         = setup(size, 1);
-        byte *out_simple = setup(size, 0);
-        byte *out1       = setup(size, 0);
-        byte *outf       = setup(size, 0);
-        byte *outff      = setup(size, 0);
-        byte *outfff     = setup(size, 0);
+        byte *in     = setup(size, 1);
+        byte *out1   = setup(size, 0);
+        byte *outf   = setup(size, 0);
+        byte *outff  = setup(size, 0);
+        byte *outfff = setup(size, 0);
 
         size_t thr1   = 1;
         size_t thrf   = fanout;
@@ -301,30 +301,23 @@ int verify_multithreaded_encs(size_t fanout, size_t level, bool inplace) {
 
         mixing_config config = {&aesni, fanout, inplace};
 
-        keymix(in, out_simple, size, &config);
-        parallel_keymix(in, out1, size, &config, thr1);
-        parallel_keymix(in, outf, size, &config, thrf);
-        parallel_keymix(in, outff, size, &config, thrff);
-        parallel_keymix(in, outfff, size, &config, thrfff);
+        keymix(in, out1, size, &config, thr1);
+        keymix(in, outf, size, &config, thrf);
+        keymix(in, outff, size, &config, thrff);
+        keymix(in, outfff, size, &config, thrfff);
 
         // Comparisons
         int err = 0;
-        err += COMPARE(out_simple, out1, size, "Keymix != p-Keymix (1)\n");
+        err += COMPARE(out1, outf, size, "Keymix (1) != Keymix (%zu)\n", thrf);
 
-        err += COMPARE(out1, outf, size, "p-Keymix (1) != p-Keymix (%zu)\n", thrf);
-        err += COMPARE(out_simple, outf, size, "Keymix != p-Keymix (%zu)\n", thrf);
+        err += COMPARE(out1, outff, size, "Keymix (1) != Keymix (%zu)\n", thrff);
+        err += COMPARE(outf, outff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrff);
 
-        err += COMPARE(out_simple, outff, size, "Keymix != p-Keymix (%zu)\n", thrff);
-        err += COMPARE(out1, outff, size, "p-Keymix (1) != p-Keymix (%zu)\n", thrff);
-        err += COMPARE(outf, outff, size, "p-Keymix (%zu) != p-Keymix (%zu)\n", thrf, thrff);
-
-        err += COMPARE(out_simple, outfff, size, "Keymix != p-Keymix (%zu)\n", thrfff);
-        err += COMPARE(out1, outfff, size, "p-Keymix (1) != p-Keymix (%zu)\n", thrfff);
-        err += COMPARE(outf, outfff, size, "p-Keymix (%zu) != p-Keymix (%zu)\n", thrf, thrfff);
-        err += COMPARE(outff, outfff, size, "p-Keymix (%zu) != p-Keymix (%zu)\n", thrff, thrff);
+        err += COMPARE(out1, outfff, size, "Keymix (1) != Keymix (%zu)\n", thrfff);
+        err += COMPARE(outf, outfff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrfff);
+        err += COMPARE(outff, outfff, size, "Keymix (%zu) != Keymix (%zu)\n", thrff, thrff);
 
         free(in);
-        free(out_simple);
         free(out1);
         free(outf);
         free(outff);
@@ -358,7 +351,7 @@ int verify_keymix_t(size_t fanout, size_t level) {
                 in_simple[i] = in[i];
         }
         *(uint128_t *)in_simple ^= iv;
-        keymix(in_simple, out_simple, size, &conf);
+        keymix(in_simple, out_simple, size, &conf, 1);
         keymix_t(in, size, out1, size, &conf, 1, internal_threads, iv);
 
         keymix_t(in, size, out2_thr1, 2 * size, &conf, 1, internal_threads, iv);

@@ -77,8 +77,7 @@ int main() {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
                 int pe          = 0;
                 int nof_threads = threads[t];
-                double time =
-                    MEASURE({ pe = parallel_keymix(seed, out, seed_size, &mconf, nof_threads); });
+                double time = MEASURE({ pe = keymix(seed, out, seed_size, &mconf, nof_threads); });
                 unsigned short precision = 2;
                 double readable_size     = (double)seed_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
@@ -109,7 +108,7 @@ int main() {
                 printf("%s mixing...\n", descr[i]);
                 printf("diff_factor:\t\t%d\n", configs[i].diff_factor);
 
-                double time = MEASURE({ err = keymix(seed, out, seed_size, &configs[i]); });
+                double time = MEASURE({ err = keymix(seed, out, seed_size, &configs[i], 1); });
 
                 explicit_bzero(out, seed_size);
 

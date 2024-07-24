@@ -23,11 +23,6 @@ void keymix_inner(byte *seed, byte *out, byte *buffer, size_t size, mixing_confi
         }
 }
 
-int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
-        parallel_keymix(seed, out, seed_size, config, 0);
-        return 0;
-}
-
 void *w_thread_keymix(void *a) {
         thread_data *args = (thread_data *)a;
 
@@ -76,9 +71,9 @@ thread_exit:
         return NULL;
 }
 
-int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
-                    unsigned int nof_threads) {
-        if (!ISPOWEROF(nof_threads, config->diff_factor)) {
+int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
+           unsigned int nof_threads) {
+        if (!ISPOWEROF(nof_threads, config->diff_factor) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n",
                      config->diff_factor);
                 return 1;
@@ -96,7 +91,7 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
-        if (nof_threads < 2) {
+        if (nof_threads == 1) {
                 keymix_inner(seed, out, buffer, seed_size, config, levels);
                 safe_explicit_bzero(buffer, seed_size);
                 free(buffer);

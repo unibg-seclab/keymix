@@ -42,8 +42,7 @@ void *w_keymix(void *a) {
 
         for (size_t i = 0; i < args->num_seeds; i++) {
                 buffer_as_blocks[1] = second_block_original ^ counter;
-                parallel_keymix(buffer, args->out, args->seed_size, args->config,
-                                args->internal_threads);
+                keymix(buffer, args->out, args->seed_size, args->config, args->internal_threads);
 
                 args->out += args->seed_size;
                 counter++;
