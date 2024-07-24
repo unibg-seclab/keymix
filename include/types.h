@@ -21,7 +21,6 @@ typedef struct {
         int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
         uint32_t diff_factor; // diffusion factor (swap function): 3 (128 bits), 4
                               // (96 bits), 6 (64 bits), 12 (32 bits)
-        bool inplace;
 } mixing_config;
 
 typedef struct {

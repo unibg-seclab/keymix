@@ -35,9 +35,7 @@ void *w_thread_keymix(void *a) {
                 // synchronized swap
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
-                if (!args->mixconfig->inplace) {
-                        spread_chunks_inplace(args, l);
-                }
+                spread_chunks_inplace(args, l);
 
                 // notify the main thread that swap has finished
                 sem_post(args->coord_sem);
@@ -149,13 +147,6 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint3
                         // wait until all the threads have completed the levels
                         for (int i = 0; i < nof_threads; i++)
                                 sem_wait(args[i].coord_sem);
-
-                        uint32_t level = thread_levels + l / 2;
-                        if (l % 2 == 0 && level < total_levels && config->inplace) {
-                                // For the moment let's keep the inplace swap among threads simple
-                                // by running it centralized in the parent thread
-                                spread_inplace(out, seed_size, level, config->diff_factor);
-                        }
 
                         // synchronization is done, notify the threads back
                         for (uint32_t t = 0; t < nof_threads; t++) {

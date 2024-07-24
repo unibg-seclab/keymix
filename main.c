@@ -65,13 +65,13 @@ int main() {
 
         // {function_name, descr, diff_factor}
         mixing_config configs[] = {
-            {&wolfssl, 3, false},
-            {&openssl, 3, false},
-            {&aesni, 3, false},
+            {&wolfssl, 3},
+            {&openssl, 3},
+            {&aesni, 3},
         };
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
-        mixing_config mconf = {&wolfssl, 3, true};
+        mixing_config mconf = {&wolfssl, 3};
         uint32_t threads[]  = {1, 3, 9, 27, 81};
         for (uint32_t t = 0; t < sizeof(threads) / sizeof(uint32_t); t++) {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);

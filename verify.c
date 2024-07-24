@@ -313,11 +313,10 @@ int verify_encs(size_t fanout, uint32_t level) {
 
 // Verify the equivalence of the results when using single-threaded and
 // multi-threaded encryption with a varying number of threads
-int verify_multithreaded_encs(size_t fanout, uint32_t level, bool inplace) {
+int verify_multithreaded_encs(size_t fanout, uint32_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying keymix%s equivalence for size %.2f MiB\n", MiB(size),
-             inplace ? " (inplace)" : "");
+        _log(LOG_INFO, "> Verifying keymix equivalence for size %.2f MiB\n", MiB(size));
 
         byte *in     = setup(size, true);
         byte *out1   = setup(size, false);
@@ -330,7 +329,7 @@ int verify_multithreaded_encs(size_t fanout, uint32_t level, bool inplace) {
         size_t thrff  = fanout * fanout;
         size_t thrfff = fanout * fanout * fanout;
 
-        mixing_config config = {&aesni, fanout, inplace};
+        mixing_config config = {&aesni, fanout};
 
         keymix(in, out1, size, &config, thr1);
         keymix(in, outf, size, &config, thrf);
@@ -422,8 +421,7 @@ int main() {
                         CHECKED(verify_shuffles(fanout, l));
                         CHECKED(verify_shuffles_with_varying_threads(fanout, l));
                         CHECKED(verify_encs(fanout, l));
-                        CHECKED(verify_multithreaded_encs(fanout, l, true));
-                        CHECKED(verify_multithreaded_encs(fanout, l, false));
+                        CHECKED(verify_multithreaded_encs(fanout, l));
                         CHECKED(verify_keymix_t(fanout, l));
                 }
                 _log(LOG_INFO, "\n");
