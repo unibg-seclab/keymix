@@ -8,8 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void keymix_inner(byte *seed, byte *out, size_t size, mixing_config *config,
-                  uint32_t levels) {
+void keymix_inner(byte *seed, byte *out, size_t size, mixing_config *config, uint32_t levels) {
         (*(config->mixfunc))(seed, out, size);
         for (uint32_t l = 1; l < levels; l++) {
                 spread_inplace(out, size, l, config->diff_factor);
@@ -44,7 +43,8 @@ void *w_thread_keymix(void *a) {
                 // synchronized encryption
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->thread_id, l);
-                int err = (*(args->mixconfig->mixfunc))(args->out, args->out, args->thread_chunk_size);
+                int err =
+                    (*(args->mixconfig->mixfunc))(args->out, args->out, args->thread_chunk_size);
                 if (err) {
                         _log(LOG_DEBUG, "thread %d, error from mixfunc %d\n", args->thread_id, err);
                         goto thread_exit;

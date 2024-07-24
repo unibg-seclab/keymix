@@ -374,21 +374,21 @@ void spread_chunks(thread_data *args, uint32_t level) {
 //
 // Note, this is using a different mixing behavior with respect to the shuffle
 // functions above.
-void spread_chunks_inplace(thread_data *args, int level) {
+void spread_chunks_inplace(thread_data *args, uint32_t level) {
         if (DEBUG)
                 assert(level >= args->thread_levels);
 
-        uint32_t fanout = args->mixconfig->diff_factor;
-        size_t mini_size    = SIZE_MACRO / fanout;
+        uint32_t fanout  = args->mixconfig->diff_factor;
+        size_t mini_size = SIZE_MACRO / fanout;
 
         uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
         uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+        size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
-        uint64_t nof_threads = intpow(fanout, args->total_levels - args->thread_levels);
-        uint64_t nof_slabs   = args->seed_size / slab_size;
-        uint64_t nof_threads_per_slab      = nof_threads / nof_slabs;
+        uint64_t nof_threads          = intpow(fanout, args->total_levels - args->thread_levels);
+        uint64_t nof_slabs            = args->seed_size / slab_size;
+        uint64_t nof_threads_per_slab = nof_threads / nof_slabs;
         uint64_t prev_nof_threads_per_slab = nof_threads_per_slab / fanout;
 
         uint64_t prev_slab;

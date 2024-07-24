@@ -104,15 +104,15 @@ int verify_shuffles(size_t fanout, uint32_t level) {
         _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
              MiB(size));
 
-        byte *in                 = setup(size, true);
-        byte *out_shuffle        = setup(size, false);
-        byte *out_shuffle2       = setup(size, false);
-        byte *out_shuffle3       = setup(size, false);
-        byte *out_shuffle4       = setup(size, false);
-        byte *out_spread         = setup(size, false);
-        byte *out_spread1        = setup(size, false);
-        byte *out_spread2        = setup(size, false);
-        byte *out_spread3        = setup(size, false);
+        byte *in           = setup(size, true);
+        byte *out_shuffle  = setup(size, false);
+        byte *out_shuffle2 = setup(size, false);
+        byte *out_shuffle3 = setup(size, false);
+        byte *out_shuffle4 = setup(size, false);
+        byte *out_spread   = setup(size, false);
+        byte *out_spread1  = setup(size, false);
+        byte *out_spread2  = setup(size, false);
+        byte *out_spread3  = setup(size, false);
 
         int err = 0;
         for (uint32_t l = 1; l <= level; l++) {
@@ -152,8 +152,7 @@ int verify_shuffles(size_t fanout, uint32_t level) {
                                        "Shuffle (chunks) != shuffle\n");
                 }
 
-                err +=
-                    COMPARE(out_spread, out_spread1, size, "Spread != spread (inplace)\n");
+                err += COMPARE(out_spread, out_spread1, size, "Spread != spread (inplace)\n");
                 if (is_shuffle_chunks_level) {
                         err += COMPARE(out_spread1, out_spread2, size,
                                        "Spread (inplace) != spread (chunks)\n");
@@ -164,7 +163,8 @@ int verify_shuffles(size_t fanout, uint32_t level) {
                 }
 
                 if (err) {
-                        printf("Error at level %d/%ld (with %d threads)", l, level, nof_threads);
+                        _log(LOG_INFO, "Error at level %d/%d (with %d threads)", l, level,
+                             nof_threads);
                         break;
                 }
         }
@@ -235,7 +235,8 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint32_t level) {
         // used only with multiple threads
         spread_inplace(out10, size, level, fanout);
         emulate_shuffle_chunks(spread_chunks_inplace, NULL, out11, size, level, fanout, fanout);
-        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out12, size, level, fanout, fanout * fanout);
+        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out12, size, level, fanout,
+                               fanout * fanout);
 
         int err = 0;
         err += COMPARE(out1, out2, size, "1 thr != %zu thr\n", fanout);
@@ -252,11 +253,14 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint32_t level) {
         err += COMPARE(out9, out7, size, "1 thr (spread) != %zu thr (spread chunks)\n",
                        fanout * fanout);
 
-        err += COMPARE(out10, out11, size, "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
-        err += COMPARE(out11, out12, size, "%zu thr (spread chunks inplace) != %zu thr (spread chunks inplace)\n",
+        err += COMPARE(out10, out11, size,
+                       "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
+        err += COMPARE(out11, out12, size,
+                       "%zu thr (spread chunks inplace) != %zu thr (spread chunks inplace)\n",
                        fanout, fanout * fanout);
-        err += COMPARE(out12, out10, size, "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n",
-                       fanout * fanout);
+        err +=
+            COMPARE(out12, out10, size,
+                    "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout * fanout);
 
         free(in);
         free(out1);
