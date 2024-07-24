@@ -36,7 +36,7 @@ byte *setup(size_t size, bool random) {
 typedef struct {
         void (*func)(thread_data *, uint32_t);
         thread_data thr_data;
-        int level;
+        uint32_t level;
 } run_thr_t;
 
 void *_run_thr(void *a) {
@@ -46,13 +46,13 @@ void *_run_thr(void *a) {
 }
 
 void emulate_shuffle_chunks(void (*func)(thread_data *, uint32_t), byte *out, byte *in, size_t size,
-                            size_t level, size_t fanout, int nof_threads) {
+                            uint32_t level, size_t fanout, uint32_t nof_threads) {
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
 
-        int thread_levels = level - LOGBASE(nof_threads, fanout); // only accurate when the
-                                                                  // nof_threads is a power of
-                                                                  // fanout
+        uint32_t thread_levels = level - LOGBASE(nof_threads, fanout); // only accurate when the
+                                                                       // nof_threads is a power of
+                                                                       // fanout
 
         pthread_t threads[nof_threads];
         run_thr_t thread_args[nof_threads];
@@ -66,7 +66,7 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, uint32_t), byte *out, by
         // function
         mixing_config mconf = {NULL, fanout};
 
-        for (int t = 0; t < nof_threads; t++) {
+        for (uint32_t t = 0; t < nof_threads; t++) {
                 run_thr_t *arg = thread_args + t;
 
                 thread_data thr_data = {
@@ -89,7 +89,7 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, uint32_t), byte *out, by
                 pthread_create(&threads[t], NULL, _run_thr, arg);
         }
 
-        for (int t = 0; t < nof_threads; t++) {
+        for (uint32_t t = 0; t < nof_threads; t++) {
                 pthread_join(threads[t], NULL);
         }
 }
@@ -98,7 +98,7 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, uint32_t), byte *out, by
 // fanout^level macro blocks.
 // Note, since shuffle and spread use two different mixing schemas these do
 // not produce the same results, hence we do not compare them.
-int verify_shuffles(size_t fanout, size_t level) {
+int verify_shuffles(size_t fanout, uint32_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
@@ -114,8 +114,8 @@ int verify_shuffles(size_t fanout, size_t level) {
         byte *out_spread2        = setup(size, false);
 
         int err = 0;
-        for (int l = 1; l <= level; l++) {
-                int nof_threads              = pow(fanout, fmin(l, 3));
+        for (uint32_t l = 1; l <= level; l++) {
+                uint32_t nof_threads         = pow(fanout, fmin(l, 3));
                 bool is_shuffle_chunks_level = (level - l < fmin(l, 3));
 
                 shuffle(out_shuffle, in, size, l, fanout);
@@ -177,7 +177,7 @@ int verify_shuffles(size_t fanout, size_t level) {
 // fanout^level macro blocks with a varying number of threads.
 // Note, since shuffle and spread use two different mixing schemas these do
 // not produce the same results, hence we do not compare them.
-int verify_shuffles_with_varying_threads(size_t fanout, size_t level) {
+int verify_shuffles_with_varying_threads(size_t fanout, uint32_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n",
@@ -246,7 +246,7 @@ int verify_shuffles_with_varying_threads(size_t fanout, size_t level) {
 
 // Verify the equivalence of the results when using different encryption
 // functions (i.e., AES-NI, OpenSSL, WolfSSL)
-int verify_encs(size_t fanout, size_t level) {
+int verify_encs(size_t fanout, uint32_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying encryption for size %.2f MiB\n", MiB(size));
@@ -282,7 +282,7 @@ int verify_encs(size_t fanout, size_t level) {
 
 // Verify the equivalence of the results when using single-threaded and
 // multi-threaded encryption with a varying number of threads
-int verify_multithreaded_encs(size_t fanout, size_t level, bool inplace) {
+int verify_multithreaded_encs(size_t fanout, uint32_t level, bool inplace) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying keymix%s equivalence for size %.2f MiB\n", MiB(size),
@@ -326,7 +326,7 @@ int verify_multithreaded_encs(size_t fanout, size_t level, bool inplace) {
         return err;
 }
 
-int verify_keymix_t(size_t fanout, size_t level) {
+int verify_keymix_t(size_t fanout, uint32_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
@@ -342,8 +342,8 @@ int verify_keymix_t(size_t fanout, size_t level) {
 
         mixing_config conf = {&aesni, fanout};
 
-        uint128_t iv         = rand() % (1 << sizeof(uint128_t));
-        int internal_threads = 1;
+        uint128_t iv              = rand() % (1 << sizeof(uint128_t));
+        uint32_t internal_threads = 1;
 
         // Note: Keymix T applies the IV, so we have to do that manually
         // to the input of Keymix
