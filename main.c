@@ -71,15 +71,15 @@ int main() {
         };
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
-        mixing_config mconf    = {&wolfssl, 3, true};
-        unsigned int threads[] = {1, 3, 9, 27, 81};
-        for (unsigned int t = 0; t < sizeof(threads) / sizeof(unsigned int); t++) {
+        mixing_config mconf = {&wolfssl, 3, true};
+        uint32_t threads[]  = {1, 3, 9, 27, 81};
+        for (uint32_t t = 0; t < sizeof(threads) / sizeof(uint32_t); t++) {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
                 int pe          = 0;
                 int nof_threads = threads[t];
                 double time = MEASURE({ pe = keymix(seed, out, seed_size, &mconf, nof_threads); });
-                unsigned short precision = 2;
-                double readable_size     = (double)seed_size / SIZE_1MiB;
+                uint32_t precision   = 2;
+                double readable_size = (double)seed_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
                 printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
                 printf("avg. speed [MiB/s]:\t%.*lf\n", precision, readable_size * 1000 / time);
@@ -91,8 +91,8 @@ int main() {
                 }
         }
 
-        unsigned int err = 0;
-        for (unsigned int i = 0; i < sizeof(configs) / sizeof(mixing_config); i++) {
+        uint32_t err = 0;
+        for (uint32_t i = 0; i < sizeof(configs) / sizeof(mixing_config); i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(seed, seed_size);
                 explicit_bzero(out, seed_size);
@@ -101,8 +101,8 @@ int main() {
                         print_buffer_hex(seed, seed_size, "seed");
                         print_buffer_hex(out, seed_size, "out");
                 }
-                unsigned int nof_macros = seed_size / 48;
-                unsigned int levels     = 1 + LOGBASE(nof_macros, configs[i].diff_factor);
+                uint32_t nof_macros = seed_size / 48;
+                uint32_t levels     = 1 + LOGBASE(nof_macros, configs[i].diff_factor);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
@@ -117,8 +117,8 @@ int main() {
                         goto clean;
                 }
 
-                unsigned short precision = 2;
-                double readable_size     = (double)seed_size / SIZE_1MiB;
+                uint32_t precision   = 2;
+                double readable_size = (double)seed_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
                 printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
                 printf("avg. speed [MiB/s]:\t%.*lf\n", precision, readable_size * 1000 / (time));

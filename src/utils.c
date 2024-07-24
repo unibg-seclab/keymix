@@ -16,17 +16,17 @@ void _logf(log_level_t level, const char *fmt, ...) {
         }
 }
 
-inline double MiB(double size) { return size / 1024 / 1024; }
+inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 
-inline size_t intpow(size_t base, size_t exp) {
-        size_t res = 1;
+inline uint64_t intpow(uint64_t base, uint64_t exp) {
+        uint64_t res = 1;
         for (; exp > 0; exp--)
                 res *= base;
         return res;
 }
 
-inline unsigned int total_levels(size_t seed_size, unsigned int diff_factor) {
-        unsigned int nof_macros = seed_size / SIZE_MACRO;
+inline uint64_t total_levels(size_t seed_size, uint32_t diff_factor) {
+        uint64_t nof_macros = seed_size / SIZE_MACRO;
         return 1 + LOGBASE(nof_macros, diff_factor);
 }
 
@@ -35,11 +35,11 @@ inline void safe_explicit_bzero(void *ptr, size_t size) {
                 explicit_bzero(ptr, size);
 }
 
-inline void memxor(void *dst, void *src, size_t n) {
+inline void memxor(void *dst, void *src, size_t size) {
         byte *d = (byte *)dst;
         byte *s = (byte *)src;
 
-        for (; n > 0; n--) {
+        for (; size > 0; size--) {
                 *d++ ^= *s++;
         }
 }
@@ -61,14 +61,14 @@ inline void memxor(void *dst, void *src, size_t n) {
 // size = 4 * SIZE_MACRO, fanout = 2
 // in  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 // out = 0 | 4 | 1 | 5 | 2 | 6 | 3 | 7
-void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
-             unsigned int fanout) {
+void shuffle(byte *restrict out, byte *restrict in, size_t in_size, uint32_t level,
+             uint32_t fanout) {
         if (DEBUG)
                 assert(level > 0);
-        size_t mini_size      = SIZE_MACRO / fanout;
-        byte *last            = out + in_size;
-        size_t macros_in_slab = intpow(fanout, level);
-        size_t slab_size      = macros_in_slab * SIZE_MACRO;
+        size_t mini_size        = SIZE_MACRO / fanout;
+        byte *last              = out + in_size;
+        uint64_t macros_in_slab = intpow(fanout, level);
+        size_t slab_size        = macros_in_slab * SIZE_MACRO;
 
         _log(LOG_DEBUG, "Moving pieces of %zu B\n", mini_size);
         _log(LOG_DEBUG, "Over a total of %zu slabs\n", in_size / slab_size);
@@ -76,8 +76,8 @@ void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int
         for (; out < last; out += slab_size, in += slab_size) {
                 _log(LOG_DEBUG, "New slab\n");
 
-                for (size_t j = 0; j < (slab_size / mini_size); j++) {
-                        size_t i = macros_in_slab * (j % fanout) + j / fanout;
+                for (uint64_t j = 0; j < (slab_size / mini_size); j++) {
+                        uint64_t i = macros_in_slab * (j % fanout) + j / fanout;
                         _log(LOG_DEBUG, "%zu -> %zu\n", i, j);
                         memcpy(out + j * mini_size, in + i * mini_size, mini_size);
                 }
@@ -101,30 +101,30 @@ void shuffle(byte *restrict out, byte *restrict in, size_t in_size, unsigned int
 // And we get that
 //  k = j / fanout
 //  mod = j % fanout
-void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
-                 unsigned int fanout) {
+void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, uint32_t level,
+                 uint32_t fanout) {
         if (DEBUG)
                 assert(level > 0);
 
-        size_t mini_size      = SIZE_MACRO / fanout;
-        byte *last            = out + in_size;
-        size_t macros_in_slab = intpow(fanout, level);
-        size_t slab_size      = macros_in_slab * SIZE_MACRO;
+        size_t mini_size        = SIZE_MACRO / fanout;
+        byte *last              = out + in_size;
+        uint64_t macros_in_slab = intpow(fanout, level);
+        size_t slab_size        = macros_in_slab * SIZE_MACRO;
 
-        size_t i           = 0;
-        size_t i_increment = mini_size * macros_in_slab;
+        uint64_t i           = 0;
+        uint64_t i_increment = mini_size * macros_in_slab;
 
         while (out < last) {
-                for (size_t k = 0; k < macros_in_slab; k++) {
+                for (uint64_t k = 0; k < macros_in_slab; k++) {
                         // This is split around, but essentialy
                         // calculates
-                        //        size_t i = macros_in_slab * mod + k;
+                        //        i = macros_in_slab * mod + k;
                         // for mod and k starting both from 0
                         // We reset i to mini_size * k every time k changes,
                         // and increment it by mini_size * macros_in_slab
                         // for every mod. In this way, we use less multiplications.
                         i = mini_size * k;
-                        for (size_t mod = 0; mod < fanout; mod++) {
+                        for (uint64_t mod = 0; mod < fanout; mod++) {
                                 memcpy(out, in + i, mini_size);
                                 i += i_increment;
                                 out += mini_size;
@@ -148,25 +148,25 @@ void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, unsigned
 //      j = fanout * (i % (fanout^level)) + j / (fanout^level)
 //
 // Note that fanout^level = macros_in_slab
-void shuffle_chunks(thread_data *args, int level) {
-        unsigned int fanout = args->mixconfig->diff_factor;
+void shuffle_chunks(thread_data *args, uint32_t level) {
+        uint32_t fanout = args->mixconfig->diff_factor;
 
-        size_t mini_size         = SIZE_MACRO / fanout;
-        unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
+        size_t mini_size    = SIZE_MACRO / fanout;
+        uint64_t nof_macros = args->thread_chunk_size / SIZE_MACRO;
 
-        unsigned long macros_in_slab = intpow(fanout, level);
-        size_t slab_size             = macros_in_slab * SIZE_MACRO;
+        uint32_t macros_in_slab = intpow(fanout, level);
+        size_t slab_size        = macros_in_slab * SIZE_MACRO;
 
         byte *in  = args->out;
         byte *out = args->abs_buf;
 
         byte *in_abs = args->abs_out;
 
-        unsigned long in_offset = 0;
-        unsigned long src_abs, src_rel, dst_abs, dst_rel;
+        uint64_t in_offset = 0;
+        uint64_t src_abs, src_rel, dst_abs, dst_rel;
 
-        for (unsigned long macro = 0; macro < nof_macros; macro++) {
-                for (unsigned int mini = 0; mini < fanout; mini++) {
+        for (uint64_t macro = 0; macro < nof_macros; macro++) {
+                for (uint32_t mini = 0; mini < fanout; mini++) {
                         src_abs = (args->thread_chunk_size * args->thread_id) / mini_size +
                                   fanout * macro + mini;
                         // Alternative
@@ -182,23 +182,23 @@ void shuffle_chunks(thread_data *args, int level) {
 
 // Same as before, but trying to optimize the calculations with the same
 // ideas as for shuffle_opt
-void shuffle_chunks_opt(thread_data *args, int level) {
-        unsigned int fanout = args->mixconfig->diff_factor;
+void shuffle_chunks_opt(thread_data *args, uint32_t level) {
+        uint32_t fanout = args->mixconfig->diff_factor;
 
-        size_t mini_size             = SIZE_MACRO / fanout;
-        unsigned long macros_in_slab = intpow(fanout, level);
-        unsigned long minis_in_slab  = fanout * macros_in_slab;
+        size_t mini_size        = SIZE_MACRO / fanout;
+        uint64_t macros_in_slab = intpow(fanout, level);
+        uint64_t minis_in_slab  = fanout * macros_in_slab;
 
         byte *in      = args->out;
         byte *in_abs  = args->abs_out;
         byte *last    = in + args->thread_chunk_size;
         byte *out_abs = args->abs_buf;
 
-        unsigned long minis_from_origin = (in - in_abs) / mini_size;
-        unsigned long src               = minis_from_origin % minis_in_slab;
+        uint64_t minis_from_origin = (in - in_abs) / mini_size;
+        uint64_t src               = minis_from_origin % minis_in_slab;
 
         while (in < last) {
-                unsigned long dst = fanout * (src % macros_in_slab) + src / macros_in_slab;
+                uint64_t dst = fanout * (src % macros_in_slab) + src / macros_in_slab;
                 memcpy(out_abs + dst * mini_size, in, mini_size);
 
                 in += mini_size;
@@ -220,28 +220,28 @@ void shuffle_chunks_opt(thread_data *args, int level) {
 // size = 4 * SIZE_MACRO, fanout = 2
 // in  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 // out = 0 | 4 | 2 | 6 | 1 | 5 | 3 | 7
-void spread(byte *restrict out, byte *restrict in, size_t in_size, unsigned int level,
-            unsigned int fanout) {
+void spread(byte *restrict out, byte *restrict in, size_t in_size, uint32_t level,
+            uint32_t fanout) {
         if (DEBUG)
                 assert(level > 0);
 
         size_t mini_size = SIZE_MACRO / fanout;
 
-        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
-        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+        uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
+        uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
-        byte *last              = out + in_size;
-        unsigned long in_offset = 0;
-        unsigned long out_macro_offset, out_mini_offset;
+        byte *last         = out + in_size;
+        uint64_t in_offset = 0;
+        uint64_t out_macro_offset, out_mini_offset;
 
         while (out < last) {
-                for (unsigned int prev_slab = 0; prev_slab < fanout; prev_slab++) {
+                for (uint32_t prev_slab = 0; prev_slab < fanout; prev_slab++) {
                         out_macro_offset = 0;
-                        for (unsigned long macro = 0; macro < prev_macros_in_slab; macro++) {
+                        for (uint64_t macro = 0; macro < prev_macros_in_slab; macro++) {
                                 out_mini_offset = prev_slab * mini_size;
-                                for (unsigned int mini = 0; mini < fanout; mini++) {
+                                for (uint32_t mini = 0; mini < fanout; mini++) {
                                         memcpy(out + out_macro_offset + out_mini_offset,
                                                in + in_offset, mini_size);
                                         in_offset += mini_size;
@@ -265,8 +265,7 @@ void memswap(byte *a, byte *b, size_t bytes) {
 
 // This function spreads the output of the encryption produced by
 // the single thread across multiple slabs inplace.
-void spread_inplace(byte *restrict buffer, size_t in_size, unsigned int level,
-                    unsigned int fanout) {
+void spread_inplace(byte *restrict buffer, size_t in_size, uint32_t level, uint32_t fanout) {
         if (DEBUG) {
                 assert(level > 0);
         }
@@ -276,13 +275,13 @@ void spread_inplace(byte *restrict buffer, size_t in_size, unsigned int level,
 
         size_t mini_size = SIZE_MACRO / fanout;
 
-        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
-        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+        uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
+        uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
         byte *last = out + in_size;
-        unsigned long in_mini_offset, out_macro_offset, out_mini_offset;
+        uint64_t in_mini_offset, out_macro_offset, out_mini_offset;
 
         while (out < last) {
                 // With inplace swap we never have to look back on the previous
@@ -290,13 +289,13 @@ void spread_inplace(byte *restrict buffer, size_t in_size, unsigned int level,
                 // have nothing to do, previous swap operations have already
                 // managed to set this last slab part right.
                 in_mini_offset = 0;
-                for (unsigned int prev_slab = 0; prev_slab < fanout - 1; prev_slab++) {
+                for (uint32_t prev_slab = 0; prev_slab < fanout - 1; prev_slab++) {
                         out_macro_offset = 0;
-                        for (unsigned long macro = 0; macro < prev_macros_in_slab; macro++) {
+                        for (uint64_t macro = 0; macro < prev_macros_in_slab; macro++) {
                                 in_mini_offset += (prev_slab + 1) * mini_size;
                                 out_mini_offset =
                                     (prev_slab + 1) * prev_slab_size + prev_slab * mini_size;
-                                for (unsigned int mini = prev_slab + 1; mini < fanout; mini++) {
+                                for (uint32_t mini = prev_slab + 1; mini < fanout; mini++) {
                                         // printf("swapping: %ld <-> %ld\n", in_mini_offset /
                                         // mini_size, (out_macro_offset + out_mini_offset) /
                                         // mini_size);
@@ -320,30 +319,30 @@ void spread_inplace(byte *restrict buffer, size_t in_size, unsigned int level,
 //
 // This is using a different mixing behavior with respect to the shuffle and
 // swap functions above.
-void spread_chunks(thread_data *args, int level) {
+void spread_chunks(thread_data *args, uint32_t level) {
         if (DEBUG)
                 assert(level >= args->thread_levels);
 
-        unsigned int fanout = args->mixconfig->diff_factor;
-        size_t mini_size    = SIZE_MACRO / fanout;
+        uint32_t fanout  = args->mixconfig->diff_factor;
+        size_t mini_size = SIZE_MACRO / fanout;
 
-        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
-        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+        uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
+        uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
-        unsigned long nof_threads = intpow(fanout, args->total_levels - args->thread_levels);
-        unsigned long nof_slabs   = args->seed_size / slab_size;
-        unsigned long nof_threads_per_slab      = nof_threads / nof_slabs;
-        unsigned long prev_nof_threads_per_slab = nof_threads_per_slab / fanout;
+        uint64_t nof_threads          = intpow(fanout, args->total_levels - args->thread_levels);
+        uint64_t nof_slabs            = args->seed_size / slab_size;
+        uint64_t nof_threads_per_slab = nof_threads / nof_slabs;
+        uint64_t prev_nof_threads_per_slab = nof_threads_per_slab / fanout;
 
-        unsigned long out_slab_offset        = slab_size * (args->thread_id / nof_threads_per_slab);
-        unsigned long out_inside_slab_offset = 0;
+        uint64_t out_slab_offset        = slab_size * (args->thread_id / nof_threads_per_slab);
+        uint64_t out_inside_slab_offset = 0;
         if (prev_nof_threads_per_slab > 1) {
                 out_inside_slab_offset =
                     args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
         }
-        unsigned long out_mini_offset;
+        uint64_t out_mini_offset;
         if (prev_nof_threads_per_slab <= 1) {
                 out_mini_offset = mini_size * (args->thread_id % fanout);
         } else {
@@ -354,14 +353,14 @@ void spread_chunks(thread_data *args, int level) {
         byte *in  = args->out;
         byte *out = args->abs_buf + out_slab_offset + out_inside_slab_offset + out_mini_offset;
 
-        unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
+        uint64_t nof_macros = args->thread_chunk_size / SIZE_MACRO;
 
-        unsigned long in_offset        = 0;
-        unsigned long out_macro_offset = 0;
+        uint64_t in_offset        = 0;
+        uint64_t out_macro_offset = 0;
 
-        for (unsigned long macro = 0; macro < nof_macros; macro++) {
-                unsigned long out_mini_offset = 0;
-                for (unsigned int mini = 0; mini < fanout; mini++) {
+        for (uint64_t macro = 0; macro < nof_macros; macro++) {
+                uint64_t out_mini_offset = 0;
+                for (uint32_t mini = 0; mini < fanout; mini++) {
                         memcpy(out + out_macro_offset + out_mini_offset, in + in_offset, mini_size);
                         in_offset += mini_size;
                         out_mini_offset += prev_slab_size;

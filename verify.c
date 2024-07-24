@@ -34,7 +34,7 @@ byte *setup(size_t size, int random) {
 }
 
 typedef struct {
-        void (*func)(thread_data *, int);
+        void (*func)(thread_data *, uint32_t);
         thread_data thr_data;
         int level;
 } run_thr_t;
@@ -45,7 +45,7 @@ void *_run_thr(void *a) {
         return NULL;
 }
 
-void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *in, size_t size,
+void emulate_shuffle_chunks(void (*func)(thread_data *, uint32_t), byte *out, byte *in, size_t size,
                             size_t level, size_t fanout, int nof_threads) {
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
@@ -380,7 +380,7 @@ int verify_keymix_t(size_t fanout, size_t level) {
                 goto cleanup;
 
 int main() {
-        unsigned int seed = time(NULL);
+        uint64_t seed = time(NULL);
         srand(seed);
 
         int err = 0;

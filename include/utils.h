@@ -16,21 +16,21 @@ void _logf(log_level_t log_level, const char *fmt, ...);
 #define _log(...) _logf(__VA_ARGS__)
 #endif
 
-unsigned int total_levels(size_t seed_size, unsigned int fanout);
+uint64_t total_levels(size_t seed_size, uint32_t fanout);
 void safe_explicit_bzero(void *ptr, size_t size);
 void memxor(void *dst, void *src, size_t size);
 
-void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
-void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
+void shuffle(byte *out, byte *in, size_t in_size, uint32_t level, uint32_t fanout);
+void shuffle_opt(byte *out, byte *in, size_t in_size, uint32_t level, uint32_t fanout);
 
-void spread(byte *out, byte *in, size_t size, unsigned int level, unsigned int fanout);
-void spread_inplace(byte *buffer, size_t size, unsigned int level, unsigned int fanout);
-void spread_chunks(thread_data *args, int level);
+void spread(byte *out, byte *in, size_t size, uint32_t level, uint32_t fanout);
+void spread_inplace(byte *buffer, size_t size, uint32_t level, uint32_t fanout);
+void spread_chunks(thread_data *args, uint32_t level);
 
-void shuffle_chunks(thread_data *args, int level);
-void shuffle_chunks_opt(thread_data *args, int level);
+void shuffle_chunks(thread_data *args, uint32_t level);
+void shuffle_chunks_opt(thread_data *args, uint32_t level);
 
-double MiB(double size);
+double MiB(size_t size);
 
 #ifdef NO_MEASURE
 #define MEASURE(F) 0

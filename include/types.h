@@ -3,6 +3,7 @@
 
 #include <semaphore.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "config.h"
 
@@ -18,13 +19,13 @@ typedef __uint128_t uint128_t;
 
 typedef struct {
         int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
-        unsigned int diff_factor; // diffusion factor (swap function): 3 (128 bits), 4
-                                  // (96 bits), 6 (64 bits), 12 (32 bits)
+        uint32_t diff_factor; // diffusion factor (swap function): 3 (128 bits), 4
+                              // (96 bits), 6 (64 bits), 12 (32 bits)
         bool inplace;
 } mixing_config;
 
 typedef struct {
-        unsigned int thread_id;
+        uint32_t thread_id;
         sem_t *thread_sem;
         sem_t *coord_sem;
         byte *in;
@@ -35,8 +36,8 @@ typedef struct {
         byte *abs_buf;
         size_t seed_size;
         size_t thread_chunk_size;
-        unsigned int thread_levels;
-        unsigned int total_levels;
+        uint32_t thread_levels;
+        uint32_t total_levels;
         mixing_config *mixconfig;
 } thread_data;
 

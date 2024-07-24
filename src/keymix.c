@@ -9,11 +9,11 @@
 #include <string.h>
 
 void keymix_inner(byte *seed, byte *out, byte *buffer, size_t size, mixing_config *config,
-                  unsigned int levels) {
+                  uint32_t levels) {
         byte *bp = config->inplace ? out : buffer;
 
         (*(config->mixfunc))(seed, out, size);
-        for (unsigned int l = 1; l < levels; l++) {
+        for (uint32_t l = 1; l < levels; l++) {
                 if (config->inplace) {
                         spread_inplace(bp, size, l, config->diff_factor);
                 } else {
@@ -37,7 +37,7 @@ void *w_thread_keymix(void *a) {
         }
 
         // synchronized encryption layers
-        for (unsigned int l = args->thread_levels; l < args->total_levels; l++) {
+        for (uint32_t l = args->thread_levels; l < args->total_levels; l++) {
                 // synchronized swap
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
@@ -71,8 +71,7 @@ thread_exit:
         return NULL;
 }
 
-int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
-           unsigned int nof_threads) {
+int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint32_t nof_threads) {
         if (!ISPOWEROF(nof_threads, config->diff_factor) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n",
                      config->diff_factor);
@@ -81,9 +80,9 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
 
         // We can't assign more than 1 thread to a single macro, so we will
         // never spawn more than nof_macros threads
-        size_t nof_macros   = seed_size / SIZE_MACRO;
+        uint64_t nof_macros = seed_size / SIZE_MACRO;
         nof_threads         = MIN(nof_threads, nof_macros);
-        unsigned int levels = total_levels(seed_size, config->diff_factor);
+        uint32_t levels     = total_levels(seed_size, config->diff_factor);
 
         _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
 
@@ -98,8 +97,8 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
                 return 0;
         }
 
-        size_t thread_chunk_size   = seed_size / nof_threads;
-        unsigned int thread_levels = total_levels(thread_chunk_size, config->diff_factor);
+        size_t thread_chunk_size = seed_size / nof_threads;
+        uint32_t thread_levels   = total_levels(thread_chunk_size, config->diff_factor);
 
         _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
 
@@ -107,7 +106,7 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
         pthread_t threads[nof_threads];
         thread_data args[nof_threads];
 
-        for (unsigned int t = 0; t < nof_threads; t++) {
+        for (uint32_t t = 0; t < nof_threads; t++) {
                 args[t].thread_id  = t;
                 args[t].thread_sem = malloc(sizeof(sem_t));
                 if (args[t].thread_sem == NULL) {
@@ -149,7 +148,7 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
         }
 
         _log(LOG_DEBUG, "[i] spawning the threads\n");
-        for (unsigned int t = 0; t < nof_threads; t++) {
+        for (uint32_t t = 0; t < nof_threads; t++) {
                 err = pthread_create(&threads[t], NULL, w_thread_keymix, &args[t]);
                 if (err) {
                         _log(LOG_DEBUG, "pthread_create error %d\n", err);
@@ -159,16 +158,16 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
 
         _log(LOG_DEBUG, "[i] init parent swapping procedure\n");
         if (thread_levels != levels) {
-                for (unsigned int l = 0; l < (levels - thread_levels) * 2 + 1; l++) {
-                        unsigned int thr_i           = 0;
-                        unsigned int waiting_threads = 0;
+                for (uint32_t l = 0; l < (levels - thread_levels) * 2 + 1; l++) {
+                        uint32_t thr_i           = 0;
+                        uint32_t waiting_threads = 0;
 
                         // wait until all the threads have completed the levels
                         for (int i = 0; i < nof_threads; i++)
                                 sem_wait(args[i].coord_sem);
 
                         // synchronization is done, notify the threads back
-                        for (unsigned int t = 0; t < nof_threads; t++) {
+                        for (uint32_t t = 0; t < nof_threads; t++) {
                                 err = sem_post(args[t].thread_sem);
                                 if (err) {
                                         _log(LOG_DEBUG, "coordinator, sem_post error %d\n", errno);
@@ -181,7 +180,7 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
 
         _log(LOG_DEBUG, "[i] joining the threads...\n");
 
-        for (unsigned int t = 0; t < nof_threads; t++) {
+        for (uint32_t t = 0; t < nof_threads; t++) {
                 err = pthread_join(threads[t], NULL);
                 if (err) {
                         _log(LOG_DEBUG, "pthread_join error %d (thread %d)\n", err, t);
@@ -193,7 +192,7 @@ cleanup:
         _log(LOG_DEBUG, "[i] safe obj destruction\n");
         safe_explicit_bzero(buffer, seed_size);
         free(buffer);
-        for (unsigned int i = 0; i < nof_threads; i++) {
+        for (uint32_t i = 0; i < nof_threads; i++) {
                 if (!sem_destroy(args[i].coord_sem)) {
                         free(args[i].coord_sem);
                 } else {

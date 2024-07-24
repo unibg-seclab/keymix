@@ -78,10 +78,10 @@ void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         _mm_storeu_si128((__m128i *)out, m);
 }
 
-void aes256enc(byte *data, byte *out, byte *key, size_t blocks) {
+void aes256enc(byte *data, byte *out, byte *key, size_t nof_blocks) {
         __m128i key_schedule[15];
         aes_256_key_expansion(key, key_schedule);
-        byte *last = data + blocks * SIZE_BLOCK;
+        byte *last = data + nof_blocks * SIZE_BLOCK;
         for (; data < last; data += SIZE_BLOCK, out += SIZE_BLOCK) {
                 aes256_enc(key_schedule, data, out);
         }

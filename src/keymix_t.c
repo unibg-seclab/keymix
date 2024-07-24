@@ -11,7 +11,7 @@ typedef struct {
         byte *seed;
         byte *out;
         size_t seed_size;
-        size_t num_seeds;
+        uint64_t num_seeds;
         mixing_config *config;
         uint128_t iv;
         uint128_t starting_counter;
@@ -40,7 +40,7 @@ void *w_keymix(void *a) {
 
         buffer_as_blocks[0] ^= args->iv;
 
-        for (size_t i = 0; i < args->num_seeds; i++) {
+        for (uint64_t i = 0; i < args->num_seeds; i++) {
                 buffer_as_blocks[1] = second_block_original ^ counter;
                 keymix(buffer, args->out, args->seed_size, args->config, args->internal_threads);
 
@@ -53,7 +53,7 @@ void *w_keymix(void *a) {
 }
 
 int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_config *config,
-             unsigned int num_threads, unsigned int internal_threads, uint128_t iv) {
+             uint32_t num_threads, uint32_t internal_threads, uint128_t iv) {
         pthread_t threads[num_threads];
         args_t args[num_threads];
 
@@ -76,16 +76,16 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
         if (DEBUG)
                 assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
 
-        size_t remaining             = out_size / seed_size;
-        size_t offset                = 0;
-        unsigned int started_threads = 0;
+        uint64_t remaining       = out_size / seed_size;
+        uint64_t offset          = 0;
+        uint32_t started_threads = 0;
 
         for (int t = 0; t < num_threads; t++) {
                 if (remaining == 0) {
                         break;
                 }
 
-                size_t thread_seeds = MAX(1UL, remaining / (num_threads - t));
+                uint64_t thread_seeds = MAX(1UL, remaining / (num_threads - t));
                 remaining -= thread_seeds;
 
                 args_t *a           = &args[t];
