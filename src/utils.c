@@ -254,10 +254,10 @@ void spread(byte *restrict out, byte *restrict in, size_t in_size, uint32_t leve
         }
 }
 
-void memswap(byte *a, byte *b, size_t bytes) {
+void memswap(byte *restrict a, byte *restrict b, size_t bytes) {
         byte *a_end = a + bytes;
         while (a < a_end) {
-                char tmp = *a;
+                byte tmp = *a;
                 *a++     = *b;
                 *b++     = tmp;
         }
