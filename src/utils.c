@@ -35,6 +35,15 @@ inline void safe_explicit_bzero(void *ptr, size_t size) {
                 explicit_bzero(ptr, size);
 }
 
+inline void memxor(void *dst, void *src, size_t n) {
+        byte *d = (byte *)dst;
+        byte *s = (byte *)src;
+
+        for (; n > 0; n--) {
+                *d++ ^= *s++;
+        }
+}
+
 // If we interpret in and out a series of mini_blocks, each single one
 // of size SIZE_MACRO / fanout, then the formula to shuffle them is actually quite simple
 //
