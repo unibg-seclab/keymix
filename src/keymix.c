@@ -23,20 +23,10 @@ void keymix_inner(byte *seed, byte *out, byte *buffer, size_t size, mixing_confi
         }
 }
 
-// -------------------------------- Simple single-threaded keymix
-
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
-        byte *buffer        = config->inplace ? NULL : (byte *)malloc(seed_size);
-        unsigned int levels = total_levels(seed_size, config->diff_factor);
-
-        keymix_inner(seed, out, buffer, seed_size, config, levels);
-
-        safe_explicit_bzero(buffer, seed_size);
-        free(buffer);
+        parallel_keymix(seed, out, seed_size, config, 0);
         return 0;
 }
-
-// -------------------------------- Multi-threaded keymix
 
 void *w_thread_keymix(void *config) {
         thread_data *args = (thread_data *)config;
@@ -90,7 +80,6 @@ thread_exit:
         return NULL;
 }
 
-// Mixes the seed into out using a number of threads equal to a power of diff_factor
 int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config,
                     unsigned int nof_threads) {
         if (!ISPOWEROF(nof_threads, config->diff_factor)) {
@@ -99,33 +88,34 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
                 return 1;
         }
 
-        int err = 0;
-
         // We can't assign more than 1 thread to a single macro, so we will
         // never spawn more than nof_macros threads
-        size_t nof_macros = seed_size / SIZE_MACRO;
-        nof_threads       = MIN(nof_threads, nof_macros);
+        size_t nof_macros   = seed_size / SIZE_MACRO;
+        nof_threads         = MIN(nof_threads, nof_macros);
+        unsigned int levels = total_levels(seed_size, config->diff_factor);
 
-        size_t thread_chunk_size   = seed_size / nof_threads;
-        unsigned int thread_levels = total_levels(thread_chunk_size, config->diff_factor);
-        unsigned int levels        = total_levels(seed_size, config->diff_factor);
-
-        _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
         _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
-
-        pthread_t threads[nof_threads];
-        thread_data args[nof_threads];
 
         byte *buffer = malloc(seed_size);
 
-        if (nof_threads == 1) {
+        // If there is 1 thread, just use the function directly, no need to
+        // allocate and deallocate a lot of stuff
+        if (nof_threads < 2) {
                 keymix_inner(seed, out, buffer, seed_size, config, levels);
                 safe_explicit_bzero(buffer, seed_size);
                 free(buffer);
                 return 0;
         }
 
-        _log(LOG_DEBUG, "[i] preparing the threads\n");
+        size_t thread_chunk_size   = seed_size / nof_threads;
+        unsigned int thread_levels = total_levels(thread_chunk_size, config->diff_factor);
+
+        _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
+
+        int err = 0;
+        pthread_t threads[nof_threads];
+        thread_data args[nof_threads];
+
         for (unsigned int t = 0; t < nof_threads; t++) {
                 args[t].thread_id  = t;
                 args[t].thread_sem = malloc(sizeof(sem_t));
@@ -177,7 +167,6 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
         }
 
         _log(LOG_DEBUG, "[i] init parent swapping procedure\n");
-
         if (thread_levels != levels) {
                 for (unsigned int l = 0; l < (levels - thread_levels) * 2 + 1; l++) {
                         unsigned int thr_i           = 0;
@@ -200,7 +189,7 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
         }
 
         _log(LOG_DEBUG, "[i] joining the threads...\n");
-        // There is no use for a thread retval now (it was only allocated and then freed)
+
         for (unsigned int t = 0; t < nof_threads; t++) {
                 err = pthread_join(threads[t], NULL);
                 if (err) {
