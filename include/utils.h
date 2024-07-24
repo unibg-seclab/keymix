@@ -10,6 +10,9 @@
 
 void _log(log_level_t log_level, const char *fmt, ...);
 
+unsigned int total_levels(size_t seed_size, unsigned int fanout);
+void safe_explicit_bzero(void *ptr, size_t size);
+
 void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
 void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
 

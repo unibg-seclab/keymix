@@ -25,6 +25,16 @@ inline size_t intpow(size_t base, size_t exp) {
         return res;
 }
 
+inline unsigned int total_levels(size_t seed_size, unsigned int diff_factor) {
+        unsigned int nof_macros = seed_size / SIZE_MACRO;
+        return 1 + LOGBASE(nof_macros, diff_factor);
+}
+
+inline void safe_explicit_bzero(void *ptr, size_t size) {
+        if (ptr)
+                explicit_bzero(ptr, size);
+}
+
 // If we interpret in and out a series of mini_blocks, each single one
 // of size SIZE_MACRO / fanout, then the formula to shuffle them is actually quite simple
 //
