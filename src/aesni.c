@@ -66,7 +66,7 @@ void aes_256_key_expansion(byte *key, __m128i *key_schedule) {
 
 void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         __m128i m;
-        int j;
+        uint8_t j;
 
         m = _mm_loadu_si128((__m128i *)data);
         m = _mm_xor_si128(m, key_schedule[0]);

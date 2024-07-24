@@ -43,8 +43,8 @@ void csv_header() {
         fprintf(fout, "time\n");            // Time in ms
         fflush(fout);
 }
-void csv_line(size_t seed_size, size_t expansion, int internal_threads, int external_threads,
-              char *implementation, int diff_factor, double time) {
+void csv_line(size_t seed_size, uint64_t expansion, uint8_t internal_threads,
+              uint8_t external_threads, char *implementation, uint8_t diff_factor, double time) {
         fprintf(fout, "%zu,", seed_size);
         fprintf(fout, "%zu,", expansion);
         fprintf(fout, "%d,", internal_threads);
@@ -55,8 +55,8 @@ void csv_line(size_t seed_size, size_t expansion, int internal_threads, int exte
         fflush(fout);
 }
 
-size_t first_x_that_surpasses(double bar, size_t diff_factor) {
-        size_t x = 0;
+uint8_t first_x_that_surpasses(double bar, uint8_t diff_factor) {
+        uint8_t x = 0;
         size_t size;
         do {
                 x++;
@@ -66,19 +66,19 @@ size_t first_x_that_surpasses(double bar, size_t diff_factor) {
         return x;
 }
 
-void setup_seeds(size_t diff_factor, size_t **seed_sizes, size_t *seed_sizes_count) {
-        size_t min_x = first_x_that_surpasses(MINIMUM_SEED_SIZE, diff_factor);
-        size_t max_x = first_x_that_surpasses(MAXIMUM_SEED_SIZE, diff_factor);
+void setup_seeds(uint8_t diff_factor, size_t **seed_sizes, uint8_t *seed_sizes_count) {
+        uint8_t min_x = first_x_that_surpasses(MINIMUM_SEED_SIZE, diff_factor);
+        uint8_t max_x = first_x_that_surpasses(MAXIMUM_SEED_SIZE, diff_factor);
 
         *seed_sizes_count = max_x + 1 - min_x;
         *seed_sizes       = realloc(*seed_sizes, *seed_sizes_count * sizeof(size_t));
 
-        for (size_t x = min_x; x <= max_x; x++) {
+        for (uint8_t x = min_x; x <= max_x; x++) {
                 (*seed_sizes)[x - min_x] = SIZE_MACRO * pow(diff_factor, x);
         }
 }
 
-void setup_configs(size_t diff_factor, mixing_config *configs) {
+void setup_configs(uint8_t diff_factor, mixing_config *configs) {
         configs[0].diff_factor = diff_factor;
         configs[0].mixfunc     = &wolfssl;
 
@@ -89,8 +89,8 @@ void setup_configs(size_t diff_factor, mixing_config *configs) {
         configs[2].mixfunc     = &aesni;
 }
 
-void setup_valid_internal_threads(size_t diff_factor, int internal_threads[],
-                                  size_t *internal_threads_count) {
+void setup_valid_internal_threads(uint8_t diff_factor, uint8_t internal_threads[],
+                                  uint8_t *internal_threads_count) {
         // Diff factors can be only one of 3, so we can just wing a switch
         // Just be sure to keep the maximum reasonable
 
@@ -120,8 +120,8 @@ void setup_valid_internal_threads(size_t diff_factor, int internal_threads[],
 
 // -------------------------------------------------- Actual test functions
 
-void test_keymix(byte *seed, byte *out, size_t seed_size, size_t expansion, int internal_threads,
-                 int external_threads, mixing_config *config) {
+void test_keymix(byte *seed, byte *out, size_t seed_size, uint64_t expansion,
+                 uint8_t internal_threads, uint8_t external_threads, mixing_config *config) {
         char *impl = "(unspecified)";
         if (config->mixfunc == &aesni) {
                 impl = "aesni";
@@ -133,7 +133,7 @@ void test_keymix(byte *seed, byte *out, size_t seed_size, size_t expansion, int 
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
              external_threads, impl, config->diff_factor, expansion);
 
-        for (int test = 0; test < NUM_OF_TESTS; test++) {
+        for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE(keymix_t(seed, seed_size, out, expansion * seed_size, config,
                                                external_threads, internal_threads, 0));
                 csv_line(seed_size, expansion, internal_threads, external_threads, impl,
@@ -153,25 +153,25 @@ int main(int argc, char *argv[]) {
         }
 
         // Gli unici per cui il nostro schema funzione e ha senso
-        size_t diff_factors[]     = {2, 3, 4};
-        size_t diff_factors_count = sizeof(diff_factors) / sizeof(__typeof__(*diff_factors));
+        uint8_t diff_factors[]     = {2, 3, 4};
+        uint8_t diff_factors_count = sizeof(diff_factors) / sizeof(__typeof__(*diff_factors));
 
         byte *seed = NULL;
         byte *out  = NULL;
 
         size_t *seed_sizes = NULL;
-        size_t seed_sizes_count;
+        uint8_t seed_sizes_count;
 
-        size_t external_threads[] = {1, 2, 4, 8, 16};
-        size_t external_threads_count =
+        uint8_t external_threads[] = {1, 2, 4, 8, 16};
+        uint8_t external_threads_count =
             sizeof(external_threads) / sizeof(__typeof__(*external_threads));
 
         // There are never no more than 5 internal threads' values
-        int internal_threads[5] = {0, 0, 0, 0, 0};
-        size_t internal_threads_count;
+        uint8_t internal_threads[5] = {0, 0, 0, 0, 0};
+        uint8_t internal_threads_count;
 
         mixing_config configs[3] = {};
-        size_t configs_count     = sizeof(configs) / sizeof(__typeof__(*configs));
+        uint8_t configs_count    = sizeof(configs) / sizeof(__typeof__(*configs));
 
 #ifdef DO_EXPANSION_TESTS
         _log(LOG_INFO, "Doing %d tests (each dot = 1 test)\n", NUM_OF_TESTS);
@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
         csv_header();
 
         FOR_EVERY(diff_p, diff_factors, diff_factors_count) {
-                size_t diff_factor = *diff_p;
+                uint8_t diff_factor = *diff_p;
 
                 setup_seeds(diff_factor, &seed_sizes, &seed_sizes_count);
                 setup_configs(diff_factor, configs);
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
                         FOR_EVERY(config, configs, configs_count)
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count)
-                        for (size_t exp = 1; exp <= MAX_EXPANSION; exp++) {
+                        for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
                                 SAFE_REALLOC(out, exp * (*size));
                                 test_keymix(seed, out, *size, exp, *ithr, *ethr, config);
                         }

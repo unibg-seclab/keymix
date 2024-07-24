@@ -19,7 +19,7 @@ int wolfssl(byte *seed, byte *out, size_t seed_size) {
 
                 wc_AesSetKey(&aes, key, 2 * SIZE_BLOCK, NULL, AES_ENCRYPTION);
 
-                for (int b = 0; b < 3; b++) {
+                for (uint8_t b = 0; b < 3; b++) {
                         wc_AesEncryptDirect(&aes, out + b * SIZE_BLOCK, (byte *)(in + b));
                 }
         }

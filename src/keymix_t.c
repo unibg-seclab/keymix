@@ -16,7 +16,7 @@ typedef struct {
         uint128_t iv;
         uint128_t starting_counter;
 
-        int internal_threads;
+        uint8_t internal_threads;
 } args_t;
 
 void *w_keymix(void *a) {
@@ -53,7 +53,7 @@ void *w_keymix(void *a) {
 }
 
 int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_config *config,
-             uint32_t num_threads, uint32_t internal_threads, uint128_t iv) {
+             uint8_t num_threads, uint8_t internal_threads, uint128_t iv) {
         pthread_t threads[num_threads];
         args_t args[num_threads];
 
@@ -76,11 +76,11 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
         if (DEBUG)
                 assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
 
-        uint64_t remaining       = out_size / seed_size;
-        uint64_t offset          = 0;
-        uint32_t started_threads = 0;
+        uint64_t remaining      = out_size / seed_size;
+        uint64_t offset         = 0;
+        uint8_t started_threads = 0;
 
-        for (int t = 0; t < num_threads; t++) {
+        for (uint8_t t = 0; t < num_threads; t++) {
                 if (remaining == 0) {
                         break;
                 }
@@ -109,7 +109,7 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
 
         assert(remaining == 0);
 
-        for (int t = 0; t < started_threads; t++) {
+        for (uint8_t t = 0; t < started_threads; t++) {
                 pthread_join(threads[t], NULL);
         }
 

@@ -72,13 +72,13 @@ int main() {
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
         mixing_config mconf = {&wolfssl, 3};
-        uint32_t threads[]  = {1, 3, 9, 27, 81};
-        for (uint32_t t = 0; t < sizeof(threads) / sizeof(uint32_t); t++) {
+        uint8_t threads[]   = {1, 3, 9, 27, 81};
+        for (uint8_t t = 0; t < sizeof(threads) / sizeof(uint8_t); t++) {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
-                int pe          = 0;
-                int nof_threads = threads[t];
+                int pe              = 0;
+                uint8_t nof_threads = threads[t];
                 double time = MEASURE({ pe = keymix(seed, out, seed_size, &mconf, nof_threads); });
-                uint32_t precision   = 2;
+                uint8_t precision    = 2;
                 double readable_size = (double)seed_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
                 printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
@@ -91,8 +91,8 @@ int main() {
                 }
         }
 
-        uint32_t err = 0;
-        for (uint32_t i = 0; i < sizeof(configs) / sizeof(mixing_config); i++) {
+        int err = 0;
+        for (uint8_t i = 0; i < sizeof(configs) / sizeof(mixing_config); i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(seed, seed_size);
                 explicit_bzero(out, seed_size);
@@ -101,8 +101,8 @@ int main() {
                         print_buffer_hex(seed, seed_size, "seed");
                         print_buffer_hex(out, seed_size, "out");
                 }
-                uint32_t nof_macros = seed_size / 48;
-                uint32_t levels     = 1 + LOGBASE(nof_macros, configs[i].diff_factor);
+                uint64_t nof_macros = seed_size / 48;
+                uint8_t levels      = 1 + LOGBASE(nof_macros, configs[i].diff_factor);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
@@ -117,7 +117,7 @@ int main() {
                         goto clean;
                 }
 
-                uint32_t precision   = 2;
+                uint8_t precision    = 2;
                 double readable_size = (double)seed_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
                 printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
