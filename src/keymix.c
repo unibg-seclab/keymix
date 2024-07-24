@@ -8,54 +8,53 @@
 #include <stdio.h>
 #include <string.h>
 
+void keymix_inner(byte *seed, byte *out, byte *buffer, size_t size, mixing_config *config,
+                  unsigned int levels) {
+        byte *bp = config->inplace ? out : buffer;
+
+        (*(config->mixfunc))(seed, out, size);
+        for (unsigned int l = 1; l < levels; l++) {
+                if (config->inplace) {
+                        spread_inplace(bp, size, l, config->diff_factor);
+                } else {
+                        shuffle_opt(bp, out, size, l, config->diff_factor);
+                }
+                (*(config->mixfunc))(bp, out, size);
+        }
+}
+
 // -------------------------------- Simple single-threaded keymix
 
 int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
-        byte *buffer = (!config->inplace ? (byte *)malloc(seed_size) : out);
+        byte *buffer        = config->inplace ? NULL : (byte *)malloc(seed_size);
+        unsigned int levels = total_levels(seed_size, config->diff_factor);
 
-        size_t nof_macros   = seed_size / SIZE_MACRO;
-        unsigned int levels = 1 + LOGBASE(nof_macros, config->diff_factor);
+        keymix_inner(seed, out, buffer, seed_size, config, levels);
 
-        (*(config->mixfunc))(seed, out, seed_size);
-
-        for (unsigned int level = 1; level < levels; level++) {
-                if (!config->inplace) {
-                        shuffle_opt(buffer, out, seed_size, level, config->diff_factor);
-                } else {
-                        spread_inplace(buffer, seed_size, level, config->diff_factor);
-                }
-                (*(config->mixfunc))(buffer, out, seed_size);
-        }
-
-        if (!config->inplace) {
-                explicit_bzero(buffer, seed_size);
-                free(buffer);
-        }
+        safe_explicit_bzero(buffer, seed_size);
+        free(buffer);
         return 0;
 }
 
 // -------------------------------- Multi-threaded keymix
 
-void *run(void *config) {
+void *w_thread_keymix(void *config) {
         thread_data *args = (thread_data *)config;
-        int *err          = malloc(sizeof(int));
-        if (err == NULL) {
-                _log(LOG_DEBUG, "thread %d crashed at init time\n", args->thread_id);
-                goto thread_exit;
-        }
-        *err = 0;
+
+        byte *buffer = args->mixconfig->inplace ? NULL : (byte *)malloc(args->thread_chunk_size);
 
         // No need to sync among other threads here
-        keymix(args->in, args->out, args->thread_chunk_size, args->mixconfig);
+        keymix_inner(args->in, args->out, buffer, args->thread_chunk_size, args->mixconfig,
+                     args->thread_levels);
 
         // notify the main thread to start the remaining levels
         _log(LOG_DEBUG, "thread %d finished the thread-layers\n", args->thread_id);
         if (args->thread_levels != args->total_levels) {
                 sem_post(args->coord_sem);
         }
+
         // synchronized encryption layers
         for (unsigned int l = args->thread_levels; l < args->total_levels; l++) {
-                *err = 0;
                 // synchronized swap
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
@@ -73,8 +72,10 @@ void *run(void *config) {
                 // synchronized encryption
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->thread_id, l);
-                *err = (*(args->mixconfig->mixfunc))(args->buf, args->out, args->thread_chunk_size);
-                if (*err) {
+                int err =
+                    (*(args->mixconfig->mixfunc))(args->buf, args->out, args->thread_chunk_size);
+                if (err) {
+                        _log(LOG_DEBUG, "thread %d, error from mixfunc %d\n", args->thread_id, err);
                         goto thread_exit;
                 }
                 // notify the main thread that everything for this level has finished
@@ -84,7 +85,9 @@ void *run(void *config) {
         }
 
 thread_exit:
-        pthread_exit(err);
+        safe_explicit_bzero(buffer, args->thread_chunk_size);
+        free(buffer);
+        return NULL;
 }
 
 // Mixes the seed into out using a number of threads equal to a power of diff_factor
@@ -93,31 +96,33 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
         if (!ISPOWEROF(nof_threads, config->diff_factor)) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n",
                      config->diff_factor);
-                return EPERM;
+                return 1;
         }
 
         int err = 0;
 
-        size_t nof_macros = seed_size / SIZE_MACRO;
         // We can't assign more than 1 thread to a single macro, so we will
         // never spawn more than nof_macros threads
-        nof_threads = MIN(nof_threads, nof_macros);
+        size_t nof_macros = seed_size / SIZE_MACRO;
+        nof_threads       = MIN(nof_threads, nof_macros);
 
-        unsigned int thread_levels =
-            1 + LOGBASE((double)nof_macros / nof_threads, config->diff_factor);
-        unsigned int total_levels = 1 + LOGBASE(nof_macros, config->diff_factor);
+        size_t thread_chunk_size   = seed_size / nof_threads;
+        unsigned int thread_levels = total_levels(thread_chunk_size, config->diff_factor);
+        unsigned int levels        = total_levels(seed_size, config->diff_factor);
 
         _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
-        _log(LOG_DEBUG, "total levels:\t\t%d\n", total_levels);
+        _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
 
         pthread_t threads[nof_threads];
         thread_data args[nof_threads];
-        size_t thread_chunk_size = seed_size / nof_threads;
 
         byte *buffer = malloc(seed_size);
-        if (buffer == NULL) {
-                _log(LOG_DEBUG, "Cannot allocate more memory\n");
-                goto cleanup;
+
+        if (nof_threads == 1) {
+                keymix_inner(seed, out, buffer, seed_size, config, levels);
+                safe_explicit_bzero(buffer, seed_size);
+                free(buffer);
+                return 0;
         }
 
         _log(LOG_DEBUG, "[i] preparing the threads\n");
@@ -158,13 +163,13 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
                 args[t].seed_size         = seed_size;
                 args[t].thread_chunk_size = thread_chunk_size;
                 args[t].thread_levels     = thread_levels;
-                args[t].total_levels      = total_levels;
+                args[t].total_levels      = levels;
                 args[t].mixconfig         = config;
         }
 
         _log(LOG_DEBUG, "[i] spawning the threads\n");
         for (unsigned int t = 0; t < nof_threads; t++) {
-                err = pthread_create(&threads[t], NULL, run, &args[t]);
+                err = pthread_create(&threads[t], NULL, w_thread_keymix, &args[t]);
                 if (err) {
                         _log(LOG_DEBUG, "pthread_create error %d\n", err);
                         goto cleanup;
@@ -173,9 +178,8 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
         _log(LOG_DEBUG, "[i] init parent swapping procedure\n");
 
-        // todo: implement timeout fail
-        if (thread_levels != total_levels) {
-                for (unsigned int l = 0; l < (total_levels - thread_levels) * 2 + 1; l++) {
+        if (thread_levels != levels) {
+                for (unsigned int l = 0; l < (levels - thread_levels) * 2 + 1; l++) {
                         unsigned int thr_i           = 0;
                         unsigned int waiting_threads = 0;
 
@@ -185,10 +189,9 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
                         // synchronization is done, notify the threads back
                         for (unsigned int t = 0; t < nof_threads; t++) {
-                                int semres = sem_post(args[t].thread_sem);
-                                if (semres == -1) {
+                                err = sem_post(args[t].thread_sem);
+                                if (err) {
                                         _log(LOG_DEBUG, "coordinator, sem_post error %d\n", errno);
-                                        err = -1;
                                         goto cleanup;
                                 }
                         }
@@ -208,10 +211,8 @@ int parallel_keymix(byte *seed, byte *out, size_t seed_size, mixing_config *conf
 
 cleanup:
         _log(LOG_DEBUG, "[i] safe obj destruction\n");
-        if (buffer) {
-                explicit_bzero(buffer, seed_size);
-                free(buffer);
-        }
+        safe_explicit_bzero(buffer, seed_size);
+        free(buffer);
         for (unsigned int i = 0; i < nof_threads; i++) {
                 if (!sem_destroy(args[i].coord_sem)) {
                         free(args[i].coord_sem);
