@@ -25,7 +25,7 @@
                 _err;                                                                              \
         })
 
-byte *setup(size_t size, int random) {
+byte *setup(size_t size, bool random) {
         byte *data = (byte *)malloc(size);
         for (size_t i = 0; i < size; i++) {
                 data[i] = random ? (rand() % 256) : 0;
@@ -104,14 +104,14 @@ int verify_shuffles(size_t fanout, size_t level) {
         _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
              MiB(size));
 
-        byte *in                 = setup(size, 1);
-        byte *out_shuffle        = setup(size, 0);
-        byte *out_shuffle2       = setup(size, 0);
-        byte *out_shuffle3       = setup(size, 0);
-        byte *out_shuffle4       = setup(size, 0);
-        byte *out_spread         = setup(size, 0);
-        byte *out_spread_inplace = setup(size, 0);
-        byte *out_spread2        = setup(size, 0);
+        byte *in                 = setup(size, true);
+        byte *out_shuffle        = setup(size, false);
+        byte *out_shuffle2       = setup(size, false);
+        byte *out_shuffle3       = setup(size, false);
+        byte *out_shuffle4       = setup(size, false);
+        byte *out_spread         = setup(size, false);
+        byte *out_spread_inplace = setup(size, false);
+        byte *out_spread2        = setup(size, false);
 
         int err = 0;
         for (int l = 1; l <= level; l++) {
@@ -183,19 +183,19 @@ int verify_shuffles_with_varying_threads(size_t fanout, size_t level) {
         _log(LOG_INFO, "> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n",
              level, MiB(size));
 
-        byte *in = setup(size, 1);
+        byte *in = setup(size, true);
 
-        byte *out1 = setup(size, 0);
-        byte *out2 = setup(size, 0);
-        byte *out3 = setup(size, 0);
+        byte *out1 = setup(size, false);
+        byte *out2 = setup(size, false);
+        byte *out3 = setup(size, false);
 
-        byte *out4 = setup(size, 0);
-        byte *out5 = setup(size, 0);
-        byte *out6 = setup(size, 0);
+        byte *out4 = setup(size, false);
+        byte *out5 = setup(size, false);
+        byte *out6 = setup(size, false);
 
-        byte *out7 = setup(size, 0);
-        byte *out8 = setup(size, 0);
-        byte *out9 = setup(size, 0);
+        byte *out7 = setup(size, false);
+        byte *out8 = setup(size, false);
+        byte *out9 = setup(size, false);
 
         // Note, if fanout^2 is too high a number of threads, i.e., each thread
         // would get less than 1 macro, then the number of threads is brought
@@ -251,10 +251,10 @@ int verify_encs(size_t fanout, size_t level) {
 
         _log(LOG_INFO, "> Verifying encryption for size %.2f MiB\n", MiB(size));
 
-        byte *in          = setup(size, 1);
-        byte *out_wolfssl = setup(size, 0);
-        byte *out_openssl = setup(size, 0);
-        byte *out_aesni   = setup(size, 0);
+        byte *in          = setup(size, true);
+        byte *out_wolfssl = setup(size, false);
+        byte *out_openssl = setup(size, false);
+        byte *out_aesni   = setup(size, false);
 
         mixing_config config = {NULL, fanout};
 
@@ -288,11 +288,11 @@ int verify_multithreaded_encs(size_t fanout, size_t level, bool inplace) {
         _log(LOG_INFO, "> Verifying keymix%s equivalence for size %.2f MiB\n", MiB(size),
              inplace ? " (inplace)" : "");
 
-        byte *in     = setup(size, 1);
-        byte *out1   = setup(size, 0);
-        byte *outf   = setup(size, 0);
-        byte *outff  = setup(size, 0);
-        byte *outfff = setup(size, 0);
+        byte *in     = setup(size, true);
+        byte *out1   = setup(size, false);
+        byte *outf   = setup(size, false);
+        byte *outff  = setup(size, false);
+        byte *outfff = setup(size, false);
 
         size_t thr1   = 1;
         size_t thrf   = fanout;
@@ -331,10 +331,10 @@ int verify_keymix_t(size_t fanout, size_t level) {
 
         _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
 
-        byte *in         = setup(size, 1);
-        byte *in_simple  = setup(size, 0);
-        byte *out_simple = setup(size, 0);
-        byte *out1       = setup(size, 0);
+        byte *in         = setup(size, true);
+        byte *in_simple  = setup(size, false);
+        byte *out_simple = setup(size, false);
+        byte *out1       = setup(size, false);
         byte *out2_thr1  = setup(2 * size, 0);
         byte *out2_thr2  = setup(2 * size, 0);
         byte *out3_thr1  = setup(3 * size, 0);
