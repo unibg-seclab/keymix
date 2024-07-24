@@ -7,8 +7,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-void _log(log_level_t level, const char *fmt, ...) {
-        if (!DISABLE_LOG && level >= LOG_LEVEL) {
+void _logf(log_level_t level, const char *fmt, ...) {
+        if (level >= LOG_LEVEL) {
                 va_list args;
                 va_start(args, fmt);
                 vfprintf(stderr, fmt, args);

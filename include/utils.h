@@ -8,7 +8,13 @@
 #include <stdlib.h>
 #include <time.h>
 
-void _log(log_level_t log_level, const char *fmt, ...);
+void _logf(log_level_t log_level, const char *fmt, ...);
+
+#if DISABLE_LOG
+#define _log(...)
+#else
+#define _log(...) _logf(__VA_ARGS__)
+#endif
 
 unsigned int total_levels(size_t seed_size, unsigned int fanout);
 void safe_explicit_bzero(void *ptr, size_t size);
