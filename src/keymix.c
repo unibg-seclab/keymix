@@ -24,9 +24,6 @@ void *w_thread_keymix(void *a) {
         keymix_inner(args->in, args->out, args->thread_chunk_size, args->mixconfig,
                      args->thread_levels);
 
-        // Input buffer for the encryption
-        byte *in = (!args->mixconfig->inplace ? args->buf : args->out);
-
         // notify the main thread to start the remaining levels
         _log(LOG_DEBUG, "thread %d finished the thread-layers\n", args->thread_id);
         if (args->thread_levels != args->total_levels) {
@@ -39,7 +36,7 @@ void *w_thread_keymix(void *a) {
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
                 if (!args->mixconfig->inplace) {
-                        spread_chunks(args, l);
+                        spread_chunks_inplace(args, l);
                 }
 
                 // notify the main thread that swap has finished
@@ -49,7 +46,7 @@ void *w_thread_keymix(void *a) {
                 // synchronized encryption
                 sem_wait(args->thread_sem);
                 _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->thread_id, l);
-                int err = (*(args->mixconfig->mixfunc))(in, args->out, args->thread_chunk_size);
+                int err = (*(args->mixconfig->mixfunc))(args->out, args->out, args->thread_chunk_size);
                 if (err) {
                         _log(LOG_DEBUG, "thread %d, error from mixfunc %d\n", args->thread_id, err);
                         goto thread_exit;
@@ -84,11 +81,6 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint3
         if (nof_threads == 1) {
                 keymix_inner(seed, out, seed_size, config, levels);
                 return 0;
-        }
-
-        byte *buffer = NULL;
-        if (!config->inplace) {
-                buffer = malloc(seed_size);
         }
 
         size_t thread_chunk_size = seed_size / nof_threads;
@@ -128,11 +120,9 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint3
                 }
                 args[t].in  = seed + t * thread_chunk_size;
                 args[t].out = out + t * thread_chunk_size;
-                args[t].buf = buffer + t * thread_chunk_size;
 
                 args[t].abs_in  = seed;
                 args[t].abs_out = out;
-                args[t].abs_buf = buffer;
 
                 args[t].seed_size         = seed_size;
                 args[t].thread_chunk_size = thread_chunk_size;
@@ -191,8 +181,6 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint3
 
 cleanup:
         _log(LOG_DEBUG, "[i] safe obj destruction\n");
-        safe_explicit_bzero(buffer, seed_size);
-        free(buffer);
         for (uint32_t i = 0; i < nof_threads; i++) {
                 if (!sem_destroy(args[i].coord_sem)) {
                         free(args[i].coord_sem);

@@ -26,6 +26,7 @@ void shuffle_opt(byte *out, byte *in, size_t in_size, uint32_t level, uint32_t f
 void spread(byte *out, byte *in, size_t size, uint32_t level, uint32_t fanout);
 void spread_inplace(byte *buffer, size_t size, uint32_t level, uint32_t fanout);
 void spread_chunks(thread_data *args, uint32_t level);
+void spread_chunks_inplace(thread_data *args, uint32_t level);
 
 void shuffle_chunks(thread_data *args, uint32_t level);
 void shuffle_chunks_opt(thread_data *args, uint32_t level);

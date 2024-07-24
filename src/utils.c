@@ -333,19 +333,20 @@ void spread_chunks(thread_data *args, uint32_t level) {
         uint64_t nof_threads_per_slab = nof_threads / nof_slabs;
         uint64_t prev_nof_threads_per_slab = nof_threads_per_slab / fanout;
 
+        uint64_t prev_slab;
+        if (prev_nof_threads_per_slab <= 1) {
+                prev_slab = args->thread_id % fanout;
+        } else {
+                prev_slab = (args->thread_id % nof_threads_per_slab) / prev_nof_threads_per_slab;
+        }
+
         uint64_t out_slab_offset        = slab_size * (args->thread_id / nof_threads_per_slab);
         uint64_t out_inside_slab_offset = 0;
         if (prev_nof_threads_per_slab > 1) {
                 out_inside_slab_offset =
                     args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
         }
-        uint64_t out_mini_offset;
-        if (prev_nof_threads_per_slab <= 1) {
-                out_mini_offset = mini_size * (args->thread_id % fanout);
-        } else {
-                out_mini_offset = mini_size * ((args->thread_id % nof_threads_per_slab) /
-                                               prev_nof_threads_per_slab);
-        }
+        uint64_t out_mini_offset = prev_slab * mini_size;
 
         byte *in  = args->out;
         byte *out = args->abs_buf + out_slab_offset + out_inside_slab_offset + out_mini_offset;
@@ -360,6 +361,77 @@ void spread_chunks(thread_data *args, uint32_t level) {
                 for (uint32_t mini = 0; mini < fanout; mini++) {
                         memcpy(out + out_macro_offset + out_mini_offset, in + in_offset, mini_size);
                         in_offset += mini_size;
+                        out_mini_offset += prev_slab_size;
+                }
+                out_macro_offset += SIZE_MACRO;
+        }
+}
+
+// Spread the output of the encryption owned by the current thread to the
+// following threads belonging to the same slab. The operation despite being
+// done inplace is thread-safe since there is no overlap between the read and
+// write operations of the threads.
+//
+// Note, this is using a different mixing behavior with respect to the shuffle
+// functions above.
+void spread_chunks_inplace(thread_data *args, int level) {
+        if (DEBUG)
+                assert(level >= args->thread_levels);
+
+        unsigned int fanout = args->mixconfig->diff_factor;
+        size_t mini_size    = SIZE_MACRO / fanout;
+
+        unsigned long prev_macros_in_slab = intpow(fanout, level - 1);
+        unsigned long macros_in_slab      = fanout * prev_macros_in_slab;
+        size_t prev_slab_size             = prev_macros_in_slab * SIZE_MACRO;
+        size_t slab_size                  = macros_in_slab * SIZE_MACRO;
+
+        unsigned long nof_threads = intpow(fanout, args->total_levels - args->thread_levels);
+        unsigned long nof_slabs   = args->seed_size / slab_size;
+        unsigned long nof_threads_per_slab      = nof_threads / nof_slabs;
+        unsigned long prev_nof_threads_per_slab = nof_threads_per_slab / fanout;
+
+        unsigned long prev_slab;
+        if (prev_nof_threads_per_slab <= 1) {
+                prev_slab = args->thread_id % fanout;
+        } else {
+                prev_slab = (args->thread_id % nof_threads_per_slab) / prev_nof_threads_per_slab;
+        }
+
+        // Don't do anything if the current thread belongs to the last
+        // prev_slab.
+        // Note, this inevitably reduces the amount of parallelism we can
+        // accomplish.
+        if (prev_slab == fanout - 1) {
+                return;
+        }
+
+        unsigned long out_slab_offset        = slab_size * (args->thread_id / nof_threads_per_slab);
+        unsigned long out_inside_slab_offset = 0;
+        if (prev_nof_threads_per_slab > 1) {
+                out_inside_slab_offset =
+                    args->thread_chunk_size * (args->thread_id % prev_nof_threads_per_slab);
+        }
+        unsigned long out_mini_offset = prev_slab * mini_size;
+
+        byte *in  = args->out;
+        byte *out = args->abs_out + out_slab_offset + out_inside_slab_offset + out_mini_offset;
+
+        unsigned long nof_macros = args->thread_chunk_size / SIZE_MACRO;
+
+        unsigned long in_mini_offset   = 0;
+        unsigned long out_macro_offset = 0;
+
+        for (unsigned long macro = 0; macro < nof_macros; macro++) {
+                // Note, differently from the 'normal' implementation of the
+                // spread_chunks, here we do not look back on previous parts of
+                // the slab. Indeed, previous threads take care of them.
+                in_mini_offset += (prev_slab + 1) * mini_size;
+                out_mini_offset = (prev_slab + 1) * prev_slab_size; // + prev_slab * mini_size;
+                for (unsigned int mini = prev_slab + 1; mini < fanout; mini++) {
+                        memswap(out + out_macro_offset + out_mini_offset, in + in_mini_offset,
+                                mini_size);
+                        in_mini_offset += mini_size;
                         out_mini_offset += prev_slab_size;
                 }
                 out_macro_offset += SIZE_MACRO;
