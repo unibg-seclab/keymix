@@ -9,6 +9,8 @@
 // Custom common types
 typedef unsigned char byte;
 
+typedef __uint128_t uint128_t;
+
 #define SIZE_KB 1024
 #define SIZE_1MiB (1024 * SIZE_KB)
 

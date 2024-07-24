@@ -13,8 +13,8 @@ typedef struct {
         size_t seed_size;
         size_t num_seeds;
         mixing_config *config;
-        __uint128_t iv;
-        __uint128_t starting_counter;
+        uint128_t iv;
+        uint128_t starting_counter;
 
         int internal_threads;
 } args_t;
@@ -22,7 +22,7 @@ typedef struct {
 void *w_keymix(void *a) {
         args_t *args = (args_t *)a;
 
-        __uint128_t counter = args->starting_counter;
+        uint128_t counter = args->starting_counter;
 
         // Keep a local copy of the seed: it needs to be modified, and we are
         // in a multithreaded environment, so we can't just overwrite the same
@@ -35,8 +35,8 @@ void *w_keymix(void *a) {
         // First block -> XOR with (unchanging) IV
         // Second block -> XOR with a counter
 
-        __uint128_t *buffer_as_blocks     = (__uint128_t *)buffer;
-        __uint128_t second_block_original = buffer_as_blocks[1];
+        uint128_t *buffer_as_blocks     = (uint128_t *)buffer;
+        uint128_t second_block_original = buffer_as_blocks[1];
 
         buffer_as_blocks[0] ^= args->iv;
 
@@ -54,7 +54,7 @@ void *w_keymix(void *a) {
 }
 
 int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_config *config,
-             int num_threads, int internal_threads, __uint128_t iv) {
+             int num_threads, int internal_threads, uint128_t iv) {
         pthread_t threads[num_threads];
         args_t args[num_threads];
 
@@ -72,7 +72,7 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 return 0;
         }
 
-        __uint128_t counter = 0;
+        uint128_t counter = 0;
 
         if (DEBUG)
                 assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");

@@ -349,7 +349,7 @@ int verify_keymix_t(size_t fanout, size_t level) {
 
         mixing_config conf = {&aesni, fanout};
 
-        __uint128_t iv       = rand() % (1 << sizeof(__uint128_t));
+        uint128_t iv         = rand() % (1 << sizeof(uint128_t));
         int internal_threads = 1;
 
         // Note: Keymix T applies the IV, so we have to do that manually
@@ -357,7 +357,7 @@ int verify_keymix_t(size_t fanout, size_t level) {
         for (size_t i = 0; i < size; i++) {
                 in_simple[i] = in[i];
         }
-        *(__uint128_t *)in_simple ^= iv;
+        *(uint128_t *)in_simple ^= iv;
         keymix(in_simple, out_simple, size, &conf);
         keymix_t(in, size, out1, size, &conf, 1, internal_threads, iv);
 

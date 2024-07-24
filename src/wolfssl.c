@@ -13,9 +13,9 @@ int wolfssl(byte *seed, byte *out, size_t seed_size) {
 
         byte *last = seed + seed_size;
         for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key        = seed;
-                __uint128_t data = *(__uint128_t *)(seed + 2 * SIZE_BLOCK);
-                __uint128_t in[] = {data, data + 1, data + 2};
+                byte *key      = seed;
+                uint128_t data = *(uint128_t *)(seed + 2 * SIZE_BLOCK);
+                uint128_t in[] = {data, data + 1, data + 2};
                 if (DEBUG)
                         assert(sizeof(in) == SIZE_MACRO);
 
