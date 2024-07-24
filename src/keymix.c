@@ -28,13 +28,11 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config) {
         return 0;
 }
 
-void *w_thread_keymix(void *config) {
-        thread_data *args = (thread_data *)config;
-
-        byte *buffer = args->mixconfig->inplace ? NULL : (byte *)malloc(args->thread_chunk_size);
+void *w_thread_keymix(void *a) {
+        thread_data *args = (thread_data *)a;
 
         // No need to sync among other threads here
-        keymix_inner(args->in, args->out, buffer, args->thread_chunk_size, args->mixconfig,
+        keymix_inner(args->in, args->out, args->buf, args->thread_chunk_size, args->mixconfig,
                      args->thread_levels);
 
         // notify the main thread to start the remaining levels
@@ -75,8 +73,6 @@ void *w_thread_keymix(void *config) {
         }
 
 thread_exit:
-        safe_explicit_bzero(buffer, args->thread_chunk_size);
-        free(buffer);
         return NULL;
 }
 
