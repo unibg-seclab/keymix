@@ -110,19 +110,23 @@ int verify_shuffles(size_t fanout, uint32_t level) {
         byte *out_shuffle3       = setup(size, false);
         byte *out_shuffle4       = setup(size, false);
         byte *out_spread         = setup(size, false);
-        byte *out_spread_inplace = setup(size, false);
+        byte *out_spread1        = setup(size, false);
         byte *out_spread2        = setup(size, false);
+        byte *out_spread3        = setup(size, false);
 
         int err = 0;
         for (uint32_t l = 1; l <= level; l++) {
                 uint32_t nof_threads         = pow(fanout, fmin(l, 3));
                 bool is_shuffle_chunks_level = (level - l < fmin(l, 3));
 
+                // Fill in buffer of the inplace operations
+                memcpy(out_spread1, in, size);
+                memcpy(out_spread3, in, size);
+
                 shuffle(out_shuffle, in, size, l, fanout);
                 shuffle_opt(out_shuffle2, in, size, l, fanout);
                 spread(out_spread, in, size, l, fanout);
-                memcpy(out_spread_inplace, in, size);
-                spread_inplace(out_spread_inplace, size, l, fanout);
+                spread_inplace(out_spread1, size, l, fanout);
 
                 if (is_shuffle_chunks_level) {
                         emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, l, fanout,
@@ -131,6 +135,8 @@ int verify_shuffles(size_t fanout, uint32_t level) {
                                                fanout, nof_threads);
                         emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, l, fanout,
                                                nof_threads);
+                        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out_spread3, size, l,
+                                               fanout, nof_threads);
                 }
 
                 err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
@@ -147,12 +153,14 @@ int verify_shuffles(size_t fanout, uint32_t level) {
                 }
 
                 err +=
-                    COMPARE(out_spread, out_spread_inplace, size, "Spread != spread (inplace)\n");
+                    COMPARE(out_spread, out_spread1, size, "Spread != spread (inplace)\n");
                 if (is_shuffle_chunks_level) {
-                        err += COMPARE(out_spread_inplace, out_spread2, size,
+                        err += COMPARE(out_spread1, out_spread2, size,
                                        "Spread (inplace) != spread (chunks)\n");
-                        err +=
-                            COMPARE(out_spread2, out_spread, size, "Spread (chunks) != spread\n");
+                        err += COMPARE(out_spread2, out_spread3, size,
+                                       "Spread (chunks) != spread (chunks inplace)\n");
+                        err += COMPARE(out_spread3, out_spread, size,
+                                       "Spread (chunks inplace) != spread\n");
                 }
 
                 if (err) {
@@ -167,8 +175,9 @@ int verify_shuffles(size_t fanout, uint32_t level) {
         free(out_shuffle3);
         free(out_shuffle4);
         free(out_spread);
-        free(out_spread_inplace);
+        free(out_spread1);
         free(out_spread2);
+        free(out_spread3);
 
         return err;
 }
@@ -197,6 +206,10 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint32_t level) {
         byte *out8 = setup(size, false);
         byte *out9 = setup(size, false);
 
+        byte *out10 = setup(size, 0);
+        byte *out11 = setup(size, 0);
+        byte *out12 = setup(size, 0);
+
         // Note, if fanout^2 is too high a number of threads, i.e., each thread
         // would get less than 1 macro, then the number of threads is brought
         // down to fanout
@@ -208,12 +221,21 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint32_t level) {
         emulate_shuffle_chunks(shuffle_chunks_opt, out5, in, size, level, fanout, fanout);
         emulate_shuffle_chunks(shuffle_chunks_opt, out6, in, size, level, fanout, fanout * fanout);
 
-        spread(out7, in, size, level, fanout);
-
         // Note, we are not testing spread_chunks with one thread because it is meant to be used
         // only with multiple threads
+        spread(out7, in, size, level, fanout);
         emulate_shuffle_chunks(spread_chunks, out8, in, size, level, fanout, fanout);
         emulate_shuffle_chunks(spread_chunks, out9, in, size, level, fanout, fanout * fanout);
+
+        // The following functions work inplace. So to avoid overwriting the input we copy it
+        memcpy(out10, in, size);
+        memcpy(out11, in, size);
+        memcpy(out12, in, size);
+        // Note, we are not testing spread_chunks_inplace with one thread because it is meant to be
+        // used only with multiple threads
+        spread_inplace(out10, size, level, fanout);
+        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out11, size, level, fanout, fanout);
+        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out12, size, level, fanout, fanout * fanout);
 
         int err = 0;
         err += COMPARE(out1, out2, size, "1 thr != %zu thr\n", fanout);
@@ -230,6 +252,12 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint32_t level) {
         err += COMPARE(out9, out7, size, "1 thr (spread) != %zu thr (spread chunks)\n",
                        fanout * fanout);
 
+        err += COMPARE(out10, out11, size, "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
+        err += COMPARE(out11, out12, size, "%zu thr (spread chunks inplace) != %zu thr (spread chunks inplace)\n",
+                       fanout, fanout * fanout);
+        err += COMPARE(out12, out10, size, "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n",
+                       fanout * fanout);
+
         free(in);
         free(out1);
         free(out2);
@@ -240,6 +268,9 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint32_t level) {
         free(out7);
         free(out8);
         free(out9);
+        free(out10);
+        free(out11);
+        free(out12);
 
         return err;
 }
