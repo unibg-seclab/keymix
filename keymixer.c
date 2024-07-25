@@ -19,19 +19,17 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/types.h>
 
 const char *argp_program_version     = "keymixer 1.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
 static char doc[]      = "keymixer -- a cli program to encrypt resources using large secrets";
-static char args_doc[] = ""; // no standard usage
+static char args_doc[] = ""; // no need to print a standard usage
 
 static struct argp_option options[] = {
     {"resource", 'r', "PATH", 0, "Path of the resource to protect", 0},
     {"output", 'o', "PATH", 0, "Path of the output result", 1},
     {"secret", 's', "PATH", 0, "Path of the secret", 2},
-    {"iv", 'i', "STRING", 0, "16-Byte initialization vector", 3},
+    {"iv", 'i', "STRING", 0, "16-Byte initialization vector (hexadecimal format)", 3},
     {"diffusion", 'd', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)", 4},
     {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni", 5},
     {"threads", 't', "UINT", 0, "Number of threads available", 6},
@@ -47,8 +45,10 @@ static void check_missing_arguments(struct argp_state *state) {
         }
         return;
 cleanup:
-        explicit_bzero(arguments->iv, SIZE_BLOCK);
-        free(arguments->iv);
+        if (arguments->iv != NULL) {
+                explicit_bzero(arguments->iv, SIZE_BLOCK);
+                free(arguments->iv);
+        }
         exit(ERR_ARGP);
 }
 
@@ -82,26 +82,34 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         printf("(!) A 16-Byte initialization vector is required\n");
                         goto cleanup;
                 }
+                char dict[16] = "0123456789abcdef";
+                int hex_found;
                 for (int i = 0; i < SIZE_BLOCK; i++) {
+                        hex_found = 0;
+                        for (int j = 0; j < 16; j++)
+                                if (arg[i] == dict[i]) {
+                                        hex_found = 1;
+                                        break;
+                                }
+                        if (hex_found == 0) {
+                                printf("(!) Unrecognized hex symbol found in iv\n");
+                                goto cleanup;
+                        }
                         *(arguments->iv + i) = (byte)(arg[i]);
                 };
                 break;
         case 'd':
                 arguments->diffusion   = atoi(arg);
-                unsigned int values[6] = {2, 3, 4, 6, 8, 12};
-                int found              = 0;
-                for (unsigned int i = 0; i < sizeof(values) / sizeof(unsigned int); i++) {
+                unsigned int values[3] = {2, 3, 4};
+                int diff_found         = 0;
+                for (unsigned int i = 0; i < sizeof(values) / sizeof(unsigned int); i++)
                         if (arguments->diffusion == values[i]) {
-                                found = 1;
+                                diff_found = 1;
                                 break;
                         }
-                }
-                if (found == 0) {
-                        _log(LOG_INFO,
-                             "(!) Invalid DIFFUSION input -- choose among 2, 3, 4, 6, 8, 12\n");
+                if (diff_found == 0) {
+                        _log(LOG_INFO, "(!) Invalid DIFFUSION input -- choose among 2, 3, 4\n");
                         goto cleanup;
-                } else if (arguments->diffusion > 4) {
-                        printf("Consider selecting DIFFUSION of 2, 3 or 4 for better protection\n");
                 }
                 break;
         case 'l':
@@ -145,8 +153,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         }
         return 0;
 cleanup:
-        explicit_bzero(arguments->iv, SIZE_BLOCK);
-        free(arguments->iv);
+        if (arguments->iv != NULL) {
+                explicit_bzero(arguments->iv, SIZE_BLOCK);
+                free(arguments->iv);
+        }
         exit(ERR_ARGP);
 }
 
@@ -253,7 +263,7 @@ int encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resource,
         int (*mixseqfunc)(struct arguments *, FILE *, FILE *, size_t, size_t, byte *, size_t) =
             NULL;
         char *description = NULL;
-        unsigned int pow  = 1;
+        unsigned int pow  = arguments->diffusion;
         while (pow * arguments->diffusion <= arguments->threads)
                 pow *= arguments->diffusion;
         if (arguments->threads == 1) {

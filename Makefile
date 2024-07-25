@@ -59,8 +59,8 @@ $(KEYMIXER): keymixer.o $(OBJECTS)
 
 clean:
 	@ rm -rf $(OBJECTS)
-	@ rm -rf $(OUT).o $(TEST).o $(KEYMIXER).o
-	@ rm -rf $(OUT) $(TEST) $(KEYMIXER)
+	@ rm -rf *.o
+	@ rm -rf $(OUT) $(TEST) $(VERIFY) $(KEYMIXER)
 
 clean_resources:
 	@ rm -f $(RESOURCE) $(SECRET) $(ENC_RESOURCE)
@@ -88,13 +88,13 @@ graph.%:
 
 $(RESOURCE):
 #	create a 1GB resource for test
-	@dd if=/dev/zero of=$@ bs=648 count=1
+#	@dd if=/dev/zero of=$@ bs=648 count=1
 #	@dd if=/dev/zero of=$@ bs=72 count=363893
-	@dd if=/dev/zero of=$@ bs=104 count=1594323
+	@dd if=/dev/zero of=$@ bs=97 count=1594323
 #	@dd if=/dev/zero of=$@ bs=48 count=129140163
 $(SECRET):
 #	create a 1GB resource for test
 #	@dd if=/dev/zero of=$@ bs=432 count=1
-#	@dd if=/dev/zero of=$@ bs=48 count=729
-	@dd if=/dev/zero of=$@ bs=48 count=1594323
+	@dd if=/dev/zero of=$@ bs=48 count=729
+#	@dd if=/dev/zero of=$@ bs=48 count=1594323
 #	@dd if=/dev/zero of=$@ bs=48 count=129140163

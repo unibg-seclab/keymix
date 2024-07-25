@@ -66,7 +66,7 @@ void aes_256_key_expansion(byte *key, __m128i *key_schedule) {
 
 void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         __m128i m;
-        int j;
+        uint8_t j;
 
         m = _mm_loadu_si128((__m128i *)data);
         m = _mm_xor_si128(m, key_schedule[0]);
@@ -78,10 +78,10 @@ void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         _mm_storeu_si128((__m128i *)out, m);
 }
 
-void aes256enc(byte *data, byte *out, byte *key, size_t blocks) {
+void aes256enc(byte *data, byte *out, byte *key, size_t nof_blocks) {
         __m128i key_schedule[15];
         aes_256_key_expansion(key, key_schedule);
-        byte *last = data + blocks * SIZE_BLOCK;
+        byte *last = data + nof_blocks * SIZE_BLOCK;
         for (; data < last; data += SIZE_BLOCK, out += SIZE_BLOCK) {
                 aes256_enc(key_schedule, data, out);
         }
@@ -89,18 +89,14 @@ void aes256enc(byte *data, byte *out, byte *key, size_t blocks) {
 
 // --------------------------------------------------- wrapper function
 
-void aesni3(byte *seed, byte *out) {
-        byte *key           = seed;
-        __uint128_t iv      = *(__uint128_t *)(seed + 2 * SIZE_BLOCK);
-        __uint128_t data[3] = {iv, iv + 1, iv + 2};
-
-        aes256enc((byte *)data, out, key, BLOCKS_PER_MACRO);
-}
-
 int aesni(byte *seed, byte *out, size_t seed_size) {
         byte *last = seed + seed_size;
         for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
-                aesni3(seed, out);
+                byte *key         = seed;
+                uint128_t iv      = *(uint128_t *)(seed + 2 * SIZE_BLOCK);
+                uint128_t data[3] = {iv, iv + 1, iv + 2};
+
+                aes256enc((byte *)data, out, key, BLOCKS_PER_MACRO);
         }
         return 0;
 }

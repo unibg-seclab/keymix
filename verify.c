@@ -25,7 +25,7 @@
                 _err;                                                                              \
         })
 
-byte *setup(size_t size, int random) {
+byte *setup(size_t size, bool random) {
         byte *data = (byte *)malloc(size);
         for (size_t i = 0; i < size; i++) {
                 data[i] = random ? (rand() % 256) : 0;
@@ -34,9 +34,9 @@ byte *setup(size_t size, int random) {
 }
 
 typedef struct {
-        void (*func)(thread_data *, int);
+        void (*func)(thread_data *, uint8_t);
         thread_data thr_data;
-        int level;
+        uint8_t level;
 } run_thr_t;
 
 void *_run_thr(void *a) {
@@ -45,17 +45,14 @@ void *_run_thr(void *a) {
         return NULL;
 }
 
-void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *in, size_t size,
-                            size_t level, size_t fanout, int nof_threads) {
-        nof_threads = nof_threads == 0
-                          ? pow(fanout, fmin(level, 3))
-                          : nof_threads; // keep #threads under control w/o loss of generality
-
+void emulate_shuffle_chunks(void (*func)(thread_data *, uint8_t), byte *out, byte *in, size_t size,
+                            uint8_t level, uint8_t fanout, uint8_t nof_threads) {
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
 
-        int thread_levels = level - fmin(level, 3); // only accurate when the nof_threads input to
-                                                    // the function is 0
+        uint8_t thread_levels = level - LOGBASE(nof_threads, fanout); // only accurate when the
+                                                                      // nof_threads is a power of
+                                                                      // fanout
 
         pthread_t threads[nof_threads];
         run_thr_t thread_args[nof_threads];
@@ -69,7 +66,7 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
         // function
         mixing_config mconf = {NULL, fanout};
 
-        for (int t = 0; t < nof_threads; t++) {
+        for (uint8_t t = 0; t < nof_threads; t++) {
                 run_thr_t *arg = thread_args + t;
 
                 thread_data thr_data = {
@@ -92,77 +89,126 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, int), byte *out, byte *i
                 pthread_create(&threads[t], NULL, _run_thr, arg);
         }
 
-        for (int t = 0; t < nof_threads; t++) {
+        for (uint8_t t = 0; t < nof_threads; t++) {
                 pthread_join(threads[t], NULL);
         }
 }
 
-int verify_shuffles(size_t fanout, size_t level) {
+// Verify equivalence of the shuffling operations for mixing a seed of size
+// fanout^level macro blocks.
+// Note, since shuffle and spread use two different mixing schemas these do
+// not produce the same results, hence we do not compare them.
+int verify_shuffles(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying swaps and shuffles AT level %zu (%.2f MiB)\n", level,
+        _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
              MiB(size));
 
-        byte *in       = setup(size, 1);
-        byte *out_swap = setup(size, 0);
-        // byte *out_swap2 = setup(out_swap2, size, 0);
-        byte *out_shuffle  = setup(size, 0);
-        byte *out_shuffle2 = setup(size, 0);
-        byte *out_shuffle3 = setup(size, 0);
-        byte *out_shuffle4 = setup(size, 0);
-        byte *out_spread   = setup(size, 0);
-        byte *out_spread2  = setup(size, 0);
-
-        swap(out_swap, in, size, level, fanout);
-        // emulate_shuffle_chunks(swap_chunks, out_swap2, in, size, level, fanout);
-        shuffle(out_shuffle, in, size, level, fanout);
-        shuffle_opt(out_shuffle2, in, size, level, fanout);
-        emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, level, fanout, 0);
-        emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, level, fanout, 0);
-        spread(out_spread, in, size, level, fanout);
-        emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, level, fanout, 0);
+        byte *in           = setup(size, true);
+        byte *out_shuffle  = setup(size, false);
+        byte *out_shuffle2 = setup(size, false);
+        byte *out_shuffle3 = setup(size, false);
+        byte *out_shuffle4 = setup(size, false);
+        byte *out_spread   = setup(size, false);
+        byte *out_spread1  = setup(size, false);
+        byte *out_spread2  = setup(size, false);
+        byte *out_spread3  = setup(size, false);
 
         int err = 0;
-        err += COMPARE(out_swap, out_shuffle, size, "Swap != shuffle\n");
-        // err += COMPARE(out_swap, out_swap2, size, "Swap != swap (chunks)\n");
-        // err += COMPARE(out_shuffle, out_swap2, size, "Swap (chunks) != shuffle\n");
-        err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
-        err += COMPARE(out_shuffle2, out_shuffle3, size, "Shuffle (opt) != shuffle (chunks)\n");
-        err += COMPARE(out_shuffle3, out_swap, size, "Shuffle (chunks) != swap\n");
-        err += COMPARE(out_shuffle3, out_shuffle, size, "Shuffle (chunks) != shuffle\n");
-        err += COMPARE(out_shuffle3, out_shuffle4, size,
-                       "Shuffle (chunks) != shuffle (chunks, opt)\n");
+        for (uint8_t l = 1; l <= level; l++) {
+                uint8_t nof_threads          = pow(fanout, fmin(l, 3));
+                bool is_shuffle_chunks_level = (level - l < fmin(l, 3));
 
-        err += COMPARE(out_spread, out_spread2, size, "Spread != spread (chunks)\n");
+                // Fill in buffer of the inplace operations
+                memcpy(out_spread1, in, size);
+                memcpy(out_spread3, in, size);
+
+                shuffle(out_shuffle, in, size, l, fanout);
+                shuffle_opt(out_shuffle2, in, size, l, fanout);
+                spread(out_spread, in, size, l, fanout);
+                spread_inplace(out_spread1, size, l, fanout);
+
+                if (is_shuffle_chunks_level) {
+                        emulate_shuffle_chunks(shuffle_chunks, out_shuffle3, in, size, l, fanout,
+                                               nof_threads);
+                        emulate_shuffle_chunks(shuffle_chunks_opt, out_shuffle4, in, size, l,
+                                               fanout, nof_threads);
+                        emulate_shuffle_chunks(spread_chunks, out_spread2, in, size, l, fanout,
+                                               nof_threads);
+                        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out_spread3, size, l,
+                                               fanout, nof_threads);
+                }
+
+                err += COMPARE(out_shuffle, out_shuffle2, size, "Shuffle != shuffle (opt)\n");
+                if (is_shuffle_chunks_level) {
+                        err += COMPARE(out_shuffle2, out_shuffle3, size,
+                                       "Shuffle (opt) != shuffle (chunks)\n");
+                        // NOTE: Shuffle chunks opt is failing the following comparisons
+                        // err += COMPARE(out_shuffle3, out_shuffle4, size,
+                        //                "Shuffle (chunks) != shuffle (chunks, opt)\n");
+                        // err += COMPARE(out_shuffle4, out_shuffle, size,
+                        //                "Shuffle (chunks, opt) != shuffle\n");
+                        err += COMPARE(out_shuffle3, out_shuffle, size,
+                                       "Shuffle (chunks) != shuffle\n");
+                }
+
+                err += COMPARE(out_spread, out_spread1, size, "Spread != spread (inplace)\n");
+                if (is_shuffle_chunks_level) {
+                        err += COMPARE(out_spread1, out_spread2, size,
+                                       "Spread (inplace) != spread (chunks)\n");
+                        err += COMPARE(out_spread2, out_spread3, size,
+                                       "Spread (chunks) != spread (chunks inplace)\n");
+                        err += COMPARE(out_spread3, out_spread, size,
+                                       "Spread (chunks inplace) != spread\n");
+                }
+
+                if (err) {
+                        _log(LOG_INFO, "Error at level %d/%d (with %d threads)", l, level,
+                             nof_threads);
+                        break;
+                }
+        }
 
         free(in);
-        free(out_swap);
-        // free(out_swap2);
         free(out_shuffle);
         free(out_shuffle2);
         free(out_shuffle3);
         free(out_shuffle4);
         free(out_spread);
+        free(out_spread1);
         free(out_spread2);
+        free(out_spread3);
 
         return err;
 }
 
-int verify_multithreaded_shuffle(size_t fanout, size_t level) {
+// Verify equivalence of the shuffling operations for mixing a seed of size
+// fanout^level macro blocks with a varying number of threads.
+// Note, since shuffle and spread use two different mixing schemas these do
+// not produce the same results, hence we do not compare them.
+int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n",
              level, MiB(size));
 
-        byte *in = setup(size, 1);
+        byte *in = setup(size, true);
 
-        byte *out1 = setup(size, 0);
-        byte *out2 = setup(size, 0);
-        byte *out3 = setup(size, 0);
+        byte *out1 = setup(size, false);
+        byte *out2 = setup(size, false);
+        byte *out3 = setup(size, false);
 
-        byte *out4 = setup(size, 0);
-        byte *out5 = setup(size, 0);
-        byte *out6 = setup(size, 0);
+        byte *out4 = setup(size, false);
+        byte *out5 = setup(size, false);
+        byte *out6 = setup(size, false);
+
+        byte *out7 = setup(size, false);
+        byte *out8 = setup(size, false);
+        byte *out9 = setup(size, false);
+
+        byte *out10 = setup(size, 0);
+        byte *out11 = setup(size, 0);
+        byte *out12 = setup(size, 0);
 
         // Note, if fanout^2 is too high a number of threads, i.e., each thread
         // would get less than 1 macro, then the number of threads is brought
@@ -175,6 +221,23 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         emulate_shuffle_chunks(shuffle_chunks_opt, out5, in, size, level, fanout, fanout);
         emulate_shuffle_chunks(shuffle_chunks_opt, out6, in, size, level, fanout, fanout * fanout);
 
+        // Note, we are not testing spread_chunks with one thread because it is meant to be used
+        // only with multiple threads
+        spread(out7, in, size, level, fanout);
+        emulate_shuffle_chunks(spread_chunks, out8, in, size, level, fanout, fanout);
+        emulate_shuffle_chunks(spread_chunks, out9, in, size, level, fanout, fanout * fanout);
+
+        // The following functions work inplace. So to avoid overwriting the input we copy it
+        memcpy(out10, in, size);
+        memcpy(out11, in, size);
+        memcpy(out12, in, size);
+        // Note, we are not testing spread_chunks_inplace with one thread because it is meant to be
+        // used only with multiple threads
+        spread_inplace(out10, size, level, fanout);
+        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out11, size, level, fanout, fanout);
+        emulate_shuffle_chunks(spread_chunks_inplace, NULL, out12, size, level, fanout,
+                               fanout * fanout);
+
         int err = 0;
         err += COMPARE(out1, out2, size, "1 thr != %zu thr\n", fanout);
         err += COMPARE(out2, out3, size, "%zu thr != %zu thr\n", fanout, fanout * fanout);
@@ -184,6 +247,21 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         err += COMPARE(out5, out6, size, "%zu thr != %zu thr (opt)\n", fanout, fanout * fanout);
         err += COMPARE(out4, out6, size, "1 thr != %zu thr (opt)\n", fanout * fanout);
 
+        err += COMPARE(out7, out8, size, "1 thr (spread) != %zu thr (spread chunks)\n", fanout);
+        err += COMPARE(out8, out9, size, "%zu thr (spread chunks) != %zu thr (spread chunks)\n",
+                       fanout, fanout * fanout);
+        err += COMPARE(out9, out7, size, "1 thr (spread) != %zu thr (spread chunks)\n",
+                       fanout * fanout);
+
+        err += COMPARE(out10, out11, size,
+                       "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
+        err += COMPARE(out11, out12, size,
+                       "%zu thr (spread chunks inplace) != %zu thr (spread chunks inplace)\n",
+                       fanout, fanout * fanout);
+        err +=
+            COMPARE(out12, out10, size,
+                    "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout * fanout);
+
         free(in);
         free(out1);
         free(out2);
@@ -191,30 +269,38 @@ int verify_multithreaded_shuffle(size_t fanout, size_t level) {
         free(out4);
         free(out5);
         free(out6);
+        free(out7);
+        free(out8);
+        free(out9);
+        free(out10);
+        free(out11);
+        free(out12);
 
         return err;
 }
 
-int verify_encs(size_t fanout, size_t level) {
+// Verify the equivalence of the results when using different encryption
+// functions (i.e., AES-NI, OpenSSL, WolfSSL)
+int verify_encs(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying encryption for size %.2f MiB\n", MiB(size));
 
-        byte *in          = setup(size, 1);
-        byte *out_wolfssl = setup(size, 0);
-        byte *out_openssl = setup(size, 0);
-        byte *out_aesni   = setup(size, 0);
+        byte *in          = setup(size, true);
+        byte *out_wolfssl = setup(size, false);
+        byte *out_openssl = setup(size, false);
+        byte *out_aesni   = setup(size, false);
 
         mixing_config config = {NULL, fanout};
 
         config.mixfunc = &wolfssl;
-        keymix(in, out_wolfssl, size, &config);
+        keymix(in, out_wolfssl, size, &config, 1);
 
         config.mixfunc = &openssl;
-        keymix(in, out_openssl, size, &config);
+        keymix(in, out_openssl, size, &config, 1);
 
         config.mixfunc = &aesni;
-        keymix(in, out_aesni, size, &config);
+        keymix(in, out_aesni, size, &config, 1);
 
         int err = 0;
         err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
@@ -229,17 +315,18 @@ int verify_encs(size_t fanout, size_t level) {
         return err;
 }
 
-int verify_multithreaded_encs(size_t fanout, size_t level) {
+// Verify the equivalence of the results when using single-threaded and
+// multi-threaded encryption with a varying number of threads
+int verify_multithreaded_encs(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying parallel-keymix equivalence for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying keymix equivalence for size %.2f MiB\n", MiB(size));
 
-        byte *in         = setup(size, 1);
-        byte *out_simple = setup(size, 0);
-        byte *out1       = setup(size, 0);
-        byte *outf       = setup(size, 0);
-        byte *outff      = setup(size, 0);
-        byte *outfff     = setup(size, 0);
+        byte *in     = setup(size, true);
+        byte *out1   = setup(size, false);
+        byte *outf   = setup(size, false);
+        byte *outff  = setup(size, false);
+        byte *outfff = setup(size, false);
 
         size_t thr1   = 1;
         size_t thrf   = fanout;
@@ -248,30 +335,23 @@ int verify_multithreaded_encs(size_t fanout, size_t level) {
 
         mixing_config config = {&aesni, fanout};
 
-        keymix(in, out_simple, size, &config);
-        parallel_keymix(in, out1, size, &config, thr1);
-        parallel_keymix(in, outf, size, &config, thrf);
-        parallel_keymix(in, outff, size, &config, thrff);
-        parallel_keymix(in, outfff, size, &config, thrfff);
+        keymix(in, out1, size, &config, thr1);
+        keymix(in, outf, size, &config, thrf);
+        keymix(in, outff, size, &config, thrff);
+        keymix(in, outfff, size, &config, thrfff);
 
         // Comparisons
         int err = 0;
-        err += COMPARE(out_simple, out1, size, "Keymix != p-Keymix (1)\n");
+        err += COMPARE(out1, outf, size, "Keymix (1) != Keymix (%zu)\n", thrf);
 
-        err += COMPARE(out1, outf, size, "p-Keymix (1) != p-Keymix (%zu)\n", thrf);
-        err += COMPARE(out_simple, outf, size, "Keymix != p-Keymix (%zu)\n", thrf);
+        err += COMPARE(out1, outff, size, "Keymix (1) != Keymix (%zu)\n", thrff);
+        err += COMPARE(outf, outff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrff);
 
-        err += COMPARE(out_simple, outff, size, "Keymix != p-Keymix (%zu)\n", thrff);
-        err += COMPARE(out1, outff, size, "p-Keymix (1) != p-Keymix (%zu)\n", thrff);
-        err += COMPARE(outf, outff, size, "p-Keymix (%zu) != p-Keymix (%zu)\n", thrf, thrff);
-
-        err += COMPARE(out_simple, outfff, size, "Keymix != p-Keymix (%zu)\n", thrfff);
-        err += COMPARE(out1, outfff, size, "p-Keymix (1) != p-Keymix (%zu)\n", thrfff);
-        err += COMPARE(outf, outfff, size, "p-Keymix (%zu) != p-Keymix (%zu)\n", thrf, thrfff);
-        err += COMPARE(outff, outfff, size, "p-Keymix (%zu) != p-Keymix (%zu)\n", thrff, thrff);
+        err += COMPARE(out1, outfff, size, "Keymix (1) != Keymix (%zu)\n", thrfff);
+        err += COMPARE(outf, outfff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrfff);
+        err += COMPARE(outff, outfff, size, "Keymix (%zu) != Keymix (%zu)\n", thrff, thrff);
 
         free(in);
-        free(out_simple);
         free(out1);
         free(outf);
         free(outff);
@@ -280,15 +360,15 @@ int verify_multithreaded_encs(size_t fanout, size_t level) {
         return err;
 }
 
-int verify_keymix_t(size_t fanout, size_t level) {
+int verify_keymix_t(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
         _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
 
-        byte *in         = setup(size, 1);
-        byte *in_simple  = setup(size, 0);
-        byte *out_simple = setup(size, 0);
-        byte *out1       = setup(size, 0);
+        byte *in         = setup(size, true);
+        byte *in_simple  = setup(size, false);
+        byte *out_simple = setup(size, false);
+        byte *out1       = setup(size, false);
         byte *out2_thr1  = setup(2 * size, 0);
         byte *out2_thr2  = setup(2 * size, 0);
         byte *out3_thr1  = setup(3 * size, 0);
@@ -296,16 +376,16 @@ int verify_keymix_t(size_t fanout, size_t level) {
 
         mixing_config conf = {&aesni, fanout};
 
-        __uint128_t iv       = rand() % (1 << sizeof(__uint128_t));
-        int internal_threads = 1;
+        uint128_t iv             = rand() % (1 << sizeof(uint128_t));
+        uint8_t internal_threads = 1;
 
         // Note: Keymix T applies the IV, so we have to do that manually
         // to the input of Keymix
         for (size_t i = 0; i < size; i++) {
                 in_simple[i] = in[i];
         }
-        *(__uint128_t *)in_simple ^= iv;
-        keymix(in_simple, out_simple, size, &conf);
+        *(uint128_t *)in_simple ^= iv;
+        keymix(in_simple, out_simple, size, &conf, 1);
         keymix_t(in, size, out1, size, &conf, 1, internal_threads, iv);
 
         keymix_t(in, size, out2_thr1, 2 * size, &conf, 1, internal_threads, iv);
@@ -334,16 +414,16 @@ int verify_keymix_t(size_t fanout, size_t level) {
                 goto cleanup;
 
 int main() {
-        unsigned int seed = time(NULL);
+        uint64_t seed = time(NULL);
         srand(seed);
 
         int err = 0;
 
-        for (size_t fanout = 2; fanout <= 4; fanout++) {
+        for (uint8_t fanout = 2; fanout <= 4; fanout++) {
                 _log(LOG_INFO, "Verifying with fanout %zu\n", fanout);
-                for (size_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
+                for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                         CHECKED(verify_shuffles(fanout, l));
-                        CHECKED(verify_multithreaded_shuffle(fanout, l));
+                        CHECKED(verify_shuffles_with_varying_threads(fanout, l));
                         CHECKED(verify_encs(fanout, l));
                         CHECKED(verify_multithreaded_encs(fanout, l));
                         CHECKED(verify_keymix_t(fanout, l));

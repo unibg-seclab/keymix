@@ -9,27 +9,33 @@
 #include <time.h>
 
 byte *checked_malloc(size_t size);
-void memxor(byte *dst, byte *src, size_t n);
 void print_buffer_hex(byte *buf, size_t size, char *descr);
 size_t get_file_size(FILE *fstr);
+void _logf(log_level_t log_level, const char *fmt, ...);
 
-void _log(log_level_t log_level, const char *fmt, ...);
+#if DISABLE_LOG
+#define _log(...)
+#else
+#define _log(...) _logf(__VA_ARGS__)
+#endif
 
-void shuffle(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
-void shuffle_opt(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int fanout);
+uint8_t total_levels(size_t seed_size, uint8_t fanout);
+void safe_explicit_bzero(void *ptr, size_t size);
+void memxor(void *dst, void *src, size_t size);
 
-void swap(byte *out, byte *in, size_t in_size, unsigned int level, unsigned int diff_factor);
-void swap_chunks(thread_data *args, int level);
+void shuffle(byte *out, byte *in, size_t in_size, uint8_t level, uint8_t fanout);
+void shuffle_opt(byte *out, byte *in, size_t in_size, uint8_t level, uint8_t fanout);
 
-void spread(byte *out, byte *in, size_t size, unsigned int level, unsigned int fanout);
-void spread_chunks(thread_data *args, int level);
+void spread(byte *out, byte *in, size_t size, uint8_t level, uint8_t fanout);
+void spread_inplace(byte *buffer, size_t size, uint8_t level, uint8_t fanout);
+void spread_chunks(thread_data *args, uint8_t level);
+void spread_chunks_inplace(thread_data *args, uint8_t level);
 
-void shuffle_chunks(thread_data *args, int level);
-void shuffle_chunks_opt(thread_data *args, int level);
+void increment_counter(byte *macro, unsigned long step);
+void shuffle_chunks(thread_data *args, uint8_t level);
+void shuffle_chunks_opt(thread_data *args, uint8_t level);
 
-int increment_counter(byte *macro);
-
-double MiB(double size);
+double MiB(size_t size);
 
 #ifdef NO_MEASURE
 #define MEASURE(F) 0
@@ -64,7 +70,7 @@ double MiB(double size);
                 _a < _b ? _a : _b;                                                                 \
         })
 
-#define LOGBASE(x, base) (log(x) / log(base))
+#define LOGBASE(x, base) (round(log(x) / log(base)))
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
 #endif

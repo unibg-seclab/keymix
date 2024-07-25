@@ -1,11 +1,16 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include "config.h"
 #include <semaphore.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "config.h"
 
 // Custom common types
 typedef unsigned char byte;
+
+typedef __uint128_t uint128_t;
 
 #define SIZE_KB 1024
 #define SIZE_1MiB (1024 * SIZE_KB)
@@ -14,12 +19,12 @@ typedef unsigned char byte;
 
 typedef struct {
         int (*mixfunc)(byte *seed, byte *out, size_t seed_size);
-        unsigned int diff_factor; // diffusion factor (swap functio): 3 (128 bits), 4
-                                  // (96 bits), 6 (64 bits), 12 (32 bits)
+        uint8_t diff_factor; // diffusion factor (swap function): 3 (128 bits), 4
+                             // (96 bits), 6 (64 bits), 12 (32 bits)
 } mixing_config;
 
 typedef struct {
-        unsigned int thread_id;
+        uint8_t thread_id;
         sem_t *thread_sem;
         sem_t *coord_sem;
         byte *in;
@@ -30,8 +35,8 @@ typedef struct {
         byte *abs_buf;
         size_t seed_size;
         size_t thread_chunk_size;
-        unsigned int thread_levels;
-        unsigned int total_levels;
+        uint8_t thread_levels;
+        uint8_t total_levels;
         mixing_config *mixconfig;
 } thread_data;
 
@@ -66,6 +71,12 @@ struct arguments {
 typedef enum {
         LOG_DEBUG,
         LOG_INFO,
+        LOG_ERROR,
 } log_level_t;
+
+typedef union {
+        long value;
+        char array[8];
+} counter;
 
 #endif

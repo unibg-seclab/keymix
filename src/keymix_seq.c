@@ -83,10 +83,9 @@ int keymix_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource,
         for (unsigned long e = 0; e < epochs; e++) {
                 _log(LOG_DEBUG, "~~>epoch %ld\n", e);
                 // apply the counter
-                status = increment_counter(secret);
-                if (status != 0)
-                        break; // stop and fail
-                status = keymix(secret, out, secret_size, &mix_conf);
+                if (e != 0)
+                        increment_counter(secret, 1);
+                status = keymix(secret, out, secret_size, &mix_conf, 1);
                 if (status != 0)
                         break; // stop and fail
                 // shorten the resource in the last epoch if
@@ -116,7 +115,7 @@ void *run_inter(void *config) {
         }
         *err = 0;
         // mix-only (the coordinator applies the counter properly)
-        *err = keymix(args->secret, args->out, args->seed_size, args->mixconfig);
+        *err = keymix(args->secret, args->out, args->seed_size, args->mixconfig, 1);
 thread_exit:
         pthread_exit(err);
 }
@@ -165,11 +164,9 @@ int keymix_inter_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_res
                 unsigned int counter_clocks = config->threads;
                 for (unsigned int t = 0; t < real_nof_threads; t++) {
                         if (r == 0) {
-                                counter_clocks = t + 1;
+                                counter_clocks = t;
                         }
-                        for (unsigned int a = 0; a < counter_clocks; a++) {
-                                increment_counter(secrets + secret_size * t);
-                        }
+                        increment_counter(secrets + secret_size * t, counter_clocks);
                 }
                 // spawn the threads
                 pthread_t threads[real_nof_threads];
@@ -228,10 +225,9 @@ int keymix_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_res
         for (unsigned long e = 0; e < epochs; e++) {
                 _log(LOG_DEBUG, "~~>epoch %ld\n", e);
                 // apply the counter
-                status = increment_counter(secret);
-                if (status != 0)
-                        break; // stop and fail
-                status = parallel_keymix(secret, out, secret_size, &mix_conf, config->threads);
+                if (e != 0)
+                        increment_counter(secret, 1);
+                status = keymix(secret, out, secret_size, &mix_conf, config->threads);
                 if (status != 0)
                         break; // stop and fail
                 // shorten the resource in the last epoch if
@@ -261,8 +257,7 @@ void *run_inter_intra(void *config) {
         }
         *err = 0;
         // mix-only (the coordinator applies the counter properly)
-        *err = parallel_keymix(args->secret, args->out, args->seed_size, args->mixconfig,
-                               args->nof_threads);
+        *err = keymix(args->secret, args->out, args->seed_size, args->mixconfig, args->nof_threads);
 thread_exit:
         pthread_exit(err);
 }
@@ -274,7 +269,7 @@ int keymix_inter_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fs
         int status = 0;
 
         // thread groups
-        unsigned int pow = 1;
+        unsigned int pow = config->diffusion;
         while (pow * config->diffusion <= config->threads)
                 pow *= config->diffusion;
         unsigned int thread_groups = config->threads / pow;
@@ -292,7 +287,7 @@ int keymix_inter_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fs
         // set the mixing config
         mixing_config mix_conf = {config->mixfunc, config->diffusion};
         // prepare inter threads data
-        inter_intra_keymix_data args[config->threads];
+        inter_intra_keymix_data args[thread_groups];
         for (unsigned int t = 0; t < thread_groups; t++) {
                 args[t].out         = out + t * secret_size;
                 args[t].secret      = secrets + t * secret_size;
@@ -315,14 +310,12 @@ int keymix_inter_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fs
                 }
                 _log(LOG_DEBUG, "real_nof_groups %u\n", real_nof_groups);
                 // apply the correct counters
-                unsigned int counter_clocks = real_nof_groups;
+                unsigned int counter_clocks = thread_groups;
                 for (unsigned int t = 0; t < real_nof_groups; t++) {
                         if (r == 0) {
-                                counter_clocks = t + 1;
+                                counter_clocks = t;
                         }
-                        for (unsigned int a = 0; a < counter_clocks; a++) {
-                                increment_counter(secrets + secret_size * t);
-                        }
+                        increment_counter(secrets + secret_size * t, counter_clocks);
                 }
                 // spawn the threads
                 pthread_t threads[real_nof_groups];

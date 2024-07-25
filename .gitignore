@@ -31,6 +31,9 @@ flycheck_*.el
 # directory configuration
 .dir-locals.el
 
+# vscode
+.vscode
+
 # source files
 *.o
 

@@ -11,18 +11,18 @@ typedef struct {
         byte *seed;
         byte *out;
         size_t seed_size;
-        size_t num_seeds;
+        uint64_t num_seeds;
         mixing_config *config;
-        __uint128_t iv;
-        __uint128_t starting_counter;
+        uint128_t iv;
+        uint128_t starting_counter;
 
-        int internal_threads;
+        uint8_t internal_threads;
 } args_t;
 
 void *w_keymix(void *a) {
         args_t *args = (args_t *)a;
 
-        __uint128_t counter = args->starting_counter;
+        uint128_t counter = args->starting_counter;
 
         // Keep a local copy of the seed: it needs to be modified, and we are
         // in a multithreaded environment, so we can't just overwrite the same
@@ -35,17 +35,14 @@ void *w_keymix(void *a) {
         // First block -> XOR with (unchanging) IV
         // Second block -> XOR with a counter
 
-        __uint128_t *buffer_as_blocks = (__uint128_t *)buffer;
+        uint128_t *buffer_as_blocks     = (uint128_t *)buffer;
+        uint128_t second_block_original = buffer_as_blocks[1];
 
         buffer_as_blocks[0] ^= args->iv;
 
-        for (size_t i = 0; i < args->num_seeds; i++) {
-                buffer_as_blocks[1] ^= counter;
-                if (args->internal_threads == 1)
-                        keymix(buffer, args->out, args->seed_size, args->config);
-                else
-                        parallel_keymix(buffer, args->out, args->seed_size, args->config,
-                                        args->internal_threads);
+        for (uint64_t i = 0; i < args->num_seeds; i++) {
+                buffer_as_blocks[1] = second_block_original ^ counter;
+                keymix(buffer, args->out, args->seed_size, args->config, args->internal_threads);
 
                 args->out += args->seed_size;
                 counter++;
@@ -56,7 +53,7 @@ void *w_keymix(void *a) {
 }
 
 int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_config *config,
-             int num_threads, int internal_threads, __uint128_t iv) {
+             uint8_t num_threads, uint8_t internal_threads, uint128_t iv) {
         pthread_t threads[num_threads];
         args_t args[num_threads];
 
@@ -74,21 +71,21 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 return 0;
         }
 
-        __uint128_t counter = 0;
+        uint128_t counter = 0;
 
         if (DEBUG)
                 assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
 
-        size_t remaining             = out_size / seed_size;
-        size_t offset                = 0;
-        unsigned int started_threads = 0;
+        uint64_t remaining      = out_size / seed_size;
+        uint64_t offset         = 0;
+        uint8_t started_threads = 0;
 
-        for (int t = 0; t < num_threads; t++) {
+        for (uint8_t t = 0; t < num_threads; t++) {
                 if (remaining == 0) {
                         break;
                 }
 
-                size_t thread_seeds = MAX(1UL, remaining / (num_threads - t));
+                uint64_t thread_seeds = MAX(1UL, remaining / (num_threads - t));
                 remaining -= thread_seeds;
 
                 args_t *a           = &args[t];
@@ -112,7 +109,7 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
 
         assert(remaining == 0);
 
-        for (int t = 0; t < started_threads; t++) {
+        for (uint8_t t = 0; t < started_threads; t++) {
                 pthread_join(threads[t], NULL);
         }
 
