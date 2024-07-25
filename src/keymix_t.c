@@ -57,11 +57,17 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
         pthread_t threads[num_threads];
         args_t args[num_threads];
 
+        if (DEBUG)
+                assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
+
+        uint64_t remaining = out_size / seed_size;
+        uint128_t counter  = 0;
+
         if (num_threads == 1) {
                 args_t a;
                 a.seed             = seed;
                 a.out              = out;
-                a.num_seeds        = 1;
+                a.num_seeds        = remaining;
                 a.seed_size        = seed_size;
                 a.config           = config;
                 a.iv               = iv;
@@ -71,12 +77,6 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
                 return 0;
         }
 
-        uint128_t counter = 0;
-
-        if (DEBUG)
-                assert(out_size % seed_size == 0 && "We can generate only multiples of seed_size");
-
-        uint64_t remaining      = out_size / seed_size;
         uint64_t offset         = 0;
         uint8_t started_threads = 0;
 
