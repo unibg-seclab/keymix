@@ -135,12 +135,13 @@ int keymix_t(byte *seed, size_t seed_size, byte *out, size_t out_size, mixing_co
 
 int enc(byte *seed, size_t seed_size, byte *in, byte *out, size_t size, mixing_config *config,
         uint8_t num_threads, uint128_t iv) {
-        return enc_ex(seed, seed_size, in, out, size, config, num_threads, iv, 0);
+        return enc_ex(seed, seed_size, in, out, size, config, num_threads, 1, iv, 0);
 }
 
 int enc_ex(byte *seed, size_t seed_size, byte *in, byte *out, size_t size, mixing_config *config,
-           uint8_t num_threads, uint128_t iv, uint128_t starting_counter) {
+           uint8_t num_threads, uint8_t internal_threads, uint128_t iv,
+           uint128_t starting_counter) {
         // TODO: obtain correct number of internal-external threads
-        return keymix_ex(seed, seed_size, in, out, size, config, num_threads, 1, iv, true,
-                         starting_counter);
+        return keymix_ex(seed, seed_size, in, out, size, config, num_threads, internal_threads, iv,
+                         true, starting_counter);
 }

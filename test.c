@@ -145,6 +145,29 @@ void test_keymix(byte *seed, byte *out, size_t seed_size, uint64_t expansion,
         _log(LOG_INFO, "\n");
 }
 
+void test_enc(byte *seed, byte *in, byte *out, size_t seed_size, uint64_t expansion,
+              uint8_t internal_threads, uint8_t external_threads, mixing_config *config) {
+        char *impl = "(unspecified)";
+        if (config->mixfunc == &aesni) {
+                impl = "aesni";
+        } else if (config->mixfunc == &openssl) {
+                impl = "openssl";
+        } else if (config->mixfunc == &wolfssl) {
+                impl = "wolfssl";
+        }
+        _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
+             external_threads, impl, config->diff_factor, expansion);
+
+        for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
+                double time = MEASURE(enc_ex(seed, seed_size, in, out, expansion * seed_size,
+                                             config, external_threads, internal_threads, 0, 0));
+                csv_line(seed_size, expansion, internal_threads, external_threads, impl,
+                         config->diff_factor, time);
+                _log(LOG_INFO, ".");
+        }
+        _log(LOG_INFO, "\n");
+}
+
 // -------------------------------------------------- Main loops
 
 int main(int argc, char *argv[]) {
@@ -160,6 +183,7 @@ int main(int argc, char *argv[]) {
 
         byte *seed = NULL;
         byte *out  = NULL;
+        byte *in   = NULL;
 
         size_t *seed_sizes = NULL;
         uint8_t seed_sizes_count;
@@ -210,6 +234,33 @@ int main(int argc, char *argv[]) {
 
 #ifdef DO_ENCRYPTION_TESTS
         fout = fopen(argv[2], "w");
+        _log(LOG_INFO, "Testing encryption\n");
+
+        csv_header();
+
+        FOR_EVERY(diff_p, diff_factors, diff_factors_count) {
+                uint8_t diff_factor = *diff_p;
+
+                setup_seeds(diff_factor, &seed_sizes, &seed_sizes_count);
+                setup_configs(diff_factor, configs);
+                setup_valid_internal_threads(diff_factor, internal_threads,
+                                             &internal_threads_count);
+
+                FOR_EVERY(size, seed_sizes, seed_sizes_count) {
+                        // Setup seed
+                        _log(LOG_INFO, "Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
+                        SAFE_REALLOC(seed, *size);
+
+                        FOR_EVERY(config, configs, configs_count)
+                        FOR_EVERY(ithr, internal_threads, internal_threads_count)
+                        FOR_EVERY(ethr, external_threads, external_threads_count)
+                        for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
+                                SAFE_REALLOC(out, exp * (*size));
+                                SAFE_REALLOC(in, exp * (*size));
+                                test_enc(seed, in, out, *size, exp, *ithr, *ethr, config);
+                        }
+                }
+        }
 
         fclose(fout);
         fout = NULL;
