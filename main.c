@@ -19,6 +19,7 @@
 #include "aesni.h"
 #include "config.h"
 #include "keymix.h"
+#include "log.h"
 #include "openssl.h"
 #include "types.h"
 #include "utils.h"

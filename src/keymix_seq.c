@@ -1,12 +1,15 @@
-#include "keymix.h"
-#include "types.h"
-#include "utils.h"
+#include "keymix_seq.h"
 
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "keymix.h"
+#include "log.h"
+#include "types.h"
+#include "utils.h"
 
 // Writes to fstr_output the encrypted resource. The function can be
 // simplified by reading and writing all the bytes with a single

@@ -67,12 +67,6 @@ struct arguments {
         char *mixfunc_descr;
 };
 
-typedef enum {
-        LOG_DEBUG,
-        LOG_INFO,
-        LOG_ERROR,
-} log_level_t;
-
 typedef union {
         long value;
         char array[8];
