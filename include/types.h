@@ -1,5 +1,5 @@
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef TYPES_H_
+#define TYPES_H_
 
 #include <semaphore.h>
 #include <stdbool.h>
@@ -14,7 +14,6 @@ typedef __uint128_t uint128_t;
 
 #define SIZE_KB 1024
 #define SIZE_1MiB (1024 * SIZE_KB)
-
 #define SIZE_1GiB (1024 * SIZE_1MiB)
 
 typedef struct {
@@ -79,4 +78,4 @@ typedef union {
         char array[8];
 } counter;
 
-#endif
+#endif // TYPES_H_

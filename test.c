@@ -1,12 +1,14 @@
+#include <math.h>
+#include <string.h>
+#include <time.h>
+
 #include "aesni.h"
 #include "keymix_t.h"
+#include "log.h"
 #include "openssl.h"
 #include "types.h"
 #include "utils.h"
 #include "wolfssl.h"
-#include <math.h>
-#include <string.h>
-#include <time.h>
 
 // -------------------------------------------------- Configure tests
 

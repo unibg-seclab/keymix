@@ -1,9 +1,11 @@
 #include "wolfssl.h"
 
-#include "config.h"
 #include <assert.h>
+
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
+
+#include "config.h"
 
 int wolfssl(byte *seed, byte *out, size_t seed_size) {
         Aes aes;

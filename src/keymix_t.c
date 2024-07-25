@@ -1,11 +1,13 @@
 #include "keymix_t.h"
 
-#include "keymix.h"
-#include "utils.h"
 #include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "keymix.h"
+#include "log.h"
+#include "utils.h"
 
 typedef struct {
         byte *seed;
@@ -114,8 +116,7 @@ int keymix_ex(byte *seed, size_t seed_size, byte *in, byte *out, size_t size, mi
                 out += thread_seeds * seed_size;
                 counter += thread_seeds;
         }
-        if (DEBUG)
-                _log(LOG_DEBUG, "Started %d threads\n", started_threads);
+        _log(LOG_DEBUG, "Started %d threads\n", started_threads);
 
         assert(num_seeds == 0);
 

@@ -1,12 +1,14 @@
 #include "keymix.h"
 
-#include "config.h"
-#include "types.h"
-#include "utils.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "config.h"
+#include "log.h"
+#include "types.h"
+#include "utils.h"
 
 void keymix_inner(byte *seed, byte *out, size_t size, mixing_config *config, uint8_t levels) {
         (*(config->mixfunc))(seed, out, size);

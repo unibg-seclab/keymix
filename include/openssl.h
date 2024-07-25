@@ -1,9 +1,8 @@
-#ifndef OPENSSL_H
-#define OPENSSL_H
+#ifndef OPENSSL_H_
+#define OPENSSL_H_
 
 #include "types.h"
-#include <stdlib.h>
 
 int openssl(byte *seed, byte *out, size_t seed_size);
 
-#endif
+#endif // OPENSSL_H_

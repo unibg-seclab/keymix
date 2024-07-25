@@ -1,5 +1,5 @@
-#ifndef KEYMIX_T_H
-#define KEYMIX_T_H
+#ifndef KEYMIX_T_H_
+#define KEYMIX_T_H_
 
 #include "types.h"
 
@@ -12,4 +12,4 @@ int enc(byte *seed, size_t seed_size, byte *in, byte *out, size_t size, mixing_c
 int enc_ex(byte *seed, size_t seed_size, byte *in, byte *out, size_t size, mixing_config *config,
            uint8_t num_threads, uint128_t iv, uint128_t starting_counter);
 
-#endif
+#endif // KEYMIX_T_H_

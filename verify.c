@@ -1,16 +1,18 @@
-#include "aesni.h"
-#include "config.h"
-#include "keymix.h"
-#include "keymix_t.h"
-#include "openssl.h"
-#include "types.h"
-#include "utils.h"
-#include "wolfssl.h"
 #include <assert.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "aesni.h"
+#include "config.h"
+#include "keymix.h"
+#include "keymix_t.h"
+#include "log.h"
+#include "openssl.h"
+#include "types.h"
+#include "utils.h"
+#include "wolfssl.h"
 
 #define MIN_LEVEL 1
 #define MAX_LEVEL 12

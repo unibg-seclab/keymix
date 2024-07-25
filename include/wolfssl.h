@@ -1,9 +1,8 @@
-#ifndef WOLFSSL_H
-#define WOLFSSL_H
+#ifndef WOLFSSL_H_
+#define WOLFSSL_H_
 
 #include "types.h"
-#include <stdlib.h>
 
 int wolfssl(byte *seed, byte *out, size_t seed_size);
 
-#endif
+#endif // WOLFSSL_H_

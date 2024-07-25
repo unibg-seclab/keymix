@@ -1,6 +1,4 @@
 #include "utils.h"
-#include "config.h"
-#include "types.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -10,14 +8,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-void _logf(log_level_t level, const char *fmt, ...) {
-        if (level >= LOG_LEVEL) {
-                va_list args;
-                va_start(args, fmt);
-                vfprintf(stderr, fmt, args);
-                va_end(args);
-        }
-}
+#include "config.h"
+#include "log.h"
+#include "types.h"
 
 inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 

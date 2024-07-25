@@ -11,7 +11,6 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/types.h>
-
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/settings.h>

@@ -1,8 +1,10 @@
 #include "openssl.h"
 
-#include "types.h"
 #include <assert.h>
+
 #include <openssl/evp.h>
+
+#include "types.h"
 
 int openssl(byte *seed, byte *out, size_t seed_size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
