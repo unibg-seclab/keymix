@@ -1,13 +1,3 @@
-#include "aesni.h"
-#include "config.h"
-#include "keymix.h"
-#include "keymix_seq.h"
-#include "keymix_t.h"
-#include "openssl.h"
-#include "types.h"
-#include "utils.h"
-#include "wolfssl.h"
-
 #include <argp.h>
 #include <errno.h>
 #include <limits.h>
@@ -19,6 +9,17 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "aesni.h"
+#include "config.h"
+#include "keymix.h"
+#include "keymix_seq.h"
+#include "keymix_t.h"
+#include "log.h"
+#include "openssl.h"
+#include "types.h"
+#include "utils.h"
+#include "wolfssl.h"
 
 const char *argp_program_version     = "keymixer 1.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
