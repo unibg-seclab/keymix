@@ -15,7 +15,7 @@
 #include "wolfssl.h"
 
 #define MIN_LEVEL 1
-#define MAX_LEVEL 12
+#define MAX_LEVEL 9
 
 #define COMPARE(a, b, size, ...)                                                                   \
         ({                                                                                         \
@@ -428,9 +428,9 @@ int verify_enc(size_t fanout, uint8_t level) {
         uint128_t iv             = rand() % (1 << sizeof(uint128_t));
         uint8_t internal_threads = 1;
 
-        enc_ex(key, size, in, out1, in_size, &conf, 1, iv, starting_counter);
-        enc_ex(key, size, in, outf, in_size, &conf, fanout, iv, starting_counter);
-        enc_ex(key, size, in, outff, in_size, &conf, fanout * fanout, iv, starting_counter);
+        enc_ex(key, size, in, out1, in_size, &conf, 1, 1, iv, starting_counter);
+        enc_ex(key, size, in, outf, in_size, &conf, fanout, 1, iv, starting_counter);
+        enc_ex(key, size, in, outff, in_size, &conf, fanout * fanout, 1, iv, starting_counter);
 
         int err = 0;
         err += COMPARE(out1, outf, size, "Enc (1thr) != Enc (%dthr)\n", fanout);

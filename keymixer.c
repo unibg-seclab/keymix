@@ -1,7 +1,6 @@
 #include <argp.h>
 #include <errno.h>
 #include <limits.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,9 +11,7 @@
 
 #include "aesni.h"
 #include "config.h"
-#include "keymix.h"
 #include "keymix_seq.h"
-#include "keymix_t.h"
 #include "log.h"
 #include "openssl.h"
 #include "types.h"
