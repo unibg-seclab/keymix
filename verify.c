@@ -408,6 +408,41 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         return err;
 }
 
+int verify_enc(size_t fanout, uint8_t level) {
+        size_t size                = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t in_size             = (rand() % 3) * size + rand() % size;
+        uint128_t starting_counter = rand() % 256;
+
+        _log(LOG_INFO, "> Verifying encryption equivalence for size %.2f MiB\n", MiB(size));
+
+        byte *in    = setup(in_size, true);
+        byte *key   = setup(size, true);
+        byte *out1  = setup(size, false);
+        byte *outf  = setup(in_size, 0);
+        byte *outff = setup(in_size, 0);
+
+        mixing_config conf = {&aesni, fanout};
+
+        uint128_t iv             = rand() % (1 << sizeof(uint128_t));
+        uint8_t internal_threads = 1;
+
+        enc_ex(key, size, in, out1, in_size, &conf, 1, iv, starting_counter);
+        enc_ex(key, size, in, outf, in_size, &conf, fanout, iv, starting_counter);
+        enc_ex(key, size, in, outff, in_size, &conf, fanout * fanout, iv, starting_counter);
+
+        int err = 0;
+        err += COMPARE(out1, outf, size, "Enc (1thr) != Enc (%dthr)\n", fanout);
+        err += COMPARE(outff, outf, size, "Enc (%dthr) != Enc (%dthr)\n", fanout, fanout * fanout);
+        err += COMPARE(out1, outff, size, "Enc (1thr) != Enc (%dthr)\n", fanout * fanout);
+
+        free(in);
+        free(out1);
+        free(outf);
+        free(outff);
+
+        return err;
+}
+
 #define CHECKED(F)                                                                                 \
         err = F;                                                                                   \
         if (err)                                                                                   \
@@ -427,6 +462,7 @@ int main() {
                         CHECKED(verify_encs(fanout, l));
                         CHECKED(verify_multithreaded_encs(fanout, l));
                         CHECKED(verify_keymix_t(fanout, l));
+                        CHECKED(verify_encs(fanout, l));
                 }
                 _log(LOG_INFO, "\n");
         }
