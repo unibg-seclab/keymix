@@ -133,11 +133,6 @@ inline uint8_t total_levels(size_t seed_size, uint8_t diff_factor) {
         return 1 + LOGBASE(nof_macros, diff_factor);
 }
 
-inline void safe_explicit_bzero(void *ptr, size_t size) {
-        if (ptr)
-                explicit_bzero(ptr, size);
-}
-
 inline void memxor(void *dst, void *src, size_t size) {
         byte *d = (byte *)dst;
         byte *s = (byte *)src;
