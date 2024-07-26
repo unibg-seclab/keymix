@@ -257,20 +257,7 @@ int main(int argc, char **argv) {
         if (!fstr_resource)
                 goto cleanup;
 
-        // remove the previously encrypted resource if it exists
-        FILE *fstr_output = fopen(cli_args.output_path, "r");
-        if (fstr_output != NULL) {
-                fclose(fstr_output);
-                if (remove(cli_args.output_path) == 0) {
-                        if (cli_args.verbose)
-                                printf("Previous encrypted resource correctly removed\n");
-                } else {
-                        ERROR_MSG("Could not delete file: %s\n", cli_args.output_path);
-                        goto cleanup;
-                }
-        }
-        fstr_output = fopen(cli_args.output_path, "w");
-        fstr_output = fopen_msg(cli_args.output_path, "w");
+        FILE *fstr_output = fopen_msg(cli_args.output_path, "w");
         if (!fstr_output)
                 goto cleanup;
 
