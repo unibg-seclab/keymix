@@ -109,6 +109,8 @@ void *w_keymix(void *a) {
                 }
 
                 out += ctx->key_size;
+                if (!ctx->encrypt)
+                        outbuffer = out;
                 if (remaining_size >= ctx->key_size)
                         remaining_size -= ctx->key_size;
         }
