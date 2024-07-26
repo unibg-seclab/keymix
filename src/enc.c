@@ -180,6 +180,7 @@ int keymix_t(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads
 
 int keymix_ex(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads,
               uint8_t internal_threads, uint128_t starting_counter) {
+        assert(ctx->encrypt == false && "You can't use an encryption context with keymix");
         return keymix_internal(ctx, NULL, out, size, external_threads, internal_threads, 0);
 }
 
@@ -194,6 +195,7 @@ int encrypt_t(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t exter
 
 int encrypt_ex(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
                uint8_t internal_threads, uint128_t starting_counter) {
+        assert(ctx->encrypt == true && "You must use an encryption context with encrypt");
         return keymix_internal(ctx, in, out, size, external_threads, internal_threads,
                                starting_counter);
 }
