@@ -52,14 +52,7 @@ void memxor(void *dst, void *src, size_t size);
 void safe_explicit_bzero(void *ptr, size_t size);
 uint8_t total_levels(size_t seed_size, uint8_t fanout);
 
-void shuffle(byte *in, byte *out, size_t size, uint8_t level, uint8_t fanout);
-void shuffle_opt(byte *in, byte *out, size_t size, uint8_t level, uint8_t fanout);
-void shuffle_chunks(thread_data *args, uint8_t level);
-void shuffle_chunks_opt(thread_data *args, uint8_t level);
-
-void spread(byte *in, byte *out, size_t size, uint8_t level, uint8_t fanout);
 void spread_inplace(byte *buffer, size_t size, uint8_t level, uint8_t fanout);
-void spread_chunks(thread_data *args, uint8_t level);
 void spread_chunks_inplace(thread_data *args, uint8_t level);
 
 #endif // UTILS_H_
