@@ -1,13 +1,13 @@
 #include "keymix.h"
 
-#include <pthread.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "config.h"
 #include "log.h"
 #include "types.h"
 #include "utils.h"
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <string.h>
 
 typedef struct {
         uint8_t id;

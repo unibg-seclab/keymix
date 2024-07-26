@@ -1,9 +1,9 @@
 #ifndef TYPES_H_
 #define TYPES_H_
 
-#include <semaphore.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "config.h"
 
