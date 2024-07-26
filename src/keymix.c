@@ -20,41 +20,42 @@ void keymix_inner(byte *seed, byte *out, size_t size, mixing_config *config, uin
 
 void *w_thread_keymix(void *a) {
         thread_data *args = (thread_data *)a;
+        int err;
 
         // No need to sync among other threads here
         keymix_inner(args->in, args->out, args->thread_chunk_size, args->mixconfig,
                      args->thread_levels);
 
-        // notify the main thread to start the remaining levels
-        _log(LOG_DEBUG, "thread %d finished the thread-layers\n", args->thread_id);
-        if (args->thread_levels != args->total_levels) {
-                sem_post(args->coord_sem);
-        }
+        int8_t nof_threads = args->seed_size / args->thread_chunk_size;
 
-        // synchronized encryption layers
+        _log(LOG_DEBUG, "thread %d finished the layers without coordination\n", args->thread_id);
+
+        // Synchronized layers
         for (uint8_t l = args->thread_levels; l < args->total_levels; l++) {
-                // synchronized swap
-                sem_wait(args->thread_sem);
-                _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
-                spread_chunks_inplace(args, l);
-
-                // notify the main thread that swap has finished
-                sem_post(args->coord_sem);
-                _log(LOG_DEBUG, "thread %d notified the coordinator after swap\n", args->thread_id);
-
-                // synchronized encryption
-                sem_wait(args->thread_sem);
-                _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->thread_id, l);
-                int err =
-                    (*(args->mixconfig->mixfunc))(args->out, args->out, args->thread_chunk_size);
+                // Wait for all threads to finish the encryption step
+                err = barrier(args->barrier, nof_threads);
                 if (err) {
-                        _log(LOG_ERROR, "thread %d, error from mixfunc %d\n", args->thread_id, err);
+                        _log(LOG_ERROR, "thread %d: barrier error %d\n", err);
                         goto thread_exit;
                 }
-                // notify the main thread that everything for this level has finished
-                sem_post(args->coord_sem);
-                _log(LOG_DEBUG, "thread %d notified the coordinator after encryption\n",
-                     args->thread_id);
+
+                _log(LOG_DEBUG, "thread %d: sychronized swap (level %d)\n", args->thread_id, l - 1);
+                spread_chunks_inplace(args, l);
+
+                // Wait for all threads to finish the swap step
+                err = barrier(args->barrier, nof_threads);
+                if (err) {
+                        _log(LOG_ERROR, "thread %d: barrier error %d\n", err);
+                        goto thread_exit;
+                }
+
+                _log(LOG_DEBUG, "thread %d: sychronized encryption (level %d)\n", args->thread_id,
+                     l);
+                err = (*(args->mixconfig->mixfunc))(args->out, args->out, args->thread_chunk_size);
+                if (err) {
+                        _log(LOG_ERROR, "thread %d: mixfunc error %d\n", args->thread_id, err);
+                        goto thread_exit;
+                }
         }
 
 thread_exit:
@@ -91,35 +92,20 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8
         int err = 0;
         pthread_t threads[nof_threads];
         thread_data args[nof_threads];
+        barrier_status barrier;
+
+        // Initialize barrier once for all threads
+        err = barrier_init(&barrier);
+        if (err) {
+                _log(LOG_ERROR, "barrier_init error %d\n", err);
+                goto cleanup;
+        }
 
         for (uint8_t t = 0; t < nof_threads; t++) {
-                args[t].thread_id  = t;
-                args[t].thread_sem = malloc(sizeof(sem_t));
-                if (args[t].thread_sem == NULL) {
-                        err         = ENOMEM;
-                        nof_threads = t; // shorten the list to be cleaned
-                        goto cleanup;
-                }
-                if (sem_init(args[t].thread_sem, 0, 0)) {
-                        _log(LOG_DEBUG, "sem_init error (thread_sem), try again\n");
-                        err         = errno;
-                        nof_threads = t;
-                        goto cleanup;
-                }
-                args[t].coord_sem = malloc(sizeof(sem_t));
-                if (args[t].coord_sem == NULL) {
-                        err         = ENOMEM;
-                        nof_threads = t;
-                        goto cleanup;
-                }
-                if (sem_init(args[t].coord_sem, 0, 0)) {
-                        _log(LOG_DEBUG, "sem_init error (coord_sem), try again\n");
-                        err         = errno;
-                        nof_threads = t;
-                        goto cleanup;
-                }
-                args[t].in  = seed + t * thread_chunk_size;
-                args[t].out = out + t * thread_chunk_size;
+                args[t].thread_id = t;
+                args[t].barrier   = &barrier;
+                args[t].in        = seed + t * thread_chunk_size;
+                args[t].out       = out + t * thread_chunk_size;
 
                 args[t].abs_in  = seed;
                 args[t].abs_out = out;
@@ -135,27 +121,8 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8
         for (uint8_t t = 0; t < nof_threads; t++) {
                 err = pthread_create(&threads[t], NULL, w_thread_keymix, &args[t]);
                 if (err) {
-                        _log(LOG_DEBUG, "pthread_create error %d\n", err);
+                        _log(LOG_ERROR, "pthread_create error %d\n", err);
                         goto cleanup;
-                }
-        }
-
-        _log(LOG_DEBUG, "[i] init parent swapping procedure\n");
-        if (thread_levels != levels) {
-                for (uint8_t l = 0; l < (levels - thread_levels) * 2 + 1; l++) {
-                        // wait until all the threads have completed the levels
-                        for (uint8_t t = 0; t < nof_threads; t++)
-                                sem_wait(args[t].coord_sem);
-
-                        // synchronization is done, notify the threads back
-                        for (uint8_t t = 0; t < nof_threads; t++) {
-                                err = sem_post(args[t].thread_sem);
-                                if (err) {
-                                        _log(LOG_DEBUG, "coordinator, sem_post error %d\n", errno);
-                                        goto cleanup;
-                                }
-                        }
-                        _log(LOG_DEBUG, "[i] coordinator notified all the threads\n");
                 }
         }
 
@@ -164,24 +131,16 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8
         for (uint8_t t = 0; t < nof_threads; t++) {
                 err = pthread_join(threads[t], NULL);
                 if (err) {
-                        _log(LOG_DEBUG, "pthread_join error %d (thread %d)\n", err, t);
+                        _log(LOG_ERROR, "pthread_join error %d (thread %d)\n", err, t);
                         goto cleanup;
                 }
         }
 
 cleanup:
         _log(LOG_DEBUG, "[i] safe obj destruction\n");
-        for (uint8_t t = 0; t < nof_threads; t++) {
-                if (!sem_destroy(args[t].coord_sem)) {
-                        free(args[t].coord_sem);
-                } else {
-                        _log(LOG_DEBUG, "sem_free error %d\n", errno);
-                }
-                if (!sem_destroy(args[t].thread_sem)) {
-                        free(args[t].thread_sem);
-                } else {
-                        _log(LOG_DEBUG, "sem_free error %d\n", errno);
-                }
+        err = barrier_destroy(&barrier);
+        if (err) {
+                _log(LOG_ERROR, "barrier_destroy error %d\n", err);
         }
         return err;
 }

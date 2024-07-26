@@ -45,6 +45,9 @@
 #define LOGBASE(x, base) (round(log(x) / log(base)))
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
+int barrier_init(barrier_status *state);
+int barrier(barrier_status *state, int8_t nof_threads);
+int barrier_destroy(barrier_status *state);
 byte *checked_malloc(size_t size);
 size_t get_file_size(FILE *fstr);
 void increment_counter(byte *macro, unsigned long step);

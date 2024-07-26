@@ -23,9 +23,15 @@ typedef struct {
 } mixing_config;
 
 typedef struct {
+        pthread_mutex_t mutex;
+        pthread_cond_t cond;
+        int8_t nof_waiting_thread;
+        int8_t round;
+} barrier_status;
+
+typedef struct {
         uint8_t thread_id;
-        sem_t *thread_sem;
-        sem_t *coord_sem;
+        barrier_status *barrier;
         byte *in;
         byte *out;
         byte *buf;
