@@ -32,6 +32,8 @@
 
 // -------------------------------------------------- Utility functions
 
+inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
+
 FILE *fout;
 
 void csv_header() {

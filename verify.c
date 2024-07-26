@@ -35,6 +35,8 @@ byte *setup(size_t size, bool random) {
         return data;
 }
 
+inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
+
 typedef struct {
         void (*func)(thread_data *, uint8_t);
         thread_data thr_data;
@@ -125,9 +127,9 @@ int verify_shuffles(size_t fanout, uint8_t level) {
                 memcpy(out_spread1, in, size);
                 memcpy(out_spread3, in, size);
 
-                shuffle(out_shuffle, in, size, l, fanout);
-                shuffle_opt(out_shuffle2, in, size, l, fanout);
-                spread(out_spread, in, size, l, fanout);
+                shuffle(in, out_shuffle, size, l, fanout);
+                shuffle_opt(in, out_shuffle2, size, l, fanout);
+                spread(in, out_spread, size, l, fanout);
                 spread_inplace(out_spread1, size, l, fanout);
 
                 if (is_shuffle_chunks_level) {
@@ -225,7 +227,7 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
 
         // Note, we are not testing spread_chunks with one thread because it is meant to be used
         // only with multiple threads
-        spread(out7, in, size, level, fanout);
+        spread(in, out7, size, level, fanout);
         emulate_shuffle_chunks(spread_chunks, out8, in, size, level, fanout, fanout);
         emulate_shuffle_chunks(spread_chunks, out9, in, size, level, fanout, fanout * fanout);
 

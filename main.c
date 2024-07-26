@@ -25,6 +25,17 @@
 #include "utils.h"
 #include "wolfssl.h"
 
+void print_buffer_hex(byte *buf, size_t size, char *descr) {
+        printf("%s\n", descr);
+        for (size_t i = 0; i < size; i++) {
+                if (i % 16 == 0) {
+                        printf("|");
+                }
+                printf("%02x", buf[i]);
+        }
+        printf("|\n");
+}
+
 int main() {
 
         // todo: recover and check correct parameters

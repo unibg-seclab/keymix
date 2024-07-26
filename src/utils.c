@@ -12,8 +12,6 @@
 #include "log.h"
 #include "types.h"
 
-inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
-
 byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
         if (buf == NULL) {
@@ -24,25 +22,8 @@ byte *checked_malloc(size_t size) {
         return buf;
 }
 
-void print_buffer_hex(byte *buf, size_t size, char *descr) {
-        printf("%s\n", descr);
-        for (size_t i = 0; i < size; i++) {
-                if (i % 16 == 0) {
-                        printf("|");
-                }
-                printf("%02x", buf[i]);
-        }
-        printf("|\n");
-}
-
-void print_union(counter c) {
-        printf("value: %ld\n", c.value);
-        print_buffer_hex((byte *)c.array, 8, "array");
-}
-
 // max 2^64 times
 void increment_counter(byte *macro, unsigned long step) {
-
         counter ctr;
         for (unsigned short p = 0; p < 8; p++)
                 ctr.array[8 - 1 - p] = (macro + 24)[p];
@@ -113,16 +94,16 @@ inline void memxor(void *dst, void *src, size_t size) {
 // size = 4 * SIZE_MACRO, fanout = 2
 // in  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 // out = 0 | 4 | 1 | 5 | 2 | 6 | 3 | 7
-void shuffle(byte *restrict out, byte *restrict in, size_t in_size, uint8_t level, uint8_t fanout) {
+void shuffle(byte *restrict in, byte *restrict out, size_t size, uint8_t level, uint8_t fanout) {
         if (DEBUG)
                 assert(level > 0);
         size_t mini_size        = SIZE_MACRO / fanout;
-        byte *last              = out + in_size;
+        byte *last              = out + size;
         uint64_t macros_in_slab = intpow(fanout, level);
         size_t slab_size        = macros_in_slab * SIZE_MACRO;
 
         _log(LOG_DEBUG, "Moving pieces of %zu B\n", mini_size);
-        _log(LOG_DEBUG, "Over a total of %zu slabs\n", in_size / slab_size);
+        _log(LOG_DEBUG, "Over a total of %zu slabs\n", size / slab_size);
 
         for (; out < last; out += slab_size, in += slab_size) {
                 _log(LOG_DEBUG, "New slab\n");
@@ -152,13 +133,13 @@ void shuffle(byte *restrict out, byte *restrict in, size_t in_size, uint8_t leve
 // And we get that
 //  k = j / fanout
 //  mod = j % fanout
-void shuffle_opt(byte *restrict out, byte *restrict in, size_t in_size, uint8_t level,
+void shuffle_opt(byte *restrict in, byte *restrict out, size_t size, uint8_t level,
                  uint8_t fanout) {
         if (DEBUG)
                 assert(level > 0);
 
         size_t mini_size        = SIZE_MACRO / fanout;
-        byte *last              = out + in_size;
+        byte *last              = out + size;
         uint64_t macros_in_slab = intpow(fanout, level);
         size_t slab_size        = macros_in_slab * SIZE_MACRO;
 
@@ -271,7 +252,7 @@ void shuffle_chunks_opt(thread_data *args, uint8_t level) {
 // size = 4 * SIZE_MACRO, fanout = 2
 // in  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 // out = 0 | 4 | 2 | 6 | 1 | 5 | 3 | 7
-void spread(byte *restrict out, byte *restrict in, size_t in_size, uint8_t level, uint8_t fanout) {
+void spread(byte *restrict in, byte *restrict out, size_t size, uint8_t level, uint8_t fanout) {
         if (DEBUG)
                 assert(level > 0);
 
@@ -282,7 +263,7 @@ void spread(byte *restrict out, byte *restrict in, size_t in_size, uint8_t level
         size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
         size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
-        byte *last         = out + in_size;
+        byte *last         = out + size;
         uint64_t in_offset = 0;
         uint64_t out_macro_offset, out_mini_offset;
 
@@ -315,7 +296,7 @@ void memswap(byte *restrict a, byte *restrict b, size_t bytes) {
 
 // This function spreads the output of the encryption produced by
 // the single thread across multiple slabs inplace.
-void spread_inplace(byte *buffer, size_t in_size, uint8_t level, uint8_t fanout) {
+void spread_inplace(byte *buffer, size_t size, uint8_t level, uint8_t fanout) {
         if (DEBUG) {
                 assert(level > 0);
         }
@@ -330,7 +311,7 @@ void spread_inplace(byte *buffer, size_t in_size, uint8_t level, uint8_t fanout)
         size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
         size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
-        byte *last = out + in_size;
+        byte *last = out + size;
         uint64_t in_mini_offset, out_macro_offset, out_mini_offset;
 
         while (out < last) {
