@@ -63,8 +63,6 @@ int keymix_ex(byte *seed, size_t seed_size, byte *in, byte *out, size_t size, mi
         pthread_t threads[num_threads];
         args_t args[num_threads];
 
-        assert(size % seed_size == 0 && "We can generate only multiples of seed_size");
-
         uint64_t num_seeds = size / seed_size;
         uint128_t counter  = starting_counter;
 

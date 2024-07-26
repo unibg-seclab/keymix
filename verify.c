@@ -322,7 +322,7 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
 
 int verify_enc(size_t fanout, uint8_t level) {
         size_t size                = (size_t)pow(fanout, level) * SIZE_MACRO;
-        size_t in_size             = (rand() % 3) * size + rand() % size;
+        size_t in_size             = (rand() % 3) * size + rand() % size + rand() % 10;
         uint128_t starting_counter = rand() % 256;
 
         _log(LOG_INFO, "> Verifying encryption equivalence for size %.2f MiB\n", MiB(size));
