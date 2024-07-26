@@ -23,6 +23,8 @@ LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
 build: $(OBJECTS)
 
+all: $(OUUT) $(TEST) $(VERIFY) $(KEYMIXER)
+
 %.c: %.h
 
 wolfssl:
