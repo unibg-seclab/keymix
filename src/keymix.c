@@ -70,11 +70,7 @@ void *w_thread_keymix(void *a) {
                 // synchronized encryption
                 sem_wait(args->sem_thread_can_work);
                 _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->id, l);
-                int err = (*(args->mixctrpass))(args->out, args->out, args->chunk_size);
-                if (err) {
-                        _log(LOG_ERROR, "thread %d, error from mixfunc %d\n", args->id, err);
-                        goto thread_exit;
-                }
+                (*(args->mixctrpass))(args->out, args->out, args->chunk_size);
                 // notify the main thread that everything for this level has finished
                 sem_post(args->sem_done);
                 _log(LOG_DEBUG, "thread %d notified the coordinator after encryption\n", args->id);
