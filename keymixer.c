@@ -1,3 +1,12 @@
+#include "aesni.h"
+#include "config.h"
+#include "file.h"
+#include "keymix_seq.h"
+#include "log.h"
+#include "openssl.h"
+#include "types.h"
+#include "utils.h"
+#include "wolfssl.h"
 #include <argp.h>
 #include <errno.h>
 #include <limits.h>
@@ -8,15 +17,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-
-#include "aesni.h"
-#include "config.h"
-#include "keymix_seq.h"
-#include "log.h"
-#include "openssl.h"
-#include "types.h"
-#include "utils.h"
-#include "wolfssl.h"
 
 const char *argp_program_version     = "keymixer 1.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
@@ -233,8 +233,8 @@ clean_write:
         return write_status;
 }
 
-int encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resource,
-            FILE *fstr_secret) {
+int do_encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resource,
+               FILE *fstr_secret) {
 
         // encrypt local config
         int encrypt_status    = 0;
@@ -354,7 +354,7 @@ int main(int argc, char **argv) {
                 goto close_fstr_secret;
         }
         // encrypt
-        prog_status = encrypt(&arguments, fstr_output, fstr_resource, fstr_secret);
+        prog_status = do_encrypt(&arguments, fstr_output, fstr_resource, fstr_secret);
 close_fstr_secret:
         fclose(fstr_secret);
 close_fstr_output:

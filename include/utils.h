@@ -46,7 +46,6 @@
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
 byte *checked_malloc(size_t size);
-size_t get_file_size(FILE *fstr);
 void increment_counter(byte *macro, unsigned long step);
 void memxor(void *dst, void *src, size_t size);
 void memxor_ex(void *dst, void *a, void *b, size_t size);

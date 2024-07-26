@@ -4,7 +4,6 @@
 #include "types.h"
 #include <assert.h>
 #include <byteswap.h>
-#include <errno.h>
 #include <string.h>
 
 byte *checked_malloc(size_t size) {
@@ -31,25 +30,6 @@ inline void increment_counter(byte *macro, unsigned long step) {
         reverse_16B(second_block);
         (*(uint128_t *)second_block) += step;
         reverse_16B(second_block);
-}
-
-size_t get_file_size(FILE *fstr) {
-        if (fstr == NULL) {
-                return 0;
-        }
-        // move the cursor to the end of the file
-        if (fseek(fstr, 0, SEEK_END) < 0) {
-                return 0;
-        }
-        // get the current offset
-        long size = ftell(fstr);
-        // move the cursor back to the beginning of the file
-        if (fseek(fstr, 0, SEEK_SET) < 0) {
-                // undefined behavior if code enters this branch
-                printf("(!) fseek cannot set the cursor to the beginning of the buffer\n");
-                exit(errno);
-        }
-        return size;
 }
 
 inline uint64_t intpow(uint64_t base, uint64_t exp) {
