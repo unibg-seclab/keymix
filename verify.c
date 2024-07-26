@@ -198,23 +198,16 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
 int verify_keymix(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying encryption for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying keymix mixctr-independence for size %.2f MiB\n", MiB(size));
 
         byte *in          = setup(size, true);
         byte *out_wolfssl = setup(size, false);
         byte *out_openssl = setup(size, false);
         byte *out_aesni   = setup(size, false);
 
-        mixing_config config = {NULL, fanout};
-
-        config.mixfunc = &wolfssl;
-        keymix(in, out_wolfssl, size, &config, 1);
-
-        config.mixfunc = &openssl;
-        keymix(in, out_openssl, size, &config, 1);
-
-        config.mixfunc = &aesni;
-        keymix(in, out_aesni, size, &config, 1);
+        keymix(&wolfssl, in, out_wolfssl, size, fanout, 1);
+        keymix(&openssl, in, out_openssl, size, fanout, 1);
+        keymix(&aesni, in, out_aesni, size, fanout, 1);
 
         int err = 0;
         err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
@@ -234,7 +227,7 @@ int verify_keymix(size_t fanout, uint8_t level) {
 int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying keymix equivalence for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying keymix threading-independence for size %.2f MiB\n", MiB(size));
 
         byte *in     = setup(size, true);
         byte *out1   = setup(size, false);
@@ -247,12 +240,10 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         size_t thrff  = fanout * fanout;
         size_t thrfff = fanout * fanout * fanout;
 
-        mixing_config config = {&aesni, fanout};
-
-        keymix(in, out1, size, &config, thr1);
-        keymix(in, outf, size, &config, thrf);
-        keymix(in, outff, size, &config, thrff);
-        keymix(in, outfff, size, &config, thrfff);
+        keymix(&aesni, in, out1, size, fanout, thr1);
+        keymix(&aesni, in, outf, size, fanout, thrf);
+        keymix(&aesni, in, outff, size, fanout, thrff);
+        keymix(&aesni, in, outfff, size, fanout, thrfff);
 
         // Comparisons
         int err = 0;
@@ -287,15 +278,13 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         byte *out3_thr1  = setup(3 * size, 0);
         byte *out3_thr2  = setup(3 * size, 0);
 
-        mixing_config conf = {&aesni, fanout};
-
         uint128_t iv             = rand() % (1 << sizeof(uint128_t));
         uint8_t internal_threads = 1;
 
         keymix_ctx_t ctx;
         ctx_keymix_init(&ctx, MIXCTRPASS_AESNI, in, size, fanout);
 
-        keymix(in, out_simple, size, &conf, 1);
+        keymix(&aesni, in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
 
         keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);

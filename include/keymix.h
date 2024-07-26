@@ -3,6 +3,7 @@
 
 #include "types.h"
 
-int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8_t nof_threads);
+int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size, uint8_t fanout,
+           uint8_t nof_threads);
 
 #endif // KEYMIX_H_

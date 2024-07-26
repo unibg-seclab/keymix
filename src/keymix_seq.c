@@ -87,7 +87,7 @@ int keymix_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource,
                 // apply the counter
                 if (e != 0)
                         increment_counter(secret, 1);
-                status = keymix(secret, out, secret_size, &mix_conf, 1);
+                status = keymix(config->mixfunc, secret, out, secret_size, config->diffusion, 1);
                 if (status != 0)
                         break; // stop and fail
                 // shorten the resource in the last epoch if
@@ -117,7 +117,8 @@ void *run_inter(void *config) {
         }
         *err = 0;
         // mix-only (the coordinator applies the counter properly)
-        *err = keymix(args->secret, args->out, args->seed_size, args->mixconfig, 1);
+        *err = keymix(args->mixconfig->mixfunc, args->secret, args->out, args->seed_size,
+                      args->mixconfig->diff_factor, 1);
 thread_exit:
         pthread_exit(err);
 }
@@ -229,7 +230,8 @@ int keymix_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_res
                 // apply the counter
                 if (e != 0)
                         increment_counter(secret, 1);
-                status = keymix(secret, out, secret_size, &mix_conf, config->threads);
+                status = keymix(config->mixfunc, secret, out, secret_size, config->diffusion,
+                                config->threads);
                 if (status != 0)
                         break; // stop and fail
                 // shorten the resource in the last epoch if
@@ -259,7 +261,8 @@ void *run_inter_intra(void *config) {
         }
         *err = 0;
         // mix-only (the coordinator applies the counter properly)
-        *err = keymix(args->secret, args->out, args->seed_size, args->mixconfig, args->nof_threads);
+        *err = keymix(args->mixconfig->mixfunc, args->secret, args->out, args->seed_size,
+                      args->mixconfig->diff_factor, args->nof_threads);
 thread_exit:
         pthread_exit(err);
 }

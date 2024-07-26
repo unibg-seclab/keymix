@@ -100,7 +100,8 @@ void *w_keymix(void *a) {
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
                 mixing_config conf = {ctx->mixctrpass, ctx->fanout};
-                keymix(tmpkey, outbuffer, ctx->key_size, &conf, args->internal_threads);
+                keymix(ctx->mixctrpass, tmpkey, outbuffer, ctx->key_size, ctx->fanout,
+                       args->internal_threads);
 
                 if (ctx->encrypt) {
                         memxor_ex(out, outbuffer, in, MIN(remaining_size, ctx->key_size));

@@ -1,6 +1,5 @@
 #include "keymix.h"
 
-#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,61 +9,91 @@
 #include "types.h"
 #include "utils.h"
 
-void keymix_inner(byte *seed, byte *out, size_t size, mixing_config *config, uint8_t levels) {
-        (*(config->mixfunc))(seed, out, size);
+typedef struct {
+        uint8_t id;
+        sem_t *sem_thread_can_work;
+        sem_t *sem_done;
+        byte *in;
+        byte *out;
+        byte *abs_out;
+        size_t total_size;
+        size_t chunk_size;
+        uint8_t thread_levels;
+        uint8_t total_levels;
+        mixctrpass_impl_t mixctrpass;
+        uint8_t fanout;
+} thr_keymix_t;
+
+void keymix_inner(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t size, uint8_t fanout,
+                  uint8_t levels) {
+        (*mixctrpass)(seed, out, size);
         for (uint8_t l = 1; l < levels; l++) {
-                spread_inplace(out, size, l, config->diff_factor);
-                (*(config->mixfunc))(out, out, size);
+                spread_inplace(out, size, l, fanout);
+                (*mixctrpass)(out, out, size);
         }
 }
 
 void *w_thread_keymix(void *a) {
-        thread_data *args = (thread_data *)a;
+        thr_keymix_t *args = (thr_keymix_t *)a;
 
         // No need to sync among other threads here
-        keymix_inner(args->in, args->out, args->thread_chunk_size, args->mixconfig,
+        keymix_inner(args->mixctrpass, args->in, args->out, args->chunk_size, args->fanout,
                      args->thread_levels);
 
         // notify the main thread to start the remaining levels
-        _log(LOG_DEBUG, "thread %d finished the thread-layers\n", args->thread_id);
+        _log(LOG_DEBUG, "thread %d finished the thread-layers\n", args->id);
         if (args->thread_levels != args->total_levels) {
-                sem_post(args->coord_sem);
+                sem_post(args->sem_done);
         }
 
         // synchronized encryption layers
         for (uint8_t l = args->thread_levels; l < args->total_levels; l++) {
                 // synchronized swap
-                sem_wait(args->thread_sem);
-                _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->thread_id, l - 1);
-                spread_chunks_inplace(args, l);
+                sem_wait(args->sem_thread_can_work);
+                _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->id, l - 1);
+                mixing_config conf  = {args->mixctrpass, args->fanout};
+                thread_data thrdata = {
+                    .thread_id = args->id,
+                    // These ones are not used by spread_chunks_inplace
+                    // .thread_sem        = args->thread_sem,
+                    // .coord_sem         = args->coord_sem,
+                    // .in                = args->in,
+                    // .abs_in            = args->abs_in,
+                    .out               = args->out,
+                    .abs_out           = args->abs_out,
+                    .seed_size         = args->total_size,
+                    .thread_chunk_size = args->chunk_size,
+                    .thread_levels     = args->thread_levels,
+                    .total_levels      = args->total_levels,
+                    .mixconfig         = &conf,
+                };
+                spread_chunks_inplace(&thrdata, l);
 
                 // notify the main thread that swap has finished
-                sem_post(args->coord_sem);
-                _log(LOG_DEBUG, "thread %d notified the coordinator after swap\n", args->thread_id);
+                sem_post(args->sem_done);
+                _log(LOG_DEBUG, "thread %d notified the coordinator after swap\n", args->id);
 
                 // synchronized encryption
-                sem_wait(args->thread_sem);
-                _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->thread_id, l);
-                int err =
-                    (*(args->mixconfig->mixfunc))(args->out, args->out, args->thread_chunk_size);
+                sem_wait(args->sem_thread_can_work);
+                _log(LOG_DEBUG, "thread %d sychronized encryption, level %d\n", args->id, l);
+                int err = (*(args->mixctrpass))(args->out, args->out, args->chunk_size);
                 if (err) {
-                        _log(LOG_ERROR, "thread %d, error from mixfunc %d\n", args->thread_id, err);
+                        _log(LOG_ERROR, "thread %d, error from mixfunc %d\n", args->id, err);
                         goto thread_exit;
                 }
                 // notify the main thread that everything for this level has finished
-                sem_post(args->coord_sem);
-                _log(LOG_DEBUG, "thread %d notified the coordinator after encryption\n",
-                     args->thread_id);
+                sem_post(args->sem_done);
+                _log(LOG_DEBUG, "thread %d notified the coordinator after encryption\n", args->id);
         }
 
 thread_exit:
         return NULL;
 }
 
-int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8_t nof_threads) {
-        if (!ISPOWEROF(nof_threads, config->diff_factor) || nof_threads == 0) {
-                _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n",
-                     config->diff_factor);
+int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size, uint8_t fanout,
+           uint8_t nof_threads) {
+        if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
+                _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
                 return 1;
         }
 
@@ -72,72 +101,49 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8
         // never spawn more than nof_macros threads
         uint64_t nof_macros = seed_size / SIZE_MACRO;
         nof_threads         = MIN(nof_threads, nof_macros);
-        uint8_t levels      = total_levels(seed_size, config->diff_factor);
+        uint8_t levels      = total_levels(seed_size, fanout);
 
         _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
+
+        mixing_config config = {mixctrpass, fanout};
 
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
-                keymix_inner(seed, out, seed_size, config, levels);
+                keymix_inner(mixctrpass, seed, out, seed_size, fanout, levels);
                 return 0;
         }
 
         size_t thread_chunk_size = seed_size / nof_threads;
-        uint8_t thread_levels    = total_levels(thread_chunk_size, config->diff_factor);
+        uint8_t thread_levels    = total_levels(thread_chunk_size, fanout);
 
         _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
 
         int err = 0;
         pthread_t threads[nof_threads];
-        thread_data args[nof_threads];
+        thr_keymix_t args[nof_threads];
 
         for (uint8_t t = 0; t < nof_threads; t++) {
-                args[t].thread_id  = t;
-                args[t].thread_sem = malloc(sizeof(sem_t));
-                if (args[t].thread_sem == NULL) {
-                        err         = ENOMEM;
-                        nof_threads = t; // shorten the list to be cleaned
-                        goto cleanup;
-                }
-                if (sem_init(args[t].thread_sem, 0, 0)) {
-                        _log(LOG_DEBUG, "sem_init error (thread_sem), try again\n");
-                        err         = errno;
-                        nof_threads = t;
-                        goto cleanup;
-                }
-                args[t].coord_sem = malloc(sizeof(sem_t));
-                if (args[t].coord_sem == NULL) {
-                        err         = ENOMEM;
-                        nof_threads = t;
-                        goto cleanup;
-                }
-                if (sem_init(args[t].coord_sem, 0, 0)) {
-                        _log(LOG_DEBUG, "sem_init error (coord_sem), try again\n");
-                        err         = errno;
-                        nof_threads = t;
-                        goto cleanup;
-                }
-                args[t].in  = seed + t * thread_chunk_size;
-                args[t].out = out + t * thread_chunk_size;
+                thr_keymix_t *a        = args + t;
+                a->id                  = t;
+                a->sem_thread_can_work = malloc(sizeof(sem_t));
+                a->sem_done            = malloc(sizeof(sem_t));
+                a->in                  = seed + t * thread_chunk_size;
+                a->out                 = out + t * thread_chunk_size;
 
-                args[t].abs_in  = seed;
-                args[t].abs_out = out;
+                a->abs_out = out;
 
-                args[t].seed_size         = seed_size;
-                args[t].thread_chunk_size = thread_chunk_size;
-                args[t].thread_levels     = thread_levels;
-                args[t].total_levels      = levels;
-                args[t].mixconfig         = config;
-        }
+                a->total_size    = seed_size;
+                a->chunk_size    = thread_chunk_size;
+                a->thread_levels = thread_levels;
+                a->total_levels  = levels;
+                a->mixctrpass    = mixctrpass;
+                a->fanout        = fanout;
 
-        _log(LOG_DEBUG, "[i] spawning the threads\n");
-        for (uint8_t t = 0; t < nof_threads; t++) {
-                err = pthread_create(&threads[t], NULL, w_thread_keymix, &args[t]);
-                if (err) {
-                        _log(LOG_DEBUG, "pthread_create error %d\n", err);
-                        goto cleanup;
-                }
+                sem_init(args[t].sem_thread_can_work, 0, 0);
+                sem_init(args[t].sem_done, 0, 0);
+
+                pthread_create(&threads[t], NULL, w_thread_keymix, a);
         }
 
         _log(LOG_DEBUG, "[i] init parent swapping procedure\n");
@@ -145,16 +151,12 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8
                 for (uint8_t l = 0; l < (levels - thread_levels) * 2 + 1; l++) {
                         // wait until all the threads have completed the levels
                         for (uint8_t t = 0; t < nof_threads; t++)
-                                sem_wait(args[t].coord_sem);
+                                sem_wait(args[t].sem_done);
 
                         // synchronization is done, notify the threads back
-                        for (uint8_t t = 0; t < nof_threads; t++) {
-                                err = sem_post(args[t].thread_sem);
-                                if (err) {
-                                        _log(LOG_DEBUG, "coordinator, sem_post error %d\n", errno);
-                                        goto cleanup;
-                                }
-                        }
+                        for (uint8_t t = 0; t < nof_threads; t++)
+                                sem_post(args[t].sem_thread_can_work);
+
                         _log(LOG_DEBUG, "[i] coordinator notified all the threads\n");
                 }
         }
@@ -162,25 +164,19 @@ int keymix(byte *seed, byte *out, size_t seed_size, mixing_config *config, uint8
         _log(LOG_DEBUG, "[i] joining the threads...\n");
 
         for (uint8_t t = 0; t < nof_threads; t++) {
-                err = pthread_join(threads[t], NULL);
-                if (err) {
-                        _log(LOG_DEBUG, "pthread_join error %d (thread %d)\n", err, t);
-                        goto cleanup;
-                }
+                pthread_join(threads[t], NULL);
         }
 
 cleanup:
         _log(LOG_DEBUG, "[i] safe obj destruction\n");
         for (uint8_t t = 0; t < nof_threads; t++) {
-                if (!sem_destroy(args[t].coord_sem)) {
-                        free(args[t].coord_sem);
-                } else {
-                        _log(LOG_DEBUG, "sem_free error %d\n", errno);
+                if (args[t].sem_done) {
+                        sem_destroy(args[t].sem_done);
+                        free(args[t].sem_done);
                 }
-                if (!sem_destroy(args[t].thread_sem)) {
-                        free(args[t].thread_sem);
-                } else {
-                        _log(LOG_DEBUG, "sem_free error %d\n", errno);
+                if (args[t].sem_thread_can_work) {
+                        sem_destroy(args[t].sem_thread_can_work);
+                        free(args[t].sem_thread_can_work);
                 }
         }
         return err;
