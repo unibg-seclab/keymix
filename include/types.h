@@ -52,9 +52,4 @@ struct arguments {
         char *mixfunc_descr;
 };
 
-typedef union {
-        long value;
-        char array[8];
-} counter;
-
 #endif // TYPES_H_

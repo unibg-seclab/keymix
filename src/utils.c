@@ -1,15 +1,11 @@
 #include "utils.h"
 
-#include <assert.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stddef.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/types.h>
-
 #include "config.h"
 #include "types.h"
+#include <assert.h>
+#include <byteswap.h>
+#include <errno.h>
+#include <string.h>
 
 byte *checked_malloc(size_t size) {
         byte *buf = (byte *)malloc(size);
@@ -21,14 +17,20 @@ byte *checked_malloc(size_t size) {
         return buf;
 }
 
-// max 2^64 times
-void increment_counter(byte *macro, unsigned long step) {
-        counter ctr;
-        for (unsigned short p = 0; p < 8; p++)
-                ctr.array[8 - 1 - p] = (macro + 24)[p];
-        ctr.value += step;
-        for (unsigned short p = 0; p < 8; p++)
-                (macro + 24)[p] = ctr.array[8 - 1 - p];
+inline void reverse_16B(byte *data) {
+        size_t size = SIZE_BLOCK;
+        for (size_t i = 0; i < size / 2; i++) {
+                byte temp          = data[i];
+                data[i]            = data[size - 1 - i];
+                data[size - 1 - i] = temp;
+        }
+}
+
+inline void increment_counter(byte *macro, unsigned long step) {
+        byte *second_block = macro + SIZE_BLOCK;
+        reverse_16B(second_block);
+        (*(uint128_t *)second_block) += step;
+        reverse_16B(second_block);
 }
 
 size_t get_file_size(FILE *fstr) {
