@@ -319,6 +319,48 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         return err;
 }
 
+int verify_enc(size_t fanout, uint8_t level) {
+        size_t key_size      = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t resource_size = (rand() % 5) * key_size + (rand() % key_size);
+
+        _log(LOG_INFO, "> Verifying encryption for key size %.2f MiB\n", MiB(key_size));
+
+        uint128_t iv = rand() % (1 << sizeof(uint128_t));
+
+        int err   = 0;
+        byte *key = setup(key_size, true);
+        byte *in  = setup(resource_size, true);
+
+        byte *out1 = setup(resource_size, false);
+        byte *out2 = setup(resource_size, false);
+        byte *out3 = setup(resource_size, false);
+
+        keymix_ctx_t ctx;
+        ctx_encrypt_init(&ctx, MIXCTRPASS_AESNI, key, key_size, iv, fanout);
+
+        encrypt(&ctx, in, out1, resource_size);
+        encrypt_t(&ctx, in, out2, resource_size, 2, 1);
+        encrypt_t(&ctx, in, out3, resource_size, 3, 1);
+
+        err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (2thr)\n");
+        err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
+        err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
+
+        encrypt_t(&ctx, in, out2, resource_size, 1, fanout);
+        encrypt_t(&ctx, in, out3, resource_size, 1, fanout * fanout);
+        err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
+        err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (%d int-thr)\n",
+                       fanout * fanout);
+        err += COMPARE(out2, out3, resource_size, "Encrypt (%d int-thr) != Encrypt (%d int-thr)\n",
+                       fanout, fanout * fanout);
+
+        free(key);
+        free(out1);
+        free(out2);
+        free(out3);
+        return err;
+}
+
 #define CHECKED(F)                                                                                 \
         err = F;                                                                                   \
         if (err)                                                                                   \
@@ -338,6 +380,7 @@ int main() {
                         CHECKED(verify_keymix(fanout, l));
                         CHECKED(verify_multithreaded_keymix(fanout, l));
                         CHECKED(verify_keymix_t(fanout, l));
+                        CHECKED(verify_enc(fanout, l));
                 }
                 _log(LOG_INFO, "\n");
         }
