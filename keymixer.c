@@ -209,14 +209,14 @@ cleanup:
         return encrypt_status;
 }
 
-inline FILE *fopen_msg(char *resource, char *mode) {
+FILE *fopen_msg(char *resource, char *mode) {
         FILE *fp = fopen(resource, mode);
         if (!fp)
                 ERROR_MSG("No such file: %s\n", resource);
         return fp;
 };
 
-inline void safe_fclose(FILE *fp) {
+void safe_fclose(FILE *fp) {
         if (fp)
                 fclose(fp);
 }

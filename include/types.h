@@ -37,6 +37,13 @@ typedef struct {
 } mixing_config;
 
 typedef struct {
+        pthread_mutex_t mutex;
+        pthread_cond_t cond;
+        int8_t nof_waiting_thread;
+        int8_t round;
+} barrier_status;
+
+typedef struct {
         byte *out;
         byte *secret;
         size_t seed_size;

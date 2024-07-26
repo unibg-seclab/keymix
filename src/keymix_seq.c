@@ -7,6 +7,7 @@
 
 #include "keymix.h"
 #include "log.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
 

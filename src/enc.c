@@ -2,6 +2,7 @@
 
 #include "assert.h"
 #include "keymix.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
 #include <pthread.h>
