@@ -210,9 +210,20 @@ cleanup:
         return encrypt_status;
 }
 
-int main(int argc, char **argv) {
-        unsigned int prog_status = 0;
+inline FILE *fopen_msg(char *resource, char *mode) {
+        FILE *fp = fopen(resource, mode);
+        if (!fp) {
+                ERROR_MSG("No such file: %s\n", resource);
+        }
+        return fp;
+};
 
+inline void safe_fclose(FILE *fp) {
+        if (fp)
+                fclose(fp);
+}
+
+int main(int argc, char **argv) {
         cli_args_t cli_args;
 
         argp_parse(&argp, argc, argv, 0, 0, &cli_args);
@@ -242,12 +253,10 @@ int main(int argc, char **argv) {
         }
 
         // prepare the streams
-        FILE *fstr_resource = fopen(cli_args.resource_path, "r");
-        if (fstr_resource == NULL) {
-                ERROR_MSG("Cannot open resource file\n");
-                prog_status = errno;
-                goto close_fstr_resource;
-        }
+        FILE *fstr_resource = fopen_msg(cli_args.resource_path, "r");
+        if (!fstr_resource)
+                goto cleanup;
+
         // remove the previously encrypted resource if it exists
         FILE *fstr_output = fopen(cli_args.output_path, "r");
         if (fstr_output != NULL) {
@@ -256,33 +265,29 @@ int main(int argc, char **argv) {
                         if (cli_args.verbose)
                                 printf("Previous encrypted resource correctly removed\n");
                 } else {
-                        printf("(!) Unable to delete the previously encrypted resource\n");
-                        prog_status = errno;
-                        goto close_fstr_secret;
+                        ERROR_MSG("Could not delete file: %s\n", cli_args.output_path);
+                        goto cleanup;
                 }
         }
         fstr_output = fopen(cli_args.output_path, "w");
-        if (fstr_output == NULL) {
-                printf("(!) Cannot open create encrypted file file\n");
-                prog_status = errno;
-                goto close_fstr_output;
-        }
-        FILE *fstr_secret = fopen(cli_args.secret_path, "r");
-        if (fstr_secret == NULL) {
-                printf("(!) Cannot open secret file\n");
-                prog_status = errno;
-                goto close_fstr_secret;
-        }
+        fstr_output = fopen_msg(cli_args.output_path, "w");
+        if (!fstr_output)
+                goto cleanup;
+
+        FILE *fstr_secret = fopen_msg(cli_args.secret_path, "r");
+        if (!fstr_secret)
+                goto cleanup;
+
         // encrypt
-        prog_status = do_encrypt(&cli_args, fstr_output, fstr_resource, fstr_secret);
-close_fstr_secret:
-        fclose(fstr_secret);
-close_fstr_output:
-        fclose(fstr_output);
-close_fstr_resource:
-        fclose(fstr_resource);
-clean_arguments:
-        explicit_bzero(cli_args.iv, SIZE_BLOCK);
+        int enc_err = do_encrypt(&cli_args, fstr_output, fstr_resource, fstr_secret);
+cleanup:
+        if (fstr_secret)
+                fclose(fstr_secret);
+        if (fstr_output)
+                fclose(fstr_output);
+        if (fstr_resource)
+                fclose(fstr_resource);
+        safe_explicit_bzero(cli_args.iv, SIZE_BLOCK);
         free(cli_args.iv);
-        exit(prog_status);
+        return errno || enc_err;
 }
