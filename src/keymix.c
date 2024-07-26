@@ -51,21 +51,15 @@ void *w_thread_keymix(void *a) {
                 // synchronized swap
                 sem_wait(args->sem_thread_can_work);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->id, l - 1);
-                mixing_config conf  = {args->mixctrpass, args->fanout};
-                thread_data thrdata = {
-                    .thread_id = args->id,
-                    // These ones are not used by spread_chunks_inplace
-                    // .thread_sem        = args->thread_sem,
-                    // .coord_sem         = args->coord_sem,
-                    // .in                = args->in,
-                    // .abs_in            = args->abs_in,
+                spread_inplace_chunks_t thrdata = {
+                    .thread_id         = args->id,
                     .out               = args->out,
                     .abs_out           = args->abs_out,
                     .seed_size         = args->total_size,
                     .thread_chunk_size = args->chunk_size,
                     .thread_levels     = args->thread_levels,
                     .total_levels      = args->total_levels,
-                    .mixconfig         = &conf,
+                    .fanout            = args->fanout,
                 };
                 spread_chunks_inplace(&thrdata, l);
 

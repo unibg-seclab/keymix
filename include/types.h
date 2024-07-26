@@ -26,20 +26,14 @@ typedef struct {
 
 typedef struct {
         uint8_t thread_id;
-        sem_t *thread_sem;
-        sem_t *coord_sem;
-        byte *in;
         byte *out;
-        byte *buf;
-        byte *abs_in;
         byte *abs_out;
-        byte *abs_buf;
         size_t seed_size;
         size_t thread_chunk_size;
         uint8_t thread_levels;
         uint8_t total_levels;
-        mixing_config *mixconfig;
-} thread_data;
+        uint8_t fanout;
+} spread_inplace_chunks_t;
 
 typedef struct {
         byte *out;

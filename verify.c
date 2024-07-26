@@ -40,8 +40,8 @@ byte *setup(size_t size, bool random) {
 inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 
 typedef struct {
-        void (*func)(thread_data *, uint8_t);
-        thread_data thr_data;
+        void (*func)(spread_inplace_chunks_t *, uint8_t);
+        spread_inplace_chunks_t thr_data;
         uint8_t level;
 } run_thr_t;
 
@@ -51,8 +51,8 @@ void *_run_thr(void *a) {
         return NULL;
 }
 
-void emulate_shuffle_chunks(void (*func)(thread_data *, uint8_t), byte *out, byte *in, size_t size,
-                            uint8_t level, uint8_t fanout, uint8_t nof_threads) {
+void emulate_shuffle_chunks(void (*func)(spread_inplace_chunks_t *, uint8_t), byte *out, byte *in,
+                            size_t size, uint8_t level, uint8_t fanout, uint8_t nof_threads) {
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
 
@@ -75,15 +75,13 @@ void emulate_shuffle_chunks(void (*func)(thread_data *, uint8_t), byte *out, byt
         for (uint8_t t = 0; t < nof_threads; t++) {
                 run_thr_t *arg = thread_args + t;
 
-                thread_data thr_data = {
+                spread_inplace_chunks_t thr_data = {
                     .thread_id         = t,
                     .out               = in + t * thread_chunk_size,
-                    .buf               = out + t * thread_chunk_size,
                     .abs_out           = in,
-                    .abs_buf           = out,
                     .seed_size         = size,
                     .thread_chunk_size = thread_chunk_size,
-                    .mixconfig         = &mconf,
+                    .fanout            = fanout,
                     .thread_levels     = 1 + thread_levels,
                     .total_levels      = 1 + level,
                 };

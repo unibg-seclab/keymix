@@ -147,26 +147,25 @@ void spread_inplace(byte *buffer, size_t size, uint8_t level, uint8_t fanout) {
 //
 // Note, this is using a different mixing behavior with respect to the Mix&Slice
 // shuffle.
-void spread_chunks_inplace(thread_data *args, uint8_t level) {
+void spread_chunks_inplace(spread_inplace_chunks_t *args, uint8_t level) {
         if (DEBUG)
                 assert(level >= args->thread_levels);
 
-        uint8_t fanout   = args->mixconfig->diff_factor;
-        size_t mini_size = SIZE_MACRO / fanout;
+        size_t mini_size = SIZE_MACRO / args->fanout;
 
-        uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
-        uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
+        uint64_t prev_macros_in_slab = intpow(args->fanout, level - 1);
+        uint64_t macros_in_slab      = args->fanout * prev_macros_in_slab;
         size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
         size_t slab_size             = macros_in_slab * SIZE_MACRO;
 
-        uint8_t nof_threads          = intpow(fanout, args->total_levels - args->thread_levels);
-        uint64_t nof_slabs           = args->seed_size / slab_size;
-        uint8_t nof_threads_per_slab = nof_threads / nof_slabs;
-        uint8_t prev_nof_threads_per_slab = nof_threads_per_slab / fanout;
+        uint8_t nof_threads = intpow(args->fanout, args->total_levels - args->thread_levels);
+        uint64_t nof_slabs  = args->seed_size / slab_size;
+        uint8_t nof_threads_per_slab      = nof_threads / nof_slabs;
+        uint8_t prev_nof_threads_per_slab = nof_threads_per_slab / args->fanout;
 
         uint8_t prev_slab;
         if (prev_nof_threads_per_slab <= 1) {
-                prev_slab = args->thread_id % fanout;
+                prev_slab = args->thread_id % args->fanout;
         } else {
                 prev_slab = (args->thread_id % nof_threads_per_slab) / prev_nof_threads_per_slab;
         }
@@ -175,7 +174,7 @@ void spread_chunks_inplace(thread_data *args, uint8_t level) {
         // prev_slab.
         // Note, this inevitably reduces the amount of parallelism we can
         // accomplish.
-        if (prev_slab == fanout - 1) {
+        if (prev_slab == args->fanout - 1) {
                 return;
         }
 
@@ -201,7 +200,7 @@ void spread_chunks_inplace(thread_data *args, uint8_t level) {
                 // the slab. Indeed, previous threads take care of them.
                 in_mini_offset += (prev_slab + 1) * mini_size;
                 out_mini_offset = (prev_slab + 1) * prev_slab_size; // + prev_slab * mini_size;
-                for (uint8_t mini = prev_slab + 1; mini < fanout; mini++) {
+                for (uint8_t mini = prev_slab + 1; mini < args->fanout; mini++) {
                         memswap(out + out_macro_offset + out_mini_offset, in + in_mini_offset,
                                 mini_size);
                         in_mini_offset += mini_size;
