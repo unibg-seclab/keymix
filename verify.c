@@ -7,12 +7,14 @@
 #include "aesni.h"
 #include "config.h"
 #include "keymix.h"
-#include "keymix_t.h"
+// #include "keymix_t.h"
 #include "log.h"
 #include "openssl.h"
 #include "types.h"
 #include "utils.h"
 #include "wolfssl.h"
+
+#include "enc.h"
 
 #define MIN_LEVEL 1
 #define MAX_LEVEL 9
@@ -278,7 +280,6 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
 
         byte *in         = setup(size, true);
-        byte *in_simple  = setup(size, false);
         byte *out_simple = setup(size, false);
         byte *out1       = setup(size, false);
         byte *out2_thr1  = setup(2 * size, 0);
@@ -291,19 +292,16 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         uint128_t iv             = rand() % (1 << sizeof(uint128_t));
         uint8_t internal_threads = 1;
 
-        // Note: Keymix T applies the IV, so we have to do that manually
-        // to the input of Keymix
-        for (size_t i = 0; i < size; i++) {
-                in_simple[i] = in[i];
-        }
-        *(uint128_t *)in_simple ^= iv;
-        keymix(in_simple, out_simple, size, &conf, 1);
-        keymix_t(in, size, out1, size, &conf, 1, internal_threads, iv);
+        keymix_ctx_t ctx;
+        ctx_keymix_init(&ctx, MIXCTRPASS_AESNI, in, size, fanout);
 
-        keymix_t(in, size, out2_thr1, 2 * size, &conf, 1, internal_threads, iv);
-        keymix_t(in, size, out2_thr2, 2 * size, &conf, 2, internal_threads, iv);
-        keymix_t(in, size, out3_thr1, 3 * size, &conf, 1, internal_threads, iv);
-        keymix_t(in, size, out3_thr2, 3 * size, &conf, 2, internal_threads, iv);
+        keymix(in, out_simple, size, &conf, 1);
+        keymix_t(&ctx, out1, size, 1, internal_threads);
+
+        keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);
+        keymix_t(&ctx, out2_thr2, 2 * size, 2, internal_threads);
+        keymix_t(&ctx, out3_thr1, 3 * size, 1, internal_threads);
+        keymix_t(&ctx, out3_thr2, 3 * size, 2, internal_threads);
 
         int err = 0;
         err += COMPARE(out_simple, out1, size, "Keymix T (x1, 1thr) != Keymix\n");
@@ -311,6 +309,7 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         err += COMPARE(out3_thr1, out3_thr2, size, "Keymix T (x3, 1thr) != Keymix T (x3, 2thr)\n");
 
         free(in);
+        free(out_simple);
         free(out1);
         free(out2_thr1);
         free(out2_thr2);

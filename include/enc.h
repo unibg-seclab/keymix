@@ -4,10 +4,10 @@
 #include "types.h"
 
 typedef enum {
-        DIFFUSION2 = 2,
-        DIFFUSION3 = 3,
-        DIFFUSION4 = 4,
-} diffusion_t;
+        FANOUT2 = 2,
+        FANOUT3 = 3,
+        FANOUT4 = 4,
+} fanout_t;
 
 typedef enum {
         MIXCTRPASS_WOLFSSL,
@@ -16,23 +16,23 @@ typedef enum {
 } mixctrpass_t;
 
 typedef struct {
-        byte *in;
-        byte *out;
-        size_t size;
-
-        byte *secret;
-        size_t secret_size;
+        byte *key;
+        size_t key_size;
 
         mixctrpass_impl_t mixctrpass;
-        diffusion_t diffusion;
+        fanout_t fanout;
+        uint128_t iv;
 
         bool encrypt;
 } keymix_ctx_t;
 
-void encrypt_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, size_t secret_size,
-                  byte *in, byte *out, size_t size, diffusion_t diffusion);
+void ctx_encrypt_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, size_t size,
+                      uint128_t iv, fanout_t fanout);
 
-void keymix_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, byte *out, size_t size,
-                 diffusion_t diffusion);
+void ctx_keymix_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, size_t size,
+                     fanout_t fanout);
+
+int keymix_t(keymix_ctx_t *ctx, byte *out, size_t out_size, uint8_t external_threads,
+             uint8_t internal_threads);
 
 #endif
