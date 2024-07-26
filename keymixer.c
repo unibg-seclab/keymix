@@ -141,7 +141,6 @@ arg_error:
 }
 
 int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FILE *fstr_secret) {
-
         // encrypt local config
         int encrypt_status    = 0;
         size_t size_threshold = SIZE_1MiB;
@@ -212,9 +211,8 @@ cleanup:
 
 inline FILE *fopen_msg(char *resource, char *mode) {
         FILE *fp = fopen(resource, mode);
-        if (!fp) {
+        if (!fp)
                 ERROR_MSG("No such file: %s\n", resource);
-        }
         return fp;
 };
 
@@ -253,27 +251,28 @@ int main(int argc, char **argv) {
         }
 
         // prepare the streams
-        FILE *fstr_resource = fopen_msg(cli_args.resource_path, "r");
-        if (!fstr_resource)
+        FILE *fin = fopen_msg(cli_args.resource_path, "r");
+        if (!fin)
                 goto cleanup;
 
-        FILE *fstr_output = fopen_msg(cli_args.output_path, "w");
-        if (!fstr_output)
+        FILE *fout = fopen_msg(cli_args.output_path, "w");
+        if (!fout)
                 goto cleanup;
 
-        FILE *fstr_secret = fopen_msg(cli_args.secret_path, "r");
-        if (!fstr_secret)
+        FILE *fkey = fopen_msg(cli_args.secret_path, "r");
+        if (!fkey)
                 goto cleanup;
 
         // encrypt
-        int enc_err = do_encrypt(&cli_args, fstr_output, fstr_resource, fstr_secret);
+        int enc_err = do_encrypt(&cli_args, fout, fin, fkey);
+
 cleanup:
-        if (fstr_secret)
-                fclose(fstr_secret);
-        if (fstr_output)
-                fclose(fstr_output);
-        if (fstr_resource)
-                fclose(fstr_resource);
+        if (fkey)
+                fclose(fkey);
+        if (fout)
+                fclose(fout);
+        if (fin)
+                fclose(fin);
         safe_explicit_bzero(cli_args.iv, SIZE_BLOCK);
         free(cli_args.iv);
         return errno || enc_err;
