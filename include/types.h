@@ -25,17 +25,6 @@ typedef struct {
 } mixing_config;
 
 typedef struct {
-        uint8_t thread_id;
-        byte *out;
-        byte *abs_out;
-        size_t seed_size;
-        size_t thread_chunk_size;
-        uint8_t thread_levels;
-        uint8_t total_levels;
-        uint8_t fanout;
-} spread_inplace_chunks_t;
-
-typedef struct {
         byte *out;
         byte *secret;
         size_t seed_size;

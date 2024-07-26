@@ -78,14 +78,14 @@ void emulate_spread_chunks_inplace(byte *buffer, size_t size, uint8_t level, uin
                 // thread, because GCC allocates only 1 thr_data and changes it
                 // instead of allocating 1 for every for.
                 spread_inplace_chunks_t thr_data = {
-                    .thread_id         = t,
-                    .out               = buffer + t * thread_chunk_size,
-                    .abs_out           = buffer,
-                    .seed_size         = size,
-                    .thread_chunk_size = thread_chunk_size,
-                    .fanout            = fanout,
-                    .thread_levels     = 1 + thread_levels,
-                    .total_levels      = 1 + level,
+                    .thread_id       = t,
+                    .buffer          = buffer + t * thread_chunk_size,
+                    .buffer_abs      = buffer,
+                    .buffer_abs_size = size,
+                    .buffer_size     = thread_chunk_size,
+                    .fanout          = fanout,
+                    .thread_levels   = 1 + thread_levels,
+                    .total_levels    = 1 + level,
                 };
 
                 arg->thr_data = thr_data;

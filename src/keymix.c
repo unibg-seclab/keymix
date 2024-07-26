@@ -52,14 +52,14 @@ void *w_thread_keymix(void *a) {
                 sem_wait(args->sem_thread_can_work);
                 _log(LOG_DEBUG, "thread %d sychronized swap, level %d\n", args->id, l - 1);
                 spread_inplace_chunks_t thrdata = {
-                    .thread_id         = args->id,
-                    .out               = args->out,
-                    .abs_out           = args->abs_out,
-                    .seed_size         = args->total_size,
-                    .thread_chunk_size = args->chunk_size,
-                    .thread_levels     = args->thread_levels,
-                    .total_levels      = args->total_levels,
-                    .fanout            = args->fanout,
+                    .thread_id       = args->id,
+                    .buffer          = args->out,
+                    .buffer_abs      = args->abs_out,
+                    .buffer_abs_size = args->total_size,
+                    .buffer_size     = args->chunk_size,
+                    .thread_levels   = args->thread_levels,
+                    .total_levels    = args->total_levels,
+                    .fanout          = args->fanout,
                 };
                 spread_chunks_inplace(&thrdata, l);
 
