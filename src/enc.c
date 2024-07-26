@@ -156,7 +156,7 @@ int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t
                 if (ctx->encrypt)
                         in += thread_size;
                 if (remaining_size > ctx->key_size)
-                        remaining_size -= ctx->key_size;
+                        remaining_size -= thread_size;
                 counter += thread_keys;
         }
 
