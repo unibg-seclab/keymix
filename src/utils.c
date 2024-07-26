@@ -75,6 +75,15 @@ inline void memxor(void *dst, void *src, size_t size) {
                 *d++ ^= *s++;
         }
 }
+inline void memxor_ex(void *dst, void *a, void *b, size_t size) {
+        byte *d  = (byte *)dst;
+        byte *s1 = (byte *)a;
+        byte *s2 = (byte *)b;
+
+        for (; size > 0; size--) {
+                *d++ = *s1++ ^ *s2++;
+        }
+}
 
 void memswap(byte *restrict a, byte *restrict b, size_t bytes) {
         byte *a_end = a + bytes;

@@ -49,6 +49,7 @@ byte *checked_malloc(size_t size);
 size_t get_file_size(FILE *fstr);
 void increment_counter(byte *macro, unsigned long step);
 void memxor(void *dst, void *src, size_t size);
+void memxor_ex(void *dst, void *a, void *b, size_t size);
 void safe_explicit_bzero(void *ptr, size_t size);
 uint8_t total_levels(size_t seed_size, uint8_t fanout);
 

@@ -41,7 +41,7 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, s
         ctx->encrypt    = false;
 }
 
-// ---------------------------------------------- Code implementation
+// ---------------------------------------------- Keymix internals
 
 typedef struct {
         keymix_ctx_t *ctx;
@@ -70,14 +70,25 @@ void *w_keymix(void *a) {
         // in a multithreaded environment, so we can't just overwrite the same
         // memory area while other threads are trying to read it and modify it
         // themselves
-        byte *buffer = malloc(ctx->key_size);
-        memcpy(buffer, ctx->key, ctx->key_size);
+        byte *tmpkey = malloc(ctx->key_size);
+        memcpy(tmpkey, ctx->key, ctx->key_size);
+
+        // If we are encrypting, then we have to consider one thing: the
+        // keymix always spits out a key_size, so what happens if we have
+        // a resource (or a piece of a resource) to encrypt that is smaller than the key?
+        // We write out of bounds. So, if we are encrypting, we have to save
+        // the result of keymix somewhere, and then do the xor only on the
+        // corresponding part.
+        byte *outbuffer = args->out;
+        if (ctx->encrypt) {
+                outbuffer = malloc(ctx->key_size);
+        }
 
         // The seed gets modified as follows
         // First block -> XOR with (unchanging) IV
         // Second block -> incremented
 
-        uint128_t *buffer_as_blocks = (uint128_t *)buffer;
+        uint128_t *buffer_as_blocks = (uint128_t *)tmpkey;
         if (ctx->encrypt) {
                 buffer_as_blocks[0] ^= ctx->iv;
                 buffer_as_blocks[1] += args->counter;
@@ -89,10 +100,10 @@ void *w_keymix(void *a) {
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
                 mixing_config conf = {ctx->mixctrpass, ctx->fanout};
-                keymix(buffer, out, ctx->key_size, &conf, args->internal_threads);
+                keymix(tmpkey, outbuffer, ctx->key_size, &conf, args->internal_threads);
 
                 if (ctx->encrypt) {
-                        memxor(out, in, MIN(remaining_size, ctx->key_size));
+                        memxor_ex(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
                         in += ctx->key_size;
                         buffer_as_blocks[1]++;
                 }
@@ -102,16 +113,14 @@ void *w_keymix(void *a) {
                         remaining_size -= ctx->key_size;
         }
 
-        free(buffer);
+        free(tmpkey);
+        if (ctx->encrypt)
+                free(outbuffer);
         return NULL;
 }
 
-// int keymix_ex(byte *seed, size_t seed_size, byte *in, byte *out, size_t size, mixing_config
-// *config,
-//               uint8_t num_threads, uint8_t internal_threads, uint128_t iv,
-//               uint128_t starting_counter) {
-int keymix_ex(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
-              uint8_t internal_threads, uint128_t starting_counter) {
+int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
+                    uint8_t internal_threads, uint128_t starting_counter) {
         pthread_t threads[external_threads];
         worker_args_t args[external_threads];
 
@@ -159,7 +168,30 @@ int keymix_ex(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t exter
 
         return 0;
 }
+
+// ---------------------------------------------- Principal interface
+
 int keymix_t(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads,
              uint8_t internal_threads) {
-        return keymix_ex(ctx, NULL, out, size, external_threads, internal_threads, 0);
+        return keymix_ex(ctx, out, size, external_threads, internal_threads, 0);
+}
+
+int keymix_ex(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads,
+              uint8_t internal_threads, uint128_t starting_counter) {
+        return keymix_internal(ctx, NULL, out, size, external_threads, internal_threads, 0);
+}
+
+int encrypt(keymix_ctx_t *ctx, byte *in, byte *out, size_t size) {
+        return encrypt_ex(ctx, in, out, size, 1, 1, 0);
+}
+
+int encrypt_t(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
+              uint8_t internal_threads) {
+        return encrypt_ex(ctx, in, out, size, external_threads, internal_threads, 0);
+}
+
+int encrypt_ex(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
+               uint8_t internal_threads, uint128_t starting_counter) {
+        return keymix_internal(ctx, in, out, size, external_threads, internal_threads,
+                               starting_counter);
 }
