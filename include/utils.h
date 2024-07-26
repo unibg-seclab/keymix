@@ -45,6 +45,7 @@
 #define LOGBASE(x, base) (round(log(x) / log(base)))
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
+mixctrpass_impl_t get_mixctr_impl(mixctrpass_t name);
 byte *checked_malloc(size_t size);
 void increment_counter(byte *macro, unsigned long step);
 void memxor(void *dst, void *src, size_t size);

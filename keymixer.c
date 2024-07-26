@@ -1,29 +1,19 @@
-#include "aesni.h"
 #include "config.h"
-#include "enc.h"
 #include "file.h"
 #include "keymix_seq.h"
-#include "openssl.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
 #include <argp.h>
-#include <errno.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
+
+#define ERROR_MSG(...) fprintf(stderr, __VA_ARGS__);
+
+// ------------------------------------------------------------------ Option definitions
 
 const char *argp_program_version     = "keymixer 1.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
-static char doc[]                    = "";
-static char args_doc[]               = ""; // no need to print a standard usage
-
-#define ERROR_MSG(...) fprintf(stderr, __VA_ARGS__);
 
 // The order for an argp_opption is
 // - long name
@@ -38,12 +28,18 @@ static struct argp_option options[] = {
     {"output", 'o', "PATH", 0, "Path of the output result", 1},
     {"secret", 's', "PATH", 0, "Path of the secret", 2},
     {"iv", 'i', "STRING", 0, "16-Byte initialization vector (hexadecimal format)", 3},
-    {"diffusion", 'd', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)", 4},
+    {"fanout", 'f', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)", 4},
     {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni", 5},
     {"threads", 't', "UINT", 0, "Number of threads available", 6},
     {"verbose", 'v', 0, 0, "Verbose mode", 7},
-    // {0},
 };
+
+error_t parse_opt(int, char *, struct argp_state *);
+
+static struct argp argp = {options, parse_opt, "",
+                           "keymixer -- a cli program to encrypt resources using large secrets"};
+
+// ------------------------------------------------------------------ Argument parsing
 
 inline bool is_hex_value(char c) {
         c = tolower(c);
@@ -54,20 +50,18 @@ inline bool is_valid_fanout(int value) {
         return value == FANOUT2 || value == FANOUT3 || value == FANOUT4;
 }
 
-static error_t parse_opt(int key, char *arg, struct argp_state *state) {
-        struct arguments *arguments = state->input;
+error_t parse_opt(int key, char *arg, struct argp_state *state) {
+        cli_args_t *arguments = state->input;
         switch (key) {
         case ARGP_KEY_INIT:
-                /* initialize struct args */
                 arguments->resource_path = NULL;
                 arguments->output_path   = NULL;
                 arguments->secret_path   = NULL;
                 arguments->iv            = NULL;
-                arguments->diffusion     = 3;
-                arguments->mixfunc       = &wolfssl;
+                arguments->fanout        = 3;
+                arguments->mixfunc       = MIXCTRPASS_WOLFSSL;
                 arguments->threads       = 1;
                 arguments->verbose       = 0;
-                arguments->mixfunc_descr = "wolfssl";
                 break;
         case 'r':
                 arguments->resource_path = arg;
@@ -97,23 +91,15 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 }
                 break;
         case 'd':
-                arguments->diffusion = atoi(arg);
-                if (!is_valid_fanout(arguments->diffusion)) {
+                arguments->fanout = atoi(arg);
+                if (!is_valid_fanout(arguments->fanout)) {
                         ERROR_MSG("Invalid fanout, valid values are 2, 3, or 4\n");
                         goto arg_error;
                 }
                 break;
         case 'l':
-                if (strcmp(arg, "wolfssl") == 0) {
-                        arguments->mixfunc       = &wolfssl;
-                        arguments->mixfunc_descr = "wolfssl";
-                } else if (strcmp(arg, "openssl") == 0) {
-                        arguments->mixfunc       = &openssl;
-                        arguments->mixfunc_descr = "openssl";
-                } else if (strcmp(arg, "aesni") == 0) {
-                        arguments->mixfunc       = &aesni;
-                        arguments->mixfunc_descr = "aesni";
-                } else {
+                arguments->mixfunc = mixctr_from_str(arg);
+                if (arguments->mixfunc == -1) {
                         ERROR_MSG("Invalid LIBRARY -- choose among wolfssl, openssl, aesni\n");
                         goto arg_error;
                 }
@@ -154,11 +140,7 @@ arg_error:
         exit(ERR_ARGP);
 }
 
-static struct argp argp = {options, parse_opt, "",
-                           "keymixer -- a cli program to encrypt resources using large secrets"};
-
-int do_encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resource,
-               FILE *fstr_secret) {
+int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FILE *fstr_secret) {
 
         // encrypt local config
         int encrypt_status    = 0;
@@ -182,12 +164,11 @@ int do_encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resour
                 goto cleanup;
 
         // determine the encryption mode
-        int (*mixseqfunc)(struct arguments *, FILE *, FILE *, size_t, size_t, byte *, size_t) =
-            NULL;
-        char *description = NULL;
-        unsigned int pow  = arguments->diffusion;
-        while (pow * arguments->diffusion <= arguments->threads)
-                pow *= arguments->diffusion;
+        int (*mixseqfunc)(cli_args_t *, FILE *, FILE *, size_t, size_t, byte *, size_t) = NULL;
+        char *description                                                               = NULL;
+        unsigned int pow = arguments->fanout;
+        while (pow * arguments->fanout <= arguments->threads)
+                pow *= arguments->fanout;
         if (arguments->threads == 1) {
                 // 1 core -> single-threaded
                 mixseqfunc  = &keymix_seq;
@@ -230,34 +211,49 @@ cleanup:
 }
 
 int main(int argc, char **argv) {
-
         unsigned int prog_status = 0;
-        // parse and check the arguments
-        struct arguments arguments;
-        argp_parse(&argp, argc, argv, 0, 0, &arguments);
-        if (arguments.verbose) {
+
+        cli_args_t cli_args;
+
+        argp_parse(&argp, argc, argv, 0, 0, &cli_args);
+        if (cli_args.verbose) {
                 printf("===============\n");
                 printf("KEYMIXER CONFIG\n");
                 printf("===============\n");
-                printf("resource:\t%s\noutput:\t\t%s\nsecret:\t\t%s\n", arguments.resource_path,
-                       arguments.output_path, arguments.secret_path);
-                printf("iv:\t\t%s\ndiffusion:\t%d\nlibrary:\t%s\nthreads:\t%d\n", arguments.iv,
-                       arguments.diffusion, arguments.mixfunc_descr, arguments.threads);
+                printf("resource: %s\n", cli_args.resource_path);
+                printf("output:   %s\n", cli_args.output_path);
+                printf("secret:   %s\n", cli_args.secret_path);
+                printf("iv:       [redacted]\n");
+                printf("aes impl: ");
+                switch (cli_args.mixfunc) {
+                case MIXCTRPASS_WOLFSSL:
+                        printf("woflssl\n");
+                        break;
+                case MIXCTRPASS_OPENSSL:
+                        printf("openssl\n");
+                        break;
+                case MIXCTRPASS_AESNI:
+                        printf("aesni\n");
+                        break;
+                }
+                printf("fanout:   %d\n", cli_args.fanout);
+                printf("threads:  %d\n", cli_args.threads);
                 printf("===============\n");
         }
+
         // prepare the streams
-        FILE *fstr_resource = fopen(arguments.resource_path, "r");
+        FILE *fstr_resource = fopen(cli_args.resource_path, "r");
         if (fstr_resource == NULL) {
-                printf("(!) Cannot open resource file\n");
+                ERROR_MSG("Cannot open resource file\n");
                 prog_status = errno;
                 goto close_fstr_resource;
         }
         // remove the previously encrypted resource if it exists
-        FILE *fstr_output = fopen(arguments.output_path, "r");
+        FILE *fstr_output = fopen(cli_args.output_path, "r");
         if (fstr_output != NULL) {
                 fclose(fstr_output);
-                if (remove(arguments.output_path) == 0) {
-                        if (arguments.verbose)
+                if (remove(cli_args.output_path) == 0) {
+                        if (cli_args.verbose)
                                 printf("Previous encrypted resource correctly removed\n");
                 } else {
                         printf("(!) Unable to delete the previously encrypted resource\n");
@@ -265,20 +261,20 @@ int main(int argc, char **argv) {
                         goto close_fstr_secret;
                 }
         }
-        fstr_output = fopen(arguments.output_path, "w");
+        fstr_output = fopen(cli_args.output_path, "w");
         if (fstr_output == NULL) {
                 printf("(!) Cannot open create encrypted file file\n");
                 prog_status = errno;
                 goto close_fstr_output;
         }
-        FILE *fstr_secret = fopen(arguments.secret_path, "r");
+        FILE *fstr_secret = fopen(cli_args.secret_path, "r");
         if (fstr_secret == NULL) {
                 printf("(!) Cannot open secret file\n");
                 prog_status = errno;
                 goto close_fstr_secret;
         }
         // encrypt
-        prog_status = do_encrypt(&arguments, fstr_output, fstr_resource, fstr_secret);
+        prog_status = do_encrypt(&cli_args, fstr_output, fstr_resource, fstr_secret);
 close_fstr_secret:
         fclose(fstr_secret);
 close_fstr_output:
@@ -286,7 +282,7 @@ close_fstr_output:
 close_fstr_resource:
         fclose(fstr_resource);
 clean_arguments:
-        explicit_bzero(arguments.iv, SIZE_BLOCK);
-        free(arguments.iv);
+        explicit_bzero(cli_args.iv, SIZE_BLOCK);
+        free(cli_args.iv);
         exit(prog_status);
 }

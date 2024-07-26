@@ -3,18 +3,6 @@
 
 #include "types.h"
 
-typedef enum {
-        FANOUT2 = 2,
-        FANOUT3 = 3,
-        FANOUT4 = 4,
-} fanout_t;
-
-typedef enum {
-        MIXCTRPASS_WOLFSSL,
-        MIXCTRPASS_OPENSSL,
-        MIXCTRPASS_AESNI,
-} mixctrpass_t;
-
 typedef struct {
         byte *key;
         size_t key_size;

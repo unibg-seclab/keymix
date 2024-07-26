@@ -66,7 +66,7 @@ clean_write:
         return write_status;
 }
 
-int keymix_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource, size_t page_size,
+int keymix_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource, size_t page_size,
                size_t resource_size, byte *secret, size_t secret_size) {
 
         int status = 0;
@@ -75,7 +75,7 @@ int keymix_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource,
         if (config->verbose)
                 printf("epochs:\t\t%ld\n", epochs);
         // set the mixing function
-        mixing_config mix_conf = {config->mixfunc, config->diffusion};
+        mixing_config mix_conf = {get_mixctr_impl(config->mixfunc), config->fanout};
         // prepare the memory
         byte *out = checked_malloc(secret_size);
         // apply the iv (16 bytes) to the first seed block
@@ -87,7 +87,8 @@ int keymix_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource,
                 // apply the counter
                 if (e != 0)
                         increment_counter(secret, 1);
-                status = keymix(config->mixfunc, secret, out, secret_size, config->diffusion, 1);
+                status = keymix(get_mixctr_impl(config->mixfunc), secret, out, secret_size,
+                                config->fanout, 1);
                 if (status != 0)
                         break; // stop and fail
                 // shorten the resource in the last epoch if
@@ -123,8 +124,8 @@ thread_exit:
         pthread_exit(err);
 }
 
-int keymix_inter_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource,
-                     size_t page_size, size_t resource_size, byte *secret, size_t secret_size) {
+int keymix_inter_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource, size_t page_size,
+                     size_t resource_size, byte *secret, size_t secret_size) {
 
         int status = 0;
 
@@ -139,7 +140,7 @@ int keymix_inter_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_res
                 memcpy(secrets + secret_size * t, secret, secret_size);
         }
         // set the mixing config
-        mixing_config mix_conf = {config->mixfunc, config->diffusion};
+        mixing_config mix_conf = {get_mixctr_impl(config->mixfunc), config->fanout};
         // prepare inter threads data
         inter_keymix_data args[config->threads];
         for (unsigned int t = 0; t < config->threads; t++) {
@@ -209,8 +210,8 @@ cleanup:
         return status;
 }
 
-int keymix_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource,
-                     size_t page_size, size_t resource_size, byte *secret, size_t secret_size) {
+int keymix_intra_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource, size_t page_size,
+                     size_t resource_size, byte *secret, size_t secret_size) {
 
         int status = 0;
 
@@ -218,7 +219,7 @@ int keymix_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_res
         if (config->verbose)
                 printf("epochs:\t\t%ld\n", epochs);
         // set the mixing function
-        mixing_config mix_conf = {config->mixfunc, config->diffusion};
+        mixing_config mix_conf = {get_mixctr_impl(config->mixfunc), config->fanout};
         // prepare the memory
         byte *out = checked_malloc(secret_size);
         // apply the iv (16 bytes) to the first seed block
@@ -230,8 +231,8 @@ int keymix_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_res
                 // apply the counter
                 if (e != 0)
                         increment_counter(secret, 1);
-                status = keymix(config->mixfunc, secret, out, secret_size, config->diffusion,
-                                config->threads);
+                status = keymix(get_mixctr_impl(config->mixfunc), secret, out, secret_size,
+                                config->fanout, config->threads);
                 if (status != 0)
                         break; // stop and fail
                 // shorten the resource in the last epoch if
@@ -267,16 +268,16 @@ thread_exit:
         pthread_exit(err);
 }
 
-int keymix_inter_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fstr_resource,
+int keymix_inter_intra_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource,
                            size_t page_size, size_t resource_size, byte *secret,
                            size_t secret_size) {
 
         int status = 0;
 
         // thread groups
-        unsigned int pow = config->diffusion;
-        while (pow * config->diffusion <= config->threads)
-                pow *= config->diffusion;
+        unsigned int pow = config->fanout;
+        while (pow * config->fanout <= config->threads)
+                pow *= config->fanout;
         unsigned int thread_groups = config->threads / pow;
 
         // determine the numer of runs
@@ -290,7 +291,7 @@ int keymix_inter_intra_seq(struct arguments *config, FILE *fstr_output, FILE *fs
                 memcpy(secrets + secret_size * t, secret, secret_size);
         }
         // set the mixing config
-        mixing_config mix_conf = {config->mixfunc, config->diffusion};
+        mixing_config mix_conf = {get_mixctr_impl(config->mixfunc), config->fanout};
         // prepare inter threads data
         inter_intra_keymix_data args[thread_groups];
         for (unsigned int t = 0; t < thread_groups; t++) {

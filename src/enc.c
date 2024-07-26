@@ -1,28 +1,14 @@
 #include "enc.h"
 
-#include "aesni.h"
 #include "assert.h"
 #include "keymix.h"
-#include "openssl.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
 // ---------------------------------------------- Context init
-
-inline mixctrpass_impl_t get_impl(mixctrpass_t name) {
-        switch (name) {
-        case MIXCTRPASS_WOLFSSL:
-                return &wolfssl;
-        case MIXCTRPASS_OPENSSL:
-                return &openssl;
-        case MIXCTRPASS_AESNI:
-                return &aesni;
-        }
-}
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *key, size_t size,
                       uint128_t iv, fanout_t fanout) {
@@ -36,7 +22,7 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, s
         ctx->key      = secret;
         ctx->key_size = size;
 
-        ctx->mixctrpass = get_impl(mixctrpass);
+        ctx->mixctrpass = get_mixctr_impl(mixctrpass);
         ctx->fanout     = diffusion;
         ctx->encrypt    = false;
 }
