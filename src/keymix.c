@@ -6,7 +6,6 @@
 #include "types.h"
 #include "utils.h"
 #include <pthread.h>
-#include <semaphore.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -21,8 +20,6 @@ typedef struct {
 
 typedef struct {
         uint8_t id;
-        sem_t *sem_thread_can_work;
-        sem_t *sem_done;
         byte *in;
         byte *out;
         byte *abs_out;
@@ -126,17 +123,11 @@ void keymix_inner(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t si
 
 void *w_thread_keymix(void *a) {
         thr_keymix_t *args = (thr_keymix_t *)a;
+        int8_t nof_threads = args->total_size / args->chunk_size;
 
         // No need to sync among other threads here
         keymix_inner(args->mixctrpass, args->in, args->out, args->chunk_size, args->fanout,
                      args->thread_levels);
-
-        // notify the main thread to start the remaining levels
-        _log(LOG_DEBUG, "thread %d finished the thread-layers\n", args->id);
-        if (args->thread_levels != args->total_levels) {
-                sem_post(args->sem_done);
-        }
-        int8_t nof_threads = args->total_size / args->chunk_size;
 
         _log(LOG_DEBUG, "thread %d finished the layers without coordination\n", args->id);
 
@@ -225,13 +216,11 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size
         }
 
         for (uint8_t t = 0; t < nof_threads; t++) {
-                thr_keymix_t *a        = args + t;
-                a->id                  = t;
-                a->sem_thread_can_work = malloc(sizeof(sem_t));
-                a->sem_done            = malloc(sizeof(sem_t));
-                a->in                  = seed + t * thread_chunk_size;
-                a->out                 = out + t * thread_chunk_size;
-                a->barrier             = &barrier;
+                thr_keymix_t *a = args + t;
+                a->id           = t;
+                a->in           = seed + t * thread_chunk_size;
+                a->out          = out + t * thread_chunk_size;
+                a->barrier      = &barrier;
 
                 a->abs_out = out;
 
@@ -241,9 +230,6 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size
                 a->total_levels  = levels;
                 a->mixctrpass    = mixctrpass;
                 a->fanout        = fanout;
-
-                sem_init(args[t].sem_thread_can_work, 0, 0);
-                sem_init(args[t].sem_done, 0, 0);
 
                 pthread_create(&threads[t], NULL, w_thread_keymix, a);
         }
@@ -261,8 +247,8 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size
 cleanup:
         _log(LOG_DEBUG, "[i] safe obj destruction\n");
         err = barrier_destroy(&barrier);
-        if (err) {
+        if (err)
                 _log(LOG_ERROR, "barrier_destroy error %d\n", err);
-        }
+
         return err;
 }
