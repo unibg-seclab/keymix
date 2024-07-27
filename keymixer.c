@@ -123,8 +123,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'v':
                 arguments->verbose = 1;
                 break;
-        case ARGP_KEY_NO_ARGS:
-                break;
         case ARGP_KEY_END:
                 missing = 0;
                 missing += check_missing(arguments->resource_path, "resource");
@@ -135,7 +133,7 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         goto arg_error;
                 break;
         case ARGP_KEY_FINI:
-                break;
+        case ARGP_KEY_NO_ARGS:
         case ARGP_KEY_SUCCESS:
                 break;
         default:
@@ -256,16 +254,10 @@ int main(int argc, char **argv) {
         }
 
         // prepare the streams
-        FILE *fin = fopen_msg(cli_args.resource_path, "r");
-        if (!fin)
-                goto cleanup;
-
+        FILE *fin  = fopen_msg(cli_args.resource_path, "r");
         FILE *fout = fopen_msg(cli_args.output_path, "w");
-        if (!fout)
-                goto cleanup;
-
         FILE *fkey = fopen_msg(cli_args.secret_path, "r");
-        if (!fkey)
+        if (!fin || !fout || !fkey)
                 goto cleanup;
 
         // encrypt
