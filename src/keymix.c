@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "log.h"
+#include "spread.h"
 #include "types.h"
 #include "utils.h"
 #include <pthread.h>
@@ -25,11 +26,16 @@ typedef struct {
         barrier_status *barrier;
 } thr_keymix_t;
 
+inline uint8_t total_levels(size_t seed_size, uint8_t diff_factor) {
+        uint64_t nof_macros = seed_size / SIZE_MACRO;
+        return 1 + LOGBASE(nof_macros, diff_factor);
+}
+
 void keymix_inner(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t size, uint8_t fanout,
                   uint8_t levels) {
         (*mixctrpass)(seed, out, size);
         for (uint8_t l = 1; l < levels; l++) {
-                spread_inplace(out, size, l, fanout);
+                spread(out, size, l, fanout);
                 (*mixctrpass)(out, out, size);
         }
 }
@@ -61,7 +67,7 @@ void *w_thread_keymix(void *a) {
                 }
 
                 _log(LOG_DEBUG, "thread %d: sychronized swap (level %d)\n", args->id, l - 1);
-                spread_inplace_chunks_t thrdata = {
+                spread_chunks_args_t thrdata = {
                     .thread_id       = args->id,
                     .buffer          = args->out,
                     .buffer_abs      = args->abs_out,
@@ -71,7 +77,7 @@ void *w_thread_keymix(void *a) {
                     .total_levels    = args->total_levels,
                     .fanout          = args->fanout,
                 };
-                spread_chunks_inplace(&thrdata, l);
+                spread_chunks(&thrdata, l);
 
                 // Wait for all threads to finish the swap step
                 err = barrier(args->barrier, nof_threads);

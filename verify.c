@@ -5,13 +5,13 @@
 #include <string.h>
 
 #include "config.h"
+#include "enc.h"
 #include "keymix.h"
 #include "log.h"
 #include "mixctr.h"
+#include "spread.h"
 #include "types.h"
 #include "utils.h"
-
-#include "enc.h"
 
 #define MIN_LEVEL 1
 #define MAX_LEVEL 9
@@ -37,18 +37,18 @@ byte *setup(size_t size, bool random) {
 inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 
 typedef struct {
-        spread_inplace_chunks_t thr_data;
+        spread_chunks_args_t thr_data;
         uint8_t level;
 } run_thr_t;
 
 void *_run_thr(void *a) {
         run_thr_t *arg = (run_thr_t *)a;
-        spread_chunks_inplace(&(arg->thr_data), arg->level);
+        spread_chunks(&(arg->thr_data), arg->level);
         return NULL;
 }
 
-void emulate_spread_chunks_inplace(byte *buffer, size_t size, uint8_t level, uint8_t fanout,
-                                   uint8_t nof_threads) {
+void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fanout,
+                           uint8_t nof_threads) {
         if (nof_threads > (size / SIZE_MACRO))
                 nof_threads = fanout;
 
@@ -74,7 +74,7 @@ void emulate_spread_chunks_inplace(byte *buffer, size_t size, uint8_t level, uin
                 // Note: this must remain not a pointer when passed into the
                 // thread, because GCC allocates only 1 thr_data and changes it
                 // instead of allocating 1 for every for.
-                spread_inplace_chunks_t thr_data = {
+                spread_chunks_args_t thr_data = {
                     .thread_id       = t,
                     .buffer          = buffer + t * thread_chunk_size,
                     .buffer_abs      = buffer,
@@ -119,11 +119,10 @@ int verify_shuffles(size_t fanout, uint8_t level) {
                 memcpy(out_spread, in, size);
                 memcpy(out_spread_chunks, in, size);
 
-                spread_inplace(out_spread, size, l, fanout);
+                spread(out_spread, size, l, fanout);
 
                 if (is_shuffle_chunks_level) {
-                        emulate_spread_chunks_inplace(out_spread_chunks, size, l, fanout,
-                                                      nof_threads);
+                        emulate_spread_chunks(out_spread_chunks, size, l, fanout, nof_threads);
 
                         err += COMPARE(out_spread, out_spread_chunks, size,
                                        "Spread (inplace) != spread (chunks inplace)\n");
@@ -163,11 +162,11 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
         memcpy(out1, in, size);
         memcpy(out2, in, size);
         memcpy(out3, in, size);
-        // Note, we are not testing spread_chunks_inplace with one thread because it is meant to be
+        // Note, we are not testing spread_chunks with one thread because it is meant to be
         // used only with multiple threads
-        spread_inplace(out1, size, level, fanout);
-        emulate_spread_chunks_inplace(out2, size, level, fanout, fanout);
-        emulate_spread_chunks_inplace(out3, size, level, fanout, fanout * fanout);
+        spread(out1, size, level, fanout);
+        emulate_spread_chunks(out2, size, level, fanout, fanout);
+        emulate_spread_chunks(out3, size, level, fanout, fanout * fanout);
 
         int err = 0;
 
