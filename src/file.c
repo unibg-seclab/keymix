@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "utils.h"
+#include <unistd.h>
 
 size_t get_file_size(FILE *fp) {
         if (fp == NULL)
@@ -20,22 +21,6 @@ size_t get_file_size(FILE *fp) {
                 return 0;
 
         return (size_t)res;
-}
-
-int paged_storage_read(byte *dst, FILE *fp, size_t file_size, size_t page_size) {
-        size_t nof_pages = file_size / page_size;
-        size_t remainder = file_size % page_size;
-
-        // read the pages
-        for (; nof_pages > 0; nof_pages--) {
-                if (1 != fread(dst, page_size, 1, fp))
-                        return ERR_FREAD;
-        }
-        // read the remainder (bytes)
-        if (remainder != fread(dst, 1, remainder, fp))
-                return ERR_FREAD;
-
-        return 0;
 }
 
 // Writes to fstr_output the encrypted resource. The function can be

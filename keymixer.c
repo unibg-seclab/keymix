@@ -50,8 +50,17 @@ inline bool is_valid_fanout(int value) {
         return value == FANOUT2 || value == FANOUT3 || value == FANOUT4;
 }
 
+inline int check_missing(void *arg, char *name) {
+        if (arg == NULL) {
+                fprintf(stderr, "Argument required: %s\n", name);
+                return 1;
+        }
+        return 0;
+}
+
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
         cli_args_t *arguments = state->input;
+        int missing           = 0;
         switch (key) {
         case ARGP_KEY_INIT:
                 arguments->resource_path = NULL;
@@ -117,12 +126,13 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARGP_KEY_NO_ARGS:
                 break;
         case ARGP_KEY_END:
-                if (arguments->resource_path == NULL || arguments->output_path == NULL ||
-                    arguments->secret_path == NULL || arguments->iv == NULL) {
-                        ERROR_MSG(
-                            "Missing arguments: resource, output, secret, and iv are mandatory\n");
+                missing = 0;
+                missing += check_missing(arguments->resource_path, "resource");
+                missing += check_missing(arguments->output_path, "output");
+                missing += check_missing(arguments->secret_path, "secret");
+                missing += check_missing(arguments->iv, "iv");
+                if (missing > 0)
                         goto arg_error;
-                }
                 break;
         case ARGP_KEY_FINI:
                 break;
@@ -142,7 +152,7 @@ arg_error:
 
 int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FILE *fstr_secret) {
         // encrypt local config
-        int encrypt_status    = 0;
+        int err               = 0;
         size_t size_threshold = SIZE_1MiB;
 
         // get the size of the secret and the resource
@@ -153,13 +163,10 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
                        secret_size);
         }
 
-        // get the size of storage pages
-        int page_size = getpagesize();
-
         // read the secret
-        byte *secret   = checked_malloc(secret_size);
-        encrypt_status = paged_storage_read(secret, fstr_secret, secret_size, page_size);
-        if (encrypt_status != 0)
+        byte *secret = checked_malloc(secret_size);
+        size_t read  = fread(secret, secret_size, 1, fstr_secret);
+        if (read != 1)
                 goto cleanup;
 
         // determine the encryption mode
@@ -193,20 +200,20 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
         // keymix
         if (mixseqfunc == NULL) {
                 printf("No suitable encryption mode found\n");
-                encrypt_status = ERR_MODE;
+                err = ERR_MODE;
                 goto cleanup;
         }
         if (arguments->verbose)
                 printf("%s\n", description);
-        encrypt_status = (*(mixseqfunc))(arguments, fstr_output, fstr_resource, page_size,
-                                         resource_size, secret, secret_size);
-        if (encrypt_status != 0)
+        err = (*(mixseqfunc))(arguments, fstr_output, fstr_resource, getpagesize(), resource_size,
+                              secret, secret_size);
+        if (err != 0)
                 goto cleanup;
 
 cleanup:
         explicit_bzero(secret, secret_size);
         free(secret);
-        return encrypt_status;
+        return err;
 }
 
 FILE *fopen_msg(char *resource, char *mode) {
