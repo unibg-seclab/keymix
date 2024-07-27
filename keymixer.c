@@ -139,7 +139,7 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARGP_KEY_SUCCESS:
                 break;
         default:
-                printf("Unrecognized input argument [%s] for key [%x]\n", arg, key);
+                ERROR_MSG("Unrecognized input argument [%s] for key [%x]\n", arg, key);
                 goto arg_error;
         }
         return 0;
@@ -197,7 +197,7 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
 
         // keymix
         if (mixseqfunc == NULL) {
-                printf("No suitable encryption mode found\n");
+                ERROR_MSG("No suitable encryption mode found\n");
                 err = ERR_MODE;
                 goto cleanup;
         }
