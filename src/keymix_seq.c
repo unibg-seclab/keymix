@@ -5,67 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "file.h"
 #include "keymix.h"
 #include "log.h"
 #include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-
-// Writes to fstr_output the encrypted resource. The function can be
-// simplified by reading and writing all the bytes with a single
-// operation, however, that might fail on platforms where size_t is
-// not large enough to store the size of min(resource_size,
-// seed_size).  It seems there is no observable difference (in terms
-// of performance) between using machine specific page-size vs reading
-// the whole resource at once. mmap() as an alternative for fread()
-// has been considered, again, apparently no particular performance
-// difference for seeds larger than 10MiB.
-int write_ctx_to_storage(FILE *fstr_output, FILE *fstr_resource, size_t resource_size, byte *out,
-                         size_t seed_size, size_t page_size) {
-
-        int write_status = 0;
-
-        size_t min_size  = MIN(resource_size, seed_size);
-        size_t nof_pages = min_size / page_size;
-        size_t remainder = min_size % page_size;
-
-        // fwrite is slower than fread, so xor is done in memory using
-        // a temporary buffer (in the future we can avoid reallocating
-        // this buffer for every T, T+1, ...)
-        byte *resource_page = checked_malloc(page_size);
-        size_t offset       = 0;
-        for (; nof_pages > 0; nof_pages--) {
-                // read the resource
-                if (1 != fread(resource_page, page_size, 1, fstr_resource)) {
-                        write_status = ERR_FREAD;
-                        goto clean_write;
-                }
-                // xor the resource with the mixed key
-                memxor(out + offset, resource_page, page_size);
-                // write thre result to fstr_encrypted
-                if (1 != fwrite(out + offset, page_size, 1, fstr_output)) {
-                        write_status = ERR_FWRITE;
-                        goto clean_write;
-                }
-                offset += page_size;
-        }
-        // do the previous operations for the remainder of the
-        // resource (when the tail is smaller than the seed_size)
-        if (remainder != fread(resource_page, 1, remainder, fstr_resource)) {
-                write_status = ERR_FREAD;
-                goto clean_write;
-        }
-        memxor(out + offset, resource_page, remainder);
-        if (remainder != fwrite(out + offset, 1, remainder, fstr_output)) {
-                write_status = ERR_FWRITE;
-                goto clean_write;
-        }
-
-clean_write:
-        explicit_bzero(resource_page, page_size);
-        free(resource_page);
-        return write_status;
-}
 
 int keymix_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource, size_t page_size,
                size_t resource_size, byte *secret, size_t secret_size) {
@@ -99,8 +44,8 @@ int keymix_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource, size_
                         resource_size = resource_size % secret_size;
                 }
                 // write to storage out xor resource
-                status = write_ctx_to_storage(fstr_output, fstr_resource, resource_size, out,
-                                              secret_size, page_size);
+                status = paged_storage_write(fstr_output, fstr_resource, resource_size, out,
+                                             secret_size, page_size);
         }
 
 cleanup:
@@ -199,8 +144,8 @@ int keymix_inter_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource,
                                 writable_size = resource_size % secret_size;
                         }
                         _log(LOG_DEBUG, "writable_size %lu\n", writable_size);
-                        status = write_ctx_to_storage(fstr_output, fstr_resource, writable_size,
-                                                      args[t].out, secret_size, page_size);
+                        status = paged_storage_write(fstr_output, fstr_resource, writable_size,
+                                                     args[t].out, secret_size, page_size);
                 }
         }
 cleanup:
@@ -243,8 +188,8 @@ int keymix_intra_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource,
                         resource_size = resource_size % secret_size;
                 }
                 // write to storage out xor resource
-                status = write_ctx_to_storage(fstr_output, fstr_resource, resource_size, out,
-                                              secret_size, page_size);
+                status = paged_storage_write(fstr_output, fstr_resource, resource_size, out,
+                                             secret_size, page_size);
         }
 
 cleanup:
@@ -350,8 +295,8 @@ int keymix_inter_intra_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_res
                                 writable_size = resource_size % secret_size;
                         }
                         _log(LOG_DEBUG, "writable_size %lu\n", writable_size);
-                        status = write_ctx_to_storage(fstr_output, fstr_resource, writable_size,
-                                                      args[t].out, secret_size, page_size);
+                        status = paged_storage_write(fstr_output, fstr_resource, writable_size,
+                                                     args[t].out, secret_size, page_size);
                 }
         }
 cleanup:
