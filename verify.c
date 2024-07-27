@@ -36,14 +36,8 @@ byte *setup(size_t size, bool random) {
 
 inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 
-typedef struct {
-        spread_chunks_args_t thr_data;
-        uint8_t level;
-} run_thr_t;
-
-void *_run_thr(void *a) {
-        run_thr_t *arg = (run_thr_t *)a;
-        spread_chunks(&(arg->thr_data), arg->level);
+void *_run_thr(void *arg) {
+        spread_chunks((spread_chunks_args_t *)arg);
         return NULL;
 }
 
@@ -57,7 +51,7 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fan
                                                                       // fanout
 
         pthread_t threads[nof_threads];
-        run_thr_t thread_args[nof_threads];
+        spread_chunks_args_t thread_args[nof_threads];
 
         size_t thread_chunk_size = size / nof_threads;
 
@@ -69,24 +63,17 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fan
         mixing_config mconf = {NULL, fanout};
 
         for (uint8_t t = 0; t < nof_threads; t++) {
-                run_thr_t *arg = thread_args + t;
+                spread_chunks_args_t *arg = thread_args + t;
 
-                // Note: this must remain not a pointer when passed into the
-                // thread, because GCC allocates only 1 thr_data and changes it
-                // instead of allocating 1 for every for.
-                spread_chunks_args_t thr_data = {
-                    .thread_id       = t,
-                    .buffer          = buffer + t * thread_chunk_size,
-                    .buffer_abs      = buffer,
-                    .buffer_abs_size = size,
-                    .buffer_size     = thread_chunk_size,
-                    .fanout          = fanout,
-                    .thread_levels   = 1 + thread_levels,
-                    .total_levels    = 1 + level,
-                };
-
-                arg->thr_data = thr_data;
-                arg->level    = level;
+                arg->thread_id       = t;
+                arg->buffer          = buffer + t * thread_chunk_size;
+                arg->buffer_abs      = buffer;
+                arg->buffer_abs_size = size;
+                arg->buffer_size     = thread_chunk_size;
+                arg->fanout          = fanout;
+                arg->thread_levels   = 1 + thread_levels;
+                arg->total_levels    = 1 + level;
+                arg->level           = level;
 
                 pthread_create(&threads[t], NULL, _run_thr, arg);
         }

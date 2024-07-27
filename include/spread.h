@@ -15,10 +15,11 @@ typedef struct {
         uint8_t thread_levels;
         uint8_t total_levels;
         uint8_t fanout;
+        uint8_t level;
 } spread_chunks_args_t;
 
 void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout);
 
-void spread_chunks(spread_chunks_args_t *args, uint8_t level);
+void spread_chunks(spread_chunks_args_t *args);
 
 #endif

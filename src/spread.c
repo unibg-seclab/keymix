@@ -56,13 +56,13 @@ void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout) {
 //
 // Note, this is using a different mixing behavior with respect to the Mix&Slice
 // shuffle.
-void spread_chunks(spread_chunks_args_t *args, uint8_t level) {
+void spread_chunks(spread_chunks_args_t *args) {
         if (DEBUG)
-                assert(level >= args->thread_levels);
+                assert(args->level >= args->thread_levels);
 
         size_t mini_size = SIZE_MACRO / args->fanout;
 
-        uint64_t prev_macros_in_slab = intpow(args->fanout, level - 1);
+        uint64_t prev_macros_in_slab = intpow(args->fanout, args->level - 1);
         uint64_t macros_in_slab      = args->fanout * prev_macros_in_slab;
         size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
         size_t slab_size             = macros_in_slab * SIZE_MACRO;

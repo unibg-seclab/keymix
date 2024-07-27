@@ -76,8 +76,9 @@ void *w_thread_keymix(void *a) {
                     .thread_levels   = args->thread_levels,
                     .total_levels    = args->total_levels,
                     .fanout          = args->fanout,
+                    .level           = l,
                 };
-                spread_chunks(&thrdata, l);
+                spread_chunks(&thrdata);
 
                 // Wait for all threads to finish the swap step
                 err = barrier(args->barrier, nof_threads);
