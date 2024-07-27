@@ -194,11 +194,9 @@ int main(int argc, char **argv) {
         FILE *fin  = fopen_msg(args.resource_path, "r");
         FILE *fout = fopen_msg(args.output_path, "w");
         FILE *fkey = fopen_msg(args.secret_path, "r");
-        if (!fin || !fout || !fkey)
+        if (fin == NULL || fout == NULL || fkey == NULL)
                 goto cleanup;
 
-        // encrypt
-        // encrypt local config
         int err               = 0;
         size_t size_threshold = SIZE_1MiB;
 
@@ -218,28 +216,39 @@ int main(int argc, char **argv) {
 
         // determine the encryption mode
         int (*mixseqfunc)(cli_args_t *, FILE *, FILE *, size_t, size_t, byte *, size_t) = NULL;
-        char *description                                                               = NULL;
+
+        uint8_t internal_threads = 1;
+        uint8_t external_threads = 1;
 
         if (args.threads == 1) {
-                // 1 core -> single-threaded
-                mixseqfunc  = &keymix_seq;
-                description = "Encrypting with single-core keymix";
-        } else if (secret_size < size_threshold) {
-                // small seed + many threads -> inter-keymix
-                mixseqfunc  = &keymix_inter_seq;
-                description = "Encrypting with inter-keymix";
+                mixseqfunc = &keymix_seq;
+                if (args.verbose)
+                        printf("Encrypting with single-core keymix\n");
         } else if (ISPOWEROF(args.threads, args.fanout)) {
-                //  large seed + power nof threads -> intra-keymix
-                mixseqfunc  = &keymix_intra_seq;
-                description = "Encrypting with intra-keymix";
+                internal_threads = args.threads;
+                external_threads = 1;
+                mixseqfunc       = &keymix_intra_seq;
+                if (args.verbose)
+                        printf("Encrypting with intra-keymix\n");
         } else if (args.threads % args.fanout == 0) {
-                // large seed + multiple of power nof threads -> inter & intra-keymix
-                mixseqfunc  = &keymix_inter_intra_seq;
-                description = "Encrypting with inter-intra-keymix";
+                // Find highest power of fanout and use that as the internal threads,
+                // and the external threads will be the remaining.
+                // In this way, we always guarantee that we use at most the
+                // number of threads chosen by the user.
+                internal_threads = args.fanout;
+                while (internal_threads * args.fanout <= args.threads)
+                        internal_threads *= args.fanout;
+
+                external_threads = args.threads - internal_threads;
+                mixseqfunc       = &keymix_inter_intra_seq;
+                if (args.verbose)
+                        printf("Encrypting with inter-intra-keymix\n");
         } else {
-                // large seed + unbalanced number of threads -> inter-mix
-                mixseqfunc  = &keymix_inter_seq;
-                description = "Encrypting with inter-keymix";
+                internal_threads = 1;
+                external_threads = args.threads;
+                mixseqfunc       = &keymix_inter_seq;
+                if (args.verbose)
+                        printf("Encrypting with inter-keymix\n");
         }
 
         // keymix
@@ -248,8 +257,6 @@ int main(int argc, char **argv) {
                 err = ERR_MODE;
                 goto cleanup;
         }
-        if (args.verbose)
-                printf("%s\n", description);
         err = (*(mixseqfunc))(&args, fout, fin, getpagesize(), resource_size, secret, secret_size);
         if (err)
                 goto cleanup;
