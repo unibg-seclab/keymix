@@ -172,9 +172,7 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
         // determine the encryption mode
         int (*mixseqfunc)(cli_args_t *, FILE *, FILE *, size_t, size_t, byte *, size_t) = NULL;
         char *description                                                               = NULL;
-        unsigned int pow = arguments->fanout;
-        while (pow * arguments->fanout <= arguments->threads)
-                pow *= arguments->fanout;
+
         if (arguments->threads == 1) {
                 // 1 core -> single-threaded
                 mixseqfunc  = &keymix_seq;
@@ -183,18 +181,18 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
                 // small seed + many threads -> inter-keymix
                 mixseqfunc  = &keymix_inter_seq;
                 description = "Encrypting with inter-keymix";
-        } else if (arguments->threads % pow != 0) {
-                // large seed + unbalanced number of threads -> inter-mix
-                mixseqfunc  = &keymix_inter_seq;
-                description = "Encrypting with inter-keymix";
-        } else if (arguments->threads == pow) {
+        } else if (ISPOWEROF(arguments->threads, arguments->fanout)) {
                 //  large seed + power nof threads -> intra-keymix
                 mixseqfunc  = &keymix_intra_seq;
                 description = "Encrypting with intra-keymix";
-        } else if (arguments->threads % pow == 0) {
+        } else if (arguments->threads % arguments->fanout == 0) {
                 // large seed + multiple of power nof threads -> inter & intra-keymix
                 mixseqfunc  = &keymix_inter_intra_seq;
                 description = "Encrypting with inter-intra-keymix";
+        } else {
+                // large seed + unbalanced number of threads -> inter-mix
+                mixseqfunc  = &keymix_inter_seq;
+                description = "Encrypting with inter-keymix";
         }
 
         // keymix
