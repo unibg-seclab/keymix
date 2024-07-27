@@ -99,7 +99,7 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         }
                 }
                 break;
-        case 'd':
+        case 'f':
                 arguments->fanout = atoi(arg);
                 if (!is_valid_fanout(arguments->fanout)) {
                         ERROR_MSG("Invalid fanout, valid values are 2, 3, or 4\n");
