@@ -12,7 +12,7 @@
 
 // ------------------------------------------------------------------ Option definitions
 
-const char *argp_program_version     = "keymixer 1.0";
+const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
 
 // The order for an argp_opption is
