@@ -1,5 +1,5 @@
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef UTILS_H
+#define UTILS_H
 
 #include <math.h>
 #include <stdio.h>
@@ -58,4 +58,4 @@ void safe_explicit_bzero(void *ptr, size_t size);
 void increment_counter(byte *macro, unsigned long step);
 uint64_t intpow(uint64_t base, uint64_t exp);
 
-#endif // UTILS_H_
+#endif

@@ -1,5 +1,5 @@
-#ifndef KEYMIX_SEQ_H_
-#define KEYMIX_SEQ_H_
+#ifndef KEYMIX_SEQ_H
+#define KEYMIX_SEQ_H
 
 #include <stdio.h>
 
@@ -18,4 +18,4 @@ int keymix_inter_intra_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_res
                            size_t page_size, size_t resource_size, byte *secret,
                            size_t secret_size);
 
-#endif // KEYMIX_SEQ_H_
+#endif

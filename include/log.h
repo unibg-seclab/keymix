@@ -1,5 +1,5 @@
-#ifndef LOG_H_
-#define LOG_H_
+#ifndef LOG_H
+#define LOG_H
 
 #if DISABLE_LOG
 #define _log(...)
@@ -15,4 +15,4 @@ typedef enum {
 
 void _logf(log_level_t log_level, const char *fmt, ...);
 
-#endif // LOG_H_
+#endif

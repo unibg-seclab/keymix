@@ -1,5 +1,5 @@
-#ifndef CONFIG_H_
-#define CONFIG_H_
+#ifndef CONFIG_H
+#define CONFIG_H
 
 // errors
 #define ERR_ENC 1
@@ -32,4 +32,4 @@
 #define MAX_THREAS 128
 #define MIN_THREAS 1
 
-#endif // CONFIG_H_
+#endif // CONFIG_H
