@@ -31,7 +31,8 @@ static struct argp_option options[] = {
     {"fanout", 'f', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)", 4},
     {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni", 5},
     {"threads", 't', "UINT", 0, "Number of threads available", 6},
-    {"verbose", 'v', 0, 0, "Verbose mode", 7},
+    {"verbose", 'v', NULL, 0, "Verbose mode", 7},
+    {NULL}, // as per doc, this is necessary to terminate the options
 };
 
 error_t parse_opt(int, char *, struct argp_state *);
@@ -148,22 +149,70 @@ arg_error:
         exit(ERR_ARGP);
 }
 
-int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FILE *fstr_secret) {
+FILE *fopen_msg(char *resource, char *mode) {
+        FILE *fp = fopen(resource, mode);
+        if (!fp)
+                ERROR_MSG("No such file: %s\n", resource);
+        return fp;
+};
+
+void safe_fclose(FILE *fp) {
+        if (fp)
+                fclose(fp);
+}
+
+int main(int argc, char **argv) {
+        cli_args_t args;
+        argp_parse(&argp, argc, argv, 0, 0, &args);
+
+        if (args.verbose) {
+                printf("===============\n");
+                printf("KEYMIXER CONFIG\n");
+                printf("===============\n");
+                printf("resource: %s\n", args.resource_path);
+                printf("output:   %s\n", args.output_path);
+                printf("secret:   %s\n", args.secret_path);
+                printf("iv:       [redacted]\n");
+                printf("aes impl: ");
+                switch (args.mixfunc) {
+                case MIXCTR_WOLFSSL:
+                        printf("woflssl\n");
+                        break;
+                case MIXCTR_OPENSSL:
+                        printf("openssl\n");
+                        break;
+                case MIXCTR_AESNI:
+                        printf("aesni\n");
+                        break;
+                }
+                printf("fanout:   %d\n", args.fanout);
+                printf("threads:  %d\n", args.threads);
+                printf("===============\n");
+        }
+
+        // prepare the streams
+        FILE *fin  = fopen_msg(args.resource_path, "r");
+        FILE *fout = fopen_msg(args.output_path, "w");
+        FILE *fkey = fopen_msg(args.secret_path, "r");
+        if (!fin || !fout || !fkey)
+                goto cleanup;
+
+        // encrypt
         // encrypt local config
         int err               = 0;
         size_t size_threshold = SIZE_1MiB;
 
         // get the size of the secret and the resource
-        size_t secret_size   = get_file_size(fstr_secret);
-        size_t resource_size = get_file_size(fstr_resource);
-        if (arguments->verbose) {
+        size_t secret_size   = get_file_size(fkey);
+        size_t resource_size = get_file_size(fin);
+        if (args.verbose) {
                 printf("Resource size is %ld bytes, secret size is %ld bytes\n", resource_size,
                        secret_size);
         }
 
         // read the secret
         byte *secret = checked_malloc(secret_size);
-        size_t read  = fread(secret, secret_size, 1, fstr_secret);
+        size_t read  = fread(secret, secret_size, 1, fkey);
         if (read != 1)
                 goto cleanup;
 
@@ -171,7 +220,7 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
         int (*mixseqfunc)(cli_args_t *, FILE *, FILE *, size_t, size_t, byte *, size_t) = NULL;
         char *description                                                               = NULL;
 
-        if (arguments->threads == 1) {
+        if (args.threads == 1) {
                 // 1 core -> single-threaded
                 mixseqfunc  = &keymix_seq;
                 description = "Encrypting with single-core keymix";
@@ -179,11 +228,11 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
                 // small seed + many threads -> inter-keymix
                 mixseqfunc  = &keymix_inter_seq;
                 description = "Encrypting with inter-keymix";
-        } else if (ISPOWEROF(arguments->threads, arguments->fanout)) {
+        } else if (ISPOWEROF(args.threads, args.fanout)) {
                 //  large seed + power nof threads -> intra-keymix
                 mixseqfunc  = &keymix_intra_seq;
                 description = "Encrypting with intra-keymix";
-        } else if (arguments->threads % arguments->fanout == 0) {
+        } else if (args.threads % args.fanout == 0) {
                 // large seed + multiple of power nof threads -> inter & intra-keymix
                 mixseqfunc  = &keymix_inter_intra_seq;
                 description = "Encrypting with inter-intra-keymix";
@@ -199,78 +248,22 @@ int do_encrypt(cli_args_t *arguments, FILE *fstr_output, FILE *fstr_resource, FI
                 err = ERR_MODE;
                 goto cleanup;
         }
-        if (arguments->verbose)
+        if (args.verbose)
                 printf("%s\n", description);
-        err = (*(mixseqfunc))(arguments, fstr_output, fstr_resource, getpagesize(), resource_size,
-                              secret, secret_size);
-        if (err != 0)
+        err = (*(mixseqfunc))(&args, fout, fin, getpagesize(), resource_size, secret, secret_size);
+        if (err)
                 goto cleanup;
 
 cleanup:
         explicit_bzero(secret, secret_size);
         free(secret);
-        return err;
-}
-
-FILE *fopen_msg(char *resource, char *mode) {
-        FILE *fp = fopen(resource, mode);
-        if (!fp)
-                ERROR_MSG("No such file: %s\n", resource);
-        return fp;
-};
-
-void safe_fclose(FILE *fp) {
-        if (fp)
-                fclose(fp);
-}
-
-int main(int argc, char **argv) {
-        cli_args_t cli_args;
-
-        argp_parse(&argp, argc, argv, 0, 0, &cli_args);
-        if (cli_args.verbose) {
-                printf("===============\n");
-                printf("KEYMIXER CONFIG\n");
-                printf("===============\n");
-                printf("resource: %s\n", cli_args.resource_path);
-                printf("output:   %s\n", cli_args.output_path);
-                printf("secret:   %s\n", cli_args.secret_path);
-                printf("iv:       [redacted]\n");
-                printf("aes impl: ");
-                switch (cli_args.mixfunc) {
-                case MIXCTR_WOLFSSL:
-                        printf("woflssl\n");
-                        break;
-                case MIXCTR_OPENSSL:
-                        printf("openssl\n");
-                        break;
-                case MIXCTR_AESNI:
-                        printf("aesni\n");
-                        break;
-                }
-                printf("fanout:   %d\n", cli_args.fanout);
-                printf("threads:  %d\n", cli_args.threads);
-                printf("===============\n");
-        }
-
-        // prepare the streams
-        FILE *fin  = fopen_msg(cli_args.resource_path, "r");
-        FILE *fout = fopen_msg(cli_args.output_path, "w");
-        FILE *fkey = fopen_msg(cli_args.secret_path, "r");
-        if (!fin || !fout || !fkey)
-                goto cleanup;
-
-        // encrypt
-        int enc_err = do_encrypt(&cli_args, fout, fin, fkey);
-
-cleanup:
         if (fkey)
                 fclose(fkey);
         if (fout)
                 fclose(fout);
         if (fin)
                 fclose(fin);
-        safe_explicit_bzero(cli_args.iv, SIZE_BLOCK);
-        free(cli_args.iv);
-        return errno || enc_err;
+        safe_explicit_bzero(args.iv, SIZE_BLOCK);
+        free(args.iv);
+        return errno || err;
 }
