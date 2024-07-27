@@ -11,19 +11,19 @@
 
 // ---------------------------------------------- Context init
 
-void ctx_encrypt_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *key, size_t size,
-                      uint128_t iv, fanout_t fanout) {
-        ctx_keymix_init(ctx, mixctrpass, key, size, fanout);
+void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
+                      fanout_t fanout) {
+        ctx_keymix_init(ctx, mixctr, key, size, fanout);
         ctx->iv      = iv;
         ctx->encrypt = true;
 }
 
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, size_t size,
+void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *secret, size_t size,
                      fanout_t diffusion) {
         ctx->key      = secret;
         ctx->key_size = size;
 
-        ctx->mixctrpass = get_mixctr_impl(mixctrpass);
+        ctx->mixctrpass = get_mixctr_impl(mixctr);
         ctx->fanout     = diffusion;
         ctx->encrypt    = false;
 }

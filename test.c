@@ -2,13 +2,11 @@
 #include <string.h>
 #include <time.h>
 
-#include "aesni.h"
 #include "enc.h"
 #include "log.h"
-#include "openssl.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
 
 // -------------------------------------------------- Configure tests
 
@@ -223,13 +221,13 @@ int main(int argc, char *argv[]) {
                         for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
                                 SAFE_REALLOC(out, exp * (*size));
 
-                                ctx_keymix_init(&ctx, MIXCTRPASS_WOLFSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, seed, *size, fanout);
                                 test_keymix(&ctx, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTRPASS_OPENSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, seed, *size, fanout);
                                 test_keymix(&ctx, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTRPASS_AESNI, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_AESNI, seed, *size, fanout);
                                 test_keymix(&ctx, out, exp, *ithr, *ethr);
                         }
                 }
@@ -262,13 +260,13 @@ int main(int argc, char *argv[]) {
                                 SAFE_REALLOC(out, exp * (*size));
                                 SAFE_REALLOC(in, exp * (*size));
 
-                                ctx_keymix_init(&ctx, MIXCTRPASS_WOLFSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, seed, *size, fanout);
                                 test_enc(&ctx, in, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTRPASS_OPENSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, seed, *size, fanout);
                                 test_enc(&ctx, in, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTRPASS_AESNI, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_AESNI, seed, *size, fanout);
                                 test_enc(&ctx, in, out, exp, *ithr, *ethr);
                         }
                 }

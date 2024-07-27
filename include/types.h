@@ -25,10 +25,10 @@ typedef enum {
 } fanout_t;
 
 typedef enum {
-        MIXCTRPASS_WOLFSSL,
-        MIXCTRPASS_OPENSSL,
-        MIXCTRPASS_AESNI,
-} mixctrpass_t;
+        MIXCTR_WOLFSSL,
+        MIXCTR_OPENSSL,
+        MIXCTR_AESNI,
+} mixctr_t;
 
 typedef struct {
         mixctrpass_impl_t mixfunc;
@@ -64,7 +64,7 @@ typedef struct {
         char *secret_path;
         byte *iv;
         unsigned int fanout;
-        mixctrpass_t mixfunc;
+        mixctr_t mixfunc;
         unsigned int threads;
         unsigned short verbose;
 } cli_args_t;

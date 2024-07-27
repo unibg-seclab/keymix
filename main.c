@@ -16,14 +16,12 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#include "aesni.h"
 #include "config.h"
 #include "keymix.h"
 #include "log.h"
-#include "openssl.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
 
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);

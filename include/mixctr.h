@@ -3,8 +3,12 @@
 
 #include "types.h"
 
-mixctrpass_impl_t get_mixctr_impl(mixctrpass_t name);
+mixctrpass_impl_t get_mixctr_impl(mixctr_t name);
 
-mixctrpass_t mixctr_from_str(char *name);
+mixctr_t mixctr_from_str(char *name);
+
+int wolfssl(byte *in, byte *out, size_t size);
+int openssl(byte *in, byte *out, size_t size);
+int aesni(byte *in, byte *out, size_t size);
 
 #endif

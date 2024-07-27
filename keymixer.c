@@ -59,7 +59,7 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->secret_path   = NULL;
                 arguments->iv            = NULL;
                 arguments->fanout        = 3;
-                arguments->mixfunc       = MIXCTRPASS_WOLFSSL;
+                arguments->mixfunc       = MIXCTR_WOLFSSL;
                 arguments->threads       = 1;
                 arguments->verbose       = 0;
                 break;
@@ -235,13 +235,13 @@ int main(int argc, char **argv) {
                 printf("iv:       [redacted]\n");
                 printf("aes impl: ");
                 switch (cli_args.mixfunc) {
-                case MIXCTRPASS_WOLFSSL:
+                case MIXCTR_WOLFSSL:
                         printf("woflssl\n");
                         break;
-                case MIXCTRPASS_OPENSSL:
+                case MIXCTR_OPENSSL:
                         printf("openssl\n");
                         break;
-                case MIXCTRPASS_AESNI:
+                case MIXCTR_AESNI:
                         printf("aesni\n");
                         break;
                 }

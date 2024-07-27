@@ -12,10 +12,10 @@ typedef struct {
         bool encrypt;
 } keymix_ctx_t;
 
-void ctx_encrypt_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, size_t size,
-                      uint128_t iv, fanout_t fanout);
+void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *secret, size_t size, uint128_t iv,
+                      fanout_t fanout);
 
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctrpass_t mixctrpass, byte *secret, size_t size,
+void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *secret, size_t size,
                      fanout_t fanout);
 
 int keymix_t(keymix_ctx_t *ctx, byte *out, size_t out_size, uint8_t external_threads,

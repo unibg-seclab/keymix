@@ -4,14 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "aesni.h"
 #include "config.h"
 #include "keymix.h"
 #include "log.h"
-#include "openssl.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
 
 #include "enc.h"
 
@@ -279,7 +277,7 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         uint8_t internal_threads = 1;
 
         keymix_ctx_t ctx;
-        ctx_keymix_init(&ctx, MIXCTRPASS_AESNI, in, size, fanout);
+        ctx_keymix_init(&ctx, MIXCTR_AESNI, in, size, fanout);
 
         keymix(&aesni, in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
@@ -322,7 +320,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         byte *out3 = setup(resource_size, false);
 
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, MIXCTRPASS_AESNI, key, key_size, iv, fanout);
+        ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, iv, fanout);
 
         encrypt(&ctx, in, out1, resource_size);
         encrypt_t(&ctx, in, out2, resource_size, 2, 1);
