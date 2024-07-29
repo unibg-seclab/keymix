@@ -51,6 +51,9 @@ void derive_thread_numbers(uint8_t *internal_threads, uint8_t *external_threads,
         }
 }
 
+// I'll leave this here for now, even if unused, because we might want
+// to come back and read with different sizes if it proves faster than
+// supporting a stream
 int file_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         uint8_t internal_threads, external_threads;
 

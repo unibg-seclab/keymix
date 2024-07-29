@@ -33,7 +33,7 @@ enum args_key {
 
 const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
-static char args_doc[]               = "INPUT";
+static char args_doc[]               = "[INPUT]";
 
 // The order for an argp_opption is
 // - long name
@@ -146,10 +146,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->input = arg;
                 break;
         case ARGP_KEY_END:
-                if (state->arg_num < 1) {
-                        // Too few arguments, note that argp_usage exits
-                        argp_usage(state);
-                }
                 break;
         default:
                 return ARGP_ERR_UNKNOWN;
@@ -172,13 +168,13 @@ int main(int argc, char **argv) {
         // Setup defaults
         args.input   = NULL;
         args.output  = NULL;
+        args.output  = NULL;
         args.secret  = NULL;
         args.iv      = 0;
         args.fanout  = 3;
         args.mixfunc = MIXCTR_WOLFSSL;
         args.threads = 1;
         args.verbose = false;
-        args.output  = "-";
 
         // Start parsing
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
@@ -216,17 +212,20 @@ int main(int argc, char **argv) {
         }
 
         // prepare the streams
-        FILE *fin  = fopen_msg(args.input, "r");
         FILE *fkey = fopen_msg(args.secret, "r");
 
-        FILE *fout;
-        if (strcmp(args.output, "-") == 0)
-                fout = stdout;
-        else
+        FILE *fin = stdin;
+        if (args.input != NULL)
+                fin = fopen_msg(args.input, "r");
+
+        FILE *fout = stdout;
+        if (args.output != NULL)
                 fout = fopen_msg(args.output, "w");
 
-        if (fin == NULL || fout == NULL || fkey == NULL)
+        if (fin == NULL || fout == NULL || fkey == NULL) {
+                err = EXIT_FAILURE;
                 goto cleanup;
+        }
 
         // Read the key into memory
         size_t key_size = get_file_size(fkey);
@@ -251,7 +250,7 @@ int main(int argc, char **argv) {
         ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
 
         // Do the encryption
-        err = file_encrypt(fout, fin, &ctx, args.threads);
+        err = stream_encrypt(fout, fin, &ctx, args.threads);
 
 cleanup:
         safe_explicit_bzero(key, key_size);
