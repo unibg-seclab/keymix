@@ -13,7 +13,7 @@ typedef struct {
         char *input;
         char *output;
         char *secret_path;
-        byte *iv;
+        uint128_t iv;
         unsigned int fanout;
         mixctr_t mixfunc;
         unsigned int threads;
@@ -32,10 +32,10 @@ const char *argp_program_bug_address = "<seclab@unibg.it>";
 // - the group the option is in, this is just a way to sort options alphabetically
 //   in the same group (automatic options are put into group -1)
 static struct argp_option options[] = {
-    {"input", 'i', "PATH", 0, "Path of the resource to protect"},
+    {"input", 'r', "PATH", 0, "Path of the resource to protect"},
     {"output", 'o', "PATH", 0, "Path of the output result"},
     {"secret", 's', "PATH", 0, "Path of the secret"},
-    {"iv", 0, "STRING", 0, "16-Byte initialization vector (hexadecimal format)"},
+    {"iv", 'i', "STRING", 0, "16-Byte initialization vector (hexadecimal format, default is 0)"},
     {"fanout", 'f', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)"},
     {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni"},
     {"threads", 't', "UINT", 0, "Number of threads available"},
@@ -50,11 +50,33 @@ static struct argp argp = {options, parse_opt, "",
 
 // ------------------------------------------------------------------ Argument parsing
 
-inline bool is_hex_value(char c) {
-        c = tolower(c);
-        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
-}
+// I know about `strtol` and all the other stuff, but we need a 16-B unsigned
+// integer, and `strtol` does a signed long :(
+// Adapted from https://stackoverflow.com/questions/10156409/convert-hex-string-char-to-int
+inline int hex2int(uint128_t *valp, char *hex) {
+        // Work on a local copy (less pointer headaches is better)
+        uint128_t val = *valp;
+        while (*hex) {
+                byte byte = tolower(*hex);
+                // transform hex character to the 4bit equivalent number, using the ascii table
+                // indexes
+                if (byte >= '0' && byte <= '9')
+                        byte = byte - '0';
+                else if (byte >= 'a' && byte <= 'f')
+                        byte = byte - 'a' + 10;
+                else
+                        return 1; // Invalid character detected
 
+                // shift 4 to make space for new digit, and add the 4 bits of the new digit
+                val = (val << 4) | (byte & 0xF);
+
+                // go to next byte
+                hex++;
+        }
+        // Everything is good, update the value
+        *valp = val;
+        return 0;
+}
 inline bool is_valid_fanout(int value) {
         return value == FANOUT2 || value == FANOUT3 || value == FANOUT4;
 }
@@ -75,11 +97,11 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->input       = NULL;
                 arguments->output      = NULL;
                 arguments->secret_path = NULL;
-                arguments->iv          = NULL;
+                arguments->iv          = 0;
                 arguments->fanout      = 3;
                 arguments->mixfunc     = MIXCTR_WOLFSSL;
                 arguments->threads     = 1;
-                arguments->verbose     = 0;
+                arguments->verbose     = false;
                 break;
         case 'r':
                 arguments->input = arg;
@@ -91,23 +113,15 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->secret_path = arg;
                 break;
         case 'i':
-                arguments->iv = checked_malloc(SIZE_BLOCK);
-                size_t len    = strlen(arg);
-                if (len != SIZE_BLOCK) {
-                        ERROR_MSG("A 16-Byte initialization vector is required\n");
+                if (strlen(arg) != 16) {
+                        ERROR_MSG("Invalid IV: must be 16 Bytes");
                         goto arg_error;
                 }
 
-                for (int i = 0; i < len; i++) {
-                        if (is_hex_value(arg[i])) {
-                                arguments->iv[i] = (byte)arg[i];
-                        } else {
-                                ERROR_MSG(
-                                    "Unrecognized symbol in IV: must be a valid hex symbol\n");
-                                goto arg_error;
-                        }
+                if (hex2int(&(arguments->iv), arg)) {
+                        ERROR_MSG("Invalid IV: must consist of valid hex characters");
+                        goto arg_error;
                 }
-                break;
         case 'f':
                 arguments->fanout = atoi(arg);
                 if (!is_valid_fanout(arguments->fanout)) {
@@ -137,7 +151,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 missing += check_missing(arguments->input, "input file");
                 missing += check_missing(arguments->output, "output file");
                 missing += check_missing(arguments->secret_path, "secret file");
-                missing += check_missing(arguments->iv, "iv");
                 if (missing > 0)
                         goto arg_error;
                 break;
@@ -152,8 +165,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         return 0;
 
 arg_error:
-        safe_explicit_bzero(arguments->iv, SIZE_BLOCK);
-        free(arguments->iv);
         exit(ERR_ARGP);
 }
 
@@ -220,7 +231,7 @@ int main(int argc, char **argv) {
 
         // Setup the encryption context
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, *(uint128_t *)args.iv, args.fanout);
+        ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
 
         // Do the encryption
         int err = file_encrypt(fout, fin, &ctx, args.threads);
@@ -231,6 +242,5 @@ cleanup:
         safe_fclose(fkey);
         safe_fclose(fout);
         safe_fclose(fin);
-        free(args.iv);
         return errno || err;
 }
