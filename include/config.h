@@ -28,8 +28,4 @@
 // Use to enable debug-time checks (e.g., some assertions)
 #define DEBUG 0
 
-// threads
-#define MAX_THREAS 128
-#define MIN_THREAS 1
-
 #endif // CONFIG_H
