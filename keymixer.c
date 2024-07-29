@@ -87,8 +87,17 @@ inline int hex2int(uint128_t *valp, char *hex) {
         *valp = val;
         return 0;
 }
-inline bool is_valid_fanout(int value) {
-        return value == FANOUT2 || value == FANOUT3 || value == FANOUT4;
+inline int strtofanout(fanout_t *out, char *str) {
+        int x = atoi(str);
+        switch (x) {
+        case FANOUT2:
+        case FANOUT3:
+        case FANOUT4:
+                *out = x;
+                return 0;
+        default:
+                return 1;
+        }
 }
 
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -101,36 +110,25 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->verbose = true;
                 break;
         case ARG_KEY_IV:
-                if (strlen(arg) != 16) {
-                        ERROR_MSG("Invalid IV: must be 16 Bytes\n");
-                        return ERR_ARGP;
-                }
-
-                if (hex2int(&(arguments->iv), arg)) {
-                        ERROR_MSG("Invalid IV: must consist of valid hex characters\n");
-                        return ERR_ARGP;
-                }
+                if (strlen(arg) != 16)
+                        argp_error(state, "IV must be 16-B long");
+                if (hex2int(&(arguments->iv), arg))
+                        argp_error(state, "IV must consist of valid hex characters");
                 break;
         case ARG_KEY_FANOUT:
-                arguments->fanout = atoi(arg);
-                if (!is_valid_fanout(arguments->fanout)) {
-                        ERROR_MSG("Invalid fanout: must be 2, 3, or 4\n");
-                        return ERR_ARGP;
-                }
+                if (strtofanout(&(arguments->fanout), arg))
+                        argp_error(state, "fanout must be one of %d, %d, %d", FANOUT2, FANOUT3,
+                                   FANOUT4);
                 break;
         case ARG_KEY_LIBRARY:
                 arguments->mixfunc = mixctr_from_str(arg);
-                if (arguments->mixfunc == -1) {
-                        ERROR_MSG("Invalid library: must be wolfssl, openssl, or aesni\n");
-                        return ERR_ARGP;
-                }
+                if (arguments->mixfunc == -1)
+                        argp_error(state, "library must be one of wolfssl, openssl, aesni");
                 break;
         case ARG_KEY_THREADS:
                 arguments->threads = strtoul(arg, NULL, 10);
-                if (arguments->threads == 0) {
-                        ERROR_MSG("Invalid threads: cannot be zero\n");
-                        return ERR_ARGP;
-                }
+                if (arguments->threads == 0)
+                        argp_error(state, "threads must be a positive number");
                 break;
         case ARGP_KEY_ARG:
                 // We accept only 2 input argument, the secret and (possibly) the file
