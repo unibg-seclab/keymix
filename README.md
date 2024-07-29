@@ -8,7 +8,11 @@
 
 ## CLI
 
-TODO
+To compile, use `make keymixer` or `make cli`.
+
+As per options, you can use `keymixer --help` to show everything that can
+be set.
+
 
 ## Development
 
