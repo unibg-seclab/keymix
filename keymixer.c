@@ -132,21 +132,21 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARG_KEY_FANOUT:
                 arguments->fanout = atoi(arg);
                 if (!is_valid_fanout(arguments->fanout)) {
-                        ERROR_MSG("Invalid fanout, valid values are 2, 3, or 4\n");
+                        ERROR_MSG("Invalid fanout: must be 2, 3, or 4\n");
                         goto arg_error;
                 }
                 break;
         case ARG_KEY_LIBRARY:
                 arguments->mixfunc = mixctr_from_str(arg);
                 if (arguments->mixfunc == -1) {
-                        ERROR_MSG("Invalid LIBRARY -- choose among wolfssl, openssl, aesni\n");
+                        ERROR_MSG("Invalid library: must be wolfssl, openssl, or aesni\n");
                         goto arg_error;
                 }
                 break;
         case ARG_KEY_THREADS:
-                arguments->threads = atoi(arg);
-                if (arguments->threads < 1 || arguments->threads > 128) {
-                        ERROR_MSG("Unsupported number of threads, at least 1 and at most 128\n");
+                arguments->threads = strtoul(arg, NULL, 10);
+                if (arguments->threads == 0) {
+                        ERROR_MSG("Invalid threads: cannot be zero\n");
                         goto arg_error;
                 }
                 break;
