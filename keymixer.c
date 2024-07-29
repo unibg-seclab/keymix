@@ -162,10 +162,18 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARGP_KEY_END:
                 missing = 0;
                 missing += check_missing(arguments->input, "input file");
-                missing += check_missing(arguments->output, "output file");
                 missing += check_missing(arguments->secret_path, "secret file");
                 if (missing > 0)
                         goto arg_error;
+
+                if (arguments->output == NULL) {
+                        size_t in_len = strlen(arguments->input);
+
+                        // Allocate with space for ".enc" (4) and '\n' (1)
+                        arguments->output = malloc(in_len + 4 + 1);
+                        strcpy(arguments->output, arguments->input);
+                        strcpy(arguments->output + in_len, ".enc");
+                }
                 break;
         case ARGP_KEY_FINI:
         case ARGP_KEY_NO_ARGS:
@@ -200,6 +208,7 @@ int main(int argc, char **argv) {
                 printf("output:   %s\n", args.output);
                 printf("secret:   %s\n", args.secret_path);
                 printf("iv:       [redacted]\n");
+                // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
                 printf("aes impl: ");
                 switch (args.mixfunc) {
                 case MIXCTR_WOLFSSL:
