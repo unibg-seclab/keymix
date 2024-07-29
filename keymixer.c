@@ -4,15 +4,16 @@
 #include "utils.h"
 #include <argp.h>
 #include <string.h>
+#include <time.h>
 
 #define ERROR_MSG(...) fprintf(stderr, __VA_ARGS__);
 
 // ------------------------------------------------------------------ Option definitions
 
 typedef struct {
-        char *input;
+        const char *input;
         char *output;
-        char *secret_path;
+        const char *secret;
         uint128_t iv;
         unsigned int fanout;
         mixctr_t mixfunc;
@@ -105,16 +106,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         cli_args_t *arguments = state->input;
         int missing           = 0;
         switch (key) {
-        case ARGP_KEY_INIT:
-                arguments->input       = NULL;
-                arguments->output      = NULL;
-                arguments->secret_path = NULL;
-                arguments->iv          = 0;
-                arguments->fanout      = 3;
-                arguments->mixfunc     = MIXCTR_WOLFSSL;
-                arguments->threads     = 1;
-                arguments->verbose     = false;
-                break;
         case ARG_KEY_INPUT:
                 arguments->input = arg;
                 break;
@@ -122,7 +113,10 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->output = arg;
                 break;
         case ARG_KEY_SECRET:
-                arguments->secret_path = arg;
+                arguments->secret = arg;
+                break;
+        case ARG_KEY_VERBOSE:
+                arguments->verbose = true;
                 break;
         case ARG_KEY_IV:
                 if (strlen(arg) != 16) {
@@ -156,32 +150,11 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         goto arg_error;
                 }
                 break;
-        case ARG_KEY_VERBOSE:
-                arguments->verbose = true;
-                break;
+        case ARGP_KEY_ARG:
         case ARGP_KEY_END:
-                missing = 0;
-                missing += check_missing(arguments->input, "input file");
-                missing += check_missing(arguments->secret_path, "secret file");
-                if (missing > 0)
-                        goto arg_error;
-
-                if (arguments->output == NULL) {
-                        size_t in_len = strlen(arguments->input);
-
-                        // Allocate with space for ".enc" (4) and '\n' (1)
-                        arguments->output = malloc(in_len + 4 + 1);
-                        strcpy(arguments->output, arguments->input);
-                        strcpy(arguments->output + in_len, ".enc");
-                }
-                break;
-        case ARGP_KEY_FINI:
-        case ARGP_KEY_NO_ARGS:
-        case ARGP_KEY_SUCCESS:
                 break;
         default:
-                ERROR_MSG("Unrecognized input argument [%s] for key [%x]\n", arg, key);
-                goto arg_error;
+                return ARGP_ERR_UNKNOWN;
         }
         return 0;
 
@@ -189,16 +162,47 @@ arg_error:
         exit(ERR_ARGP);
 }
 
-FILE *fopen_msg(char *resource, char *mode) {
+FILE *fopen_msg(const char *resource, char *mode) {
         FILE *fp = fopen(resource, mode);
-        if (!fp)
+        if (fp == NULL)
                 ERROR_MSG("No such file: %s\n", resource);
         return fp;
 };
 
 int main(int argc, char **argv) {
         cli_args_t args;
+
+        // Setup defaults
+        args.input   = NULL;
+        args.output  = NULL;
+        args.secret  = NULL;
+        args.iv      = 0;
+        args.fanout  = 3;
+        args.mixfunc = MIXCTR_WOLFSSL;
+        args.threads = 1;
+        args.verbose = false;
+
+        // Start parsing
         argp_parse(&argp, argc, argv, 0, 0, &args);
+
+        if (args.input == NULL) {
+                ERROR_MSG("Required argument: input\n");
+                goto cleanup;
+        }
+        if (args.secret == NULL) {
+                ERROR_MSG("Required argument: secret\n");
+        }
+
+        bool clean_output = false;
+        if (args.output == NULL) {
+                size_t in_len = strlen(args.input);
+
+                // Allocate with space for ".enc" (4) and '\n' (1)
+                args.output = malloc(in_len + 4 + 1);
+                strcpy(args.output, args.input);
+                strcpy(args.output + in_len, ".enc");
+                clean_output = true;
+        }
 
         if (args.verbose) {
                 printf("===============\n");
@@ -206,7 +210,7 @@ int main(int argc, char **argv) {
                 printf("===============\n");
                 printf("resource: %s\n", args.input);
                 printf("output:   %s\n", args.output);
-                printf("secret:   %s\n", args.secret_path);
+                printf("secret:   %s\n", args.secret);
                 printf("iv:       [redacted]\n");
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
                 printf("aes impl: ");
@@ -230,7 +234,7 @@ int main(int argc, char **argv) {
         // prepare the streams
         FILE *fin  = fopen_msg(args.input, "r");
         FILE *fout = fopen_msg(args.output, "w");
-        FILE *fkey = fopen_msg(args.secret_path, "r");
+        FILE *fkey = fopen_msg(args.secret, "r");
         if (fin == NULL || fout == NULL || fkey == NULL)
                 goto cleanup;
 
@@ -262,8 +266,10 @@ int main(int argc, char **argv) {
 cleanup:
         safe_explicit_bzero(key, key_size);
         free(key);
+        if (clean_output)
+                free(args.output);
         safe_fclose(fkey);
         safe_fclose(fout);
         safe_fclose(fin);
-        return errno || err;
+        return err;
 }
