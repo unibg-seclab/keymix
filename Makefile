@@ -56,6 +56,7 @@ $(VERIFY): verify.o $(OBJECTS)
 # ------------ Keymixer
 
 $(KEYMIXER): keymixer.o $(OBJECTS)
+cli: $(KEYMIXER)
 
 # ------------ Cleaning
 
