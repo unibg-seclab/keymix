@@ -126,14 +126,15 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 break;
         case ARG_KEY_IV:
                 if (strlen(arg) != 16) {
-                        ERROR_MSG("Invalid IV: must be 16 Bytes");
+                        ERROR_MSG("Invalid IV: must be 16 Bytes\n");
                         goto arg_error;
                 }
 
                 if (hex2int(&(arguments->iv), arg)) {
-                        ERROR_MSG("Invalid IV: must consist of valid hex characters");
+                        ERROR_MSG("Invalid IV: must consist of valid hex characters\n");
                         goto arg_error;
                 }
+                break;
         case ARG_KEY_FANOUT:
                 arguments->fanout = atoi(arg);
                 if (!is_valid_fanout(arguments->fanout)) {
