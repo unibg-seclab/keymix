@@ -141,5 +141,6 @@ int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         }
 
         free(in_buffer);
+        free(out_buffer);
         return 0;
 }
