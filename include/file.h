@@ -8,6 +8,7 @@
 size_t get_file_size(FILE *fp);
 
 int file_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads);
+int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads);
 
 void safe_fclose(FILE *fp);
 

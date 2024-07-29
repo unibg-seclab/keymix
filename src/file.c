@@ -91,3 +91,50 @@ int file_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         free(in_buffer);
         return 0;
 }
+
+// This is the same, but with support for streams, that is, when we do not
+// have a way to get the input's size.
+// Note that this works for traditional files too.
+int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
+        uint8_t internal_threads, external_threads;
+
+        // First, separate threads into internals and externals correctly,
+        // since internals must be a power of fanout
+        derive_thread_numbers(&internal_threads, &external_threads, ctx->fanout, threads);
+
+        // Then, we encrypt the input resource in a "streamed" manner:
+        // that is, we read `external_threads` groups, each one of size
+        // `ctx->key_size`, use encrypt_t on that, and lastly write the result
+        // to the output.
+
+        // However, note that the resource could be not a multiple of key_size,
+        // hence we have to read the MINIMUM between `external_threads * key_size`
+        // and the remaining resource, which is why we track input_size
+
+        size_t buffer_size = external_threads * ctx->key_size;
+        byte *in_buffer    = malloc(buffer_size);
+        byte *out_buffer   = malloc(buffer_size);
+
+        bool stop = false;
+
+        uint128_t counter = 0;
+
+        while (!stop) {
+                // Read a certain number of bytes
+                size_t read = fread(in_buffer, 1, buffer_size, fin);
+
+                // If we have read less than the buffer size, then this will be
+                // the last encryption
+                if (read < buffer_size)
+                        stop = true;
+
+                encrypt_ex(ctx, in_buffer, out_buffer, read, external_threads, internal_threads,
+                           counter);
+
+                fwrite(out_buffer, read, 1, fout);
+                counter += external_threads; // We encrypt `external_threads` at a time
+        }
+
+        free(in_buffer);
+        return 0;
+}
