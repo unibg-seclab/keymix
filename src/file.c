@@ -122,18 +122,16 @@ int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         byte *in_buffer    = malloc(buffer_size);
         byte *out_buffer   = malloc(buffer_size);
 
-        bool stop = false;
-
         uint128_t counter = 0;
 
-        while (!stop) {
+        while (true) {
                 // Read a certain number of bytes
                 size_t read = fread(in_buffer, 1, buffer_size, fin);
 
-                // If we have read less than the buffer size, then this will be
-                // the last encryption
-                if (read < buffer_size)
-                        stop = true;
+                // We have read everything we can, we don't need to encrypt
+                // an empty buffer, nor to write anything to the output
+                if (read == 0)
+                        break;
 
                 encrypt_ex(ctx, in_buffer, out_buffer, read, external_threads, internal_threads,
                            counter);
