@@ -44,8 +44,8 @@ int keymix_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource, size_
                         resource_size = resource_size % secret_size;
                 }
                 // write to storage out xor resource
-                status = paged_storage_write(fstr_output, fstr_resource, resource_size, out,
-                                             secret_size, page_size);
+                // status = paged_storage_write(fstr_output, fstr_resource, resource_size, out,
+                //                              secret_size, page_size);
         }
 
 cleanup:
@@ -144,8 +144,8 @@ int keymix_inter_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource,
                                 writable_size = resource_size % secret_size;
                         }
                         _log(LOG_DEBUG, "writable_size %lu\n", writable_size);
-                        status = paged_storage_write(fstr_output, fstr_resource, writable_size,
-                                                     args[t].out, secret_size, page_size);
+                        // status = paged_storage_write(fstr_output, fstr_resource, writable_size,
+                        //                              args[t].out, secret_size, page_size);
                 }
         }
 cleanup:
@@ -188,8 +188,8 @@ int keymix_intra_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_resource,
                         resource_size = resource_size % secret_size;
                 }
                 // write to storage out xor resource
-                status = paged_storage_write(fstr_output, fstr_resource, resource_size, out,
-                                             secret_size, page_size);
+                // status = paged_storage_write(fstr_output, fstr_resource, resource_size, out,
+                //                              secret_size, page_size);
         }
 
 cleanup:
@@ -295,8 +295,8 @@ int keymix_inter_intra_seq(cli_args_t *config, FILE *fstr_output, FILE *fstr_res
                                 writable_size = resource_size % secret_size;
                         }
                         _log(LOG_DEBUG, "writable_size %lu\n", writable_size);
-                        status = paged_storage_write(fstr_output, fstr_resource, writable_size,
-                                                     args[t].out, secret_size, page_size);
+                        // status = paged_storage_write(fstr_output, fstr_resource, writable_size,
+                        // args[t].out, secret_size, page_size);
                 }
         }
 cleanup:

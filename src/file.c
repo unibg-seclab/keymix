@@ -1,6 +1,5 @@
 #include "file.h"
 
-#include "config.h"
 #include "utils.h"
 #include <unistd.h>
 
@@ -23,60 +22,67 @@ size_t get_file_size(FILE *fp) {
         return (size_t)res;
 }
 
-// Writes to fstr_output the encrypted resource. The function can be
-// simplified by reading and writing all the bytes with a single
-// operation, however, that might fail on platforms where size_t is
-// not large enough to store the size of min(resource_size,
-// seed_size).  It seems there is no observable difference (in terms
-// of performance) between using machine specific page-size vs reading
-// the whole resource at once. mmap() as an alternative for fread()
-// has been considered, again, apparently no particular performance
-// difference for seeds larger than 10MiB.
+void derive_thread_numbers(uint8_t *internal_threads, uint8_t *external_threads, uint8_t fanout,
+                           uint8_t threads) {
+        if (threads == 1) {
+                *internal_threads = 1;
+                *external_threads = 1;
+        } else if (ISPOWEROF(threads, fanout)) {
+                *internal_threads = threads;
+                *external_threads = 1;
+        } else if (threads % fanout == 0) {
+                // Find highest power of fanout and use that as the internal threads,
+                // and the external threads will be the remaining.
+                // In this way, we always guarantee that we use at most the
+                // number of threads chosen by the user.
+                *internal_threads = fanout;
+                while ((*internal_threads) * fanout <= threads)
+                        *internal_threads *= fanout;
 
-// If this is a storage write WHY does it have fread?
-int paged_storage_write(FILE *fout, FILE *fin, size_t resource_size, byte *out, size_t seed_size,
-                        size_t page_size) {
-
-        int write_status = 0;
-
-        size_t min_size  = MIN(resource_size, seed_size);
-        size_t nof_pages = min_size / page_size;
-        size_t remainder = min_size % page_size;
-
-        // fwrite is slower than fread, so xor is done in memory using
-        // a temporary buffer (in the future we can avoid reallocating
-        // this buffer for every T, T+1, ...)
-        byte *resource_page = checked_malloc(page_size);
-        size_t offset       = 0;
-        for (; nof_pages > 0; nof_pages--) {
-                // read the resource
-                if (1 != fread(resource_page, page_size, 1, fin)) {
-                        write_status = ERR_FREAD;
-                        goto clean_write;
-                }
-                // xor the resource with the mixed key
-                memxor(out + offset, resource_page, page_size);
-                // write thre result to fstr_encrypted
-                if (1 != fwrite(out + offset, page_size, 1, fout)) {
-                        write_status = ERR_FWRITE;
-                        goto clean_write;
-                }
-                offset += page_size;
+                *external_threads = threads - *internal_threads;
+        } else {
+                *internal_threads = 1;
+                *external_threads = threads;
         }
-        // do the previous operations for the remainder of the
-        // resource (when the tail is smaller than the seed_size)
-        if (remainder != fread(resource_page, 1, remainder, fin)) {
-                write_status = ERR_FREAD;
-                goto clean_write;
-        }
-        memxor(out + offset, resource_page, remainder);
-        if (remainder != fwrite(out + offset, 1, remainder, fout)) {
-                write_status = ERR_FWRITE;
-                goto clean_write;
+}
+
+int file_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
+        uint8_t internal_threads, external_threads;
+
+        // First, separate threads into internals and externals correctly,
+        // since internals must be a power of fanout
+        derive_thread_numbers(&internal_threads, &external_threads, ctx->fanout, threads);
+
+        // Then, we encrypt the input resource in a "streamed" manner:
+        // that is, we read `external_threads` groups, each one of size
+        // `ctx->key_size`, use encrypt_t on that, and lastly write the result
+        // to the output.
+
+        // However, note that the resource could be not a multiple of key_size,
+        // hence we have to read the MINIMUM between `external_threads * key_size`
+        // and the remaining resource, which is why we track input_size
+
+        size_t buffer_size    = external_threads * ctx->key_size;
+        size_t remaining_size = get_file_size(fin);
+        byte *in_buffer       = malloc(buffer_size);
+        byte *out_buffer      = malloc(buffer_size);
+
+        uint128_t counter = 0;
+
+        while (remaining_size > 0) {
+                size_t size_to_read = MIN(remaining_size, buffer_size);
+
+                fread(in_buffer, size_to_read, 1, fin);
+
+                encrypt_ex(ctx, in_buffer, out_buffer, size_to_read, external_threads,
+                           internal_threads, counter);
+
+                fwrite(out_buffer, size_to_read, 1, fout);
+
+                remaining_size -= size_to_read;
+                counter += external_threads; // We encrypt `external_threads` at a time
         }
 
-clean_write:
-        safe_explicit_bzero(resource_page, page_size);
-        free(resource_page);
-        return write_status;
+        free(in_buffer);
+        return 0;
 }
