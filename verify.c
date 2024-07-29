@@ -301,6 +301,10 @@ int verify_enc(size_t fanout, uint8_t level) {
         byte *out2 = setup(resource_size, false);
         byte *out3 = setup(resource_size, false);
 
+        size_t keymix_out_size = ceil((double)resource_size / key_size) * key_size;
+        // size_t keymix_out_size = key_size;
+        byte *outman = setup(keymix_out_size, false);
+
         keymix_ctx_t ctx;
         ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, iv, fanout);
 
@@ -312,6 +316,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
         err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
 
+        ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, iv, fanout);
         encrypt_t(&ctx, in, out2, resource_size, 1, fanout);
         encrypt_t(&ctx, in, out3, resource_size, 1, fanout * fanout);
         err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
@@ -320,10 +325,18 @@ int verify_enc(size_t fanout, uint8_t level) {
         err += COMPARE(out2, out3, resource_size, "Encrypt (%d int-thr) != Encrypt (%d int-thr)\n",
                        fanout, fanout * fanout);
 
+        ctx_keymix_init(&ctx, MIXCTR_AESNI, key, key_size, fanout);
+        ctx_enable_iv_counter(&ctx, iv);
+        keymix_t(&ctx, outman, keymix_out_size, 1, 1);
+        memxor(outman, in, outman, resource_size);
+
+        err += COMPARE(outman, out1, resource_size, "Encrypt != Keymix+XOR\n");
+
         free(key);
         free(out1);
         free(out2);
         free(out3);
+        free(outman);
         return err;
 }
 
