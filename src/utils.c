@@ -1,14 +1,8 @@
 #include "utils.h"
 
 #include "types.h"
-#include <assert.h>
-#include <byteswap.h>
-#include <pthread.h>
-#include <stdarg.h>
-#include <stddef.h>
+#include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/types.h>
 
 void safe_explicit_bzero(void *ptr, size_t size) {
         if (ptr) {

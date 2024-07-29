@@ -1,11 +1,10 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+// Common header libraries
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#include "config.h"
 
 typedef unsigned char byte;
 

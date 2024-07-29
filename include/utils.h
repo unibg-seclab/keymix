@@ -1,10 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <math.h> // For log
+// #include <stdio.h>
+// #include <stdlib.h>
 
 #include "config.h"
 #include "types.h"
@@ -12,6 +11,7 @@
 #ifdef NO_MEASURE
 #define MEASURE(F) 0
 #else
+#include <time.h>
 #define MEASURE(F)                                                                                 \
         ({                                                                                         \
                 double t;                                                                          \

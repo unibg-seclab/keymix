@@ -1,5 +1,6 @@
 #include "mixctr.h"
 
+#include "config.h"
 #include "types.h"
 
 #include <assert.h>
