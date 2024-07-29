@@ -40,8 +40,6 @@ static char args_doc[]               = "SECRET [INPUT]";
 // - argument name (if not NULL)
 // - some flags, always zero for us
 // - help description
-// - the group the option is in, this is just a way to sort options alphabetically
-//   in the same group (automatic options are put into group -1)
 static struct argp_option options[] = {
     {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
     {"iv", ARG_KEY_IV, "STRING", 0,
