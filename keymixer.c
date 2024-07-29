@@ -20,6 +20,17 @@ typedef struct {
         unsigned short verbose;
 } cli_args_t;
 
+enum args_key {
+        ARG_KEY_INPUT   = 'i',
+        ARG_KEY_OUTPUT  = 'o',
+        ARG_KEY_SECRET  = 's',
+        ARG_KEY_FANOUT  = 'f',
+        ARG_KEY_LIBRARY = 'l',
+        ARG_KEY_THREADS = 't',
+        ARG_KEY_VERBOSE = 'v',
+        ARG_KEY_IV      = 1, // Not a printable char = no short option
+};
+
 const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
 
@@ -32,14 +43,15 @@ const char *argp_program_bug_address = "<seclab@unibg.it>";
 // - the group the option is in, this is just a way to sort options alphabetically
 //   in the same group (automatic options are put into group -1)
 static struct argp_option options[] = {
-    {"input", 'r', "PATH", 0, "Path of the resource to protect"},
-    {"output", 'o', "PATH", 0, "Path of the output result"},
-    {"secret", 's', "PATH", 0, "Path of the secret"},
-    {"iv", 'i', "STRING", 0, "16-Byte initialization vector (hexadecimal format, default is 0)"},
-    {"fanout", 'f', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)"},
-    {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni"},
-    {"threads", 't', "UINT", 0, "Number of threads available"},
-    {"verbose", 'v', NULL, 0, "Verbose mode"},
+    {"input", ARG_KEY_INPUT, "PATH", 0, "Path of the resource to protect"},
+    {"output", ARG_KEY_OUTPUT, "PATH", 0, "Path of the output result (default is [input].enc)"},
+    {"secret", ARG_KEY_SECRET, "PATH", 0, "Path of the secret"},
+    {"iv", ARG_KEY_IV, "STRING", 0,
+     "16-Byte initialization vector in hexadecimal format (default 0)"},
+    {"fanout", ARG_KEY_FANOUT, "UINT", 0, "2, 3 (default), or 4"},
+    {"library", ARG_KEY_LIBRARY, "STRING", 0, "wolfssl (default), openssl or aesni"},
+    {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default 1)"},
+    {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
 };
 
@@ -103,16 +115,16 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->threads     = 1;
                 arguments->verbose     = false;
                 break;
-        case 'r':
+        case ARG_KEY_INPUT:
                 arguments->input = arg;
                 break;
-        case 'o':
+        case ARG_KEY_OUTPUT:
                 arguments->output = arg;
                 break;
-        case 's':
+        case ARG_KEY_SECRET:
                 arguments->secret_path = arg;
                 break;
-        case 'i':
+        case ARG_KEY_IV:
                 if (strlen(arg) != 16) {
                         ERROR_MSG("Invalid IV: must be 16 Bytes");
                         goto arg_error;
@@ -122,29 +134,29 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         ERROR_MSG("Invalid IV: must consist of valid hex characters");
                         goto arg_error;
                 }
-        case 'f':
+        case ARG_KEY_FANOUT:
                 arguments->fanout = atoi(arg);
                 if (!is_valid_fanout(arguments->fanout)) {
                         ERROR_MSG("Invalid fanout, valid values are 2, 3, or 4\n");
                         goto arg_error;
                 }
                 break;
-        case 'l':
+        case ARG_KEY_LIBRARY:
                 arguments->mixfunc = mixctr_from_str(arg);
                 if (arguments->mixfunc == -1) {
                         ERROR_MSG("Invalid LIBRARY -- choose among wolfssl, openssl, aesni\n");
                         goto arg_error;
                 }
                 break;
-        case 't':
+        case ARG_KEY_THREADS:
                 arguments->threads = atoi(arg);
                 if (arguments->threads < 1 || arguments->threads > 128) {
                         ERROR_MSG("Unsupported number of threads, at least 1 and at most 128\n");
                         goto arg_error;
                 }
                 break;
-        case 'v':
-                arguments->verbose = 1;
+        case ARG_KEY_VERBOSE:
+                arguments->verbose = true;
                 break;
         case ARGP_KEY_END:
                 missing = 0;
@@ -202,6 +214,7 @@ int main(int argc, char **argv) {
                 printf("fanout:   %d\n", args.fanout);
                 printf("threads:  %d\n", args.threads);
                 printf("===============\n");
+                return 0;
         }
 
         // prepare the streams
