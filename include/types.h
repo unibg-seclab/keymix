@@ -52,8 +52,8 @@ typedef struct {
 } inter_intra_keymix_data;
 
 typedef struct {
-        char *resource_path;
-        char *output_path;
+        char *input;
+        char *output;
         char *secret_path;
         byte *iv;
         unsigned int fanout;

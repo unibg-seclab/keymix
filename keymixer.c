@@ -24,14 +24,14 @@ const char *argp_program_bug_address = "<seclab@unibg.it>";
 // - the group the option is in, this is just a way to sort options alphabetically
 //   in the same group (automatic options are put into group -1)
 static struct argp_option options[] = {
-    {"resource", 'r', "PATH", 0, "Path of the resource to protect", 0},
-    {"output", 'o', "PATH", 0, "Path of the output result", 1},
-    {"secret", 's', "PATH", 0, "Path of the secret", 2},
-    {"iv", 'i', "STRING", 0, "16-Byte initialization vector (hexadecimal format)", 3},
-    {"fanout", 'f', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)", 4},
-    {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni", 5},
-    {"threads", 't', "UINT", 0, "Number of threads available", 6},
-    {"verbose", 'v', NULL, 0, "Verbose mode", 7},
+    {"input", 'i', "PATH", 0, "Path of the resource to protect"},
+    {"output", 'o', "PATH", 0, "Path of the output result"},
+    {"secret", 's', "PATH", 0, "Path of the secret"},
+    {"iv", 0, "STRING", 0, "16-Byte initialization vector (hexadecimal format)"},
+    {"fanout", 'f', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)"},
+    {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni"},
+    {"threads", 't', "UINT", 0, "Number of threads available"},
+    {"verbose", 'v', NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
 };
 
@@ -64,20 +64,20 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         int missing           = 0;
         switch (key) {
         case ARGP_KEY_INIT:
-                arguments->resource_path = NULL;
-                arguments->output_path   = NULL;
-                arguments->secret_path   = NULL;
-                arguments->iv            = NULL;
-                arguments->fanout        = 3;
-                arguments->mixfunc       = MIXCTR_WOLFSSL;
-                arguments->threads       = 1;
-                arguments->verbose       = 0;
+                arguments->input       = NULL;
+                arguments->output      = NULL;
+                arguments->secret_path = NULL;
+                arguments->iv          = NULL;
+                arguments->fanout      = 3;
+                arguments->mixfunc     = MIXCTR_WOLFSSL;
+                arguments->threads     = 1;
+                arguments->verbose     = 0;
                 break;
         case 'r':
-                arguments->resource_path = arg;
+                arguments->input = arg;
                 break;
         case 'o':
-                arguments->output_path = arg;
+                arguments->output = arg;
                 break;
         case 's':
                 arguments->secret_path = arg;
@@ -126,9 +126,9 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 break;
         case ARGP_KEY_END:
                 missing = 0;
-                missing += check_missing(arguments->resource_path, "resource");
-                missing += check_missing(arguments->output_path, "output");
-                missing += check_missing(arguments->secret_path, "secret");
+                missing += check_missing(arguments->input, "input file");
+                missing += check_missing(arguments->output, "output file");
+                missing += check_missing(arguments->secret_path, "secret file");
                 missing += check_missing(arguments->iv, "iv");
                 if (missing > 0)
                         goto arg_error;
@@ -169,8 +169,8 @@ int main(int argc, char **argv) {
                 printf("===============\n");
                 printf("KEYMIXER CONFIG\n");
                 printf("===============\n");
-                printf("resource: %s\n", args.resource_path);
-                printf("output:   %s\n", args.output_path);
+                printf("resource: %s\n", args.input);
+                printf("output:   %s\n", args.output);
                 printf("secret:   %s\n", args.secret_path);
                 printf("iv:       [redacted]\n");
                 printf("aes impl: ");
@@ -191,8 +191,8 @@ int main(int argc, char **argv) {
         }
 
         // prepare the streams
-        FILE *fin  = fopen_msg(args.resource_path, "r");
-        FILE *fout = fopen_msg(args.output_path, "w");
+        FILE *fin  = fopen_msg(args.input, "r");
+        FILE *fout = fopen_msg(args.output, "w");
         FILE *fkey = fopen_msg(args.secret_path, "r");
         if (fin == NULL || fout == NULL || fkey == NULL)
                 goto cleanup;
