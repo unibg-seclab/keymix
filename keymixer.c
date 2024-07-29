@@ -216,13 +216,15 @@ int main(int argc, char **argv) {
         }
 
         // prepare the streams
-        FILE *fin = fopen_msg(args.input, "r");
+        FILE *fin  = fopen_msg(args.input, "r");
+        FILE *fkey = fopen_msg(args.secret, "r");
+
         FILE *fout;
         if (strcmp(args.output, "-") == 0)
                 fout = stdout;
         else
                 fout = fopen_msg(args.output, "w");
-        FILE *fkey = fopen_msg(args.secret, "r");
+
         if (fin == NULL || fout == NULL || fkey == NULL)
                 goto cleanup;
 
