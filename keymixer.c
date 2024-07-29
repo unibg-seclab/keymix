@@ -12,7 +12,7 @@
 
 typedef struct {
         const char *input;
-        char *output;
+        const char *output;
         const char *secret;
         uint128_t iv;
         unsigned int fanout;
@@ -167,7 +167,6 @@ int main(int argc, char **argv) {
 
         // Setup defaults
         args.input   = NULL;
-        args.output  = NULL;
         args.output  = NULL;
         args.secret  = NULL;
         args.iv      = 0;
