@@ -33,14 +33,8 @@ inline uint64_t intpow(uint64_t base, uint64_t exp) {
         return res;
 }
 
-inline void memxor(void *dst, void *src, size_t size) {
-        byte *d = (byte *)dst;
-        byte *s = (byte *)src;
+inline void memxor(void *dst, void *src, size_t size) { memxor_ex(dst, dst, dst, size); }
 
-        for (; size > 0; size--) {
-                *d++ ^= *s++;
-        }
-}
 inline void memxor_ex(void *dst, void *a, void *b, size_t size) {
         byte *d  = (byte *)dst;
         byte *s1 = (byte *)a;
