@@ -51,7 +51,6 @@ void memswap(byte *a, byte *b, size_t bytes);
 void memxor_ex(void *dst, void *a, void *b, size_t size);
 void safe_explicit_bzero(void *ptr, size_t size);
 
-void increment_counter(byte *macro, unsigned long step);
 uint64_t intpow(uint64_t base, uint64_t exp);
 
 #endif

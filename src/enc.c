@@ -49,6 +49,28 @@ typedef struct {
         uint8_t internal_threads;
 } worker_args_t;
 
+// Note: this two functions are currently unused, because we increment directly
+// using a cast to uint128_t. If we want to not have endianness stuff, we can
+// just switch to these.
+inline void reverse128bits(byte *data) {
+        size_t size = SIZE_BLOCK;
+        for (size_t i = 0; i < size / 2; i++) {
+                byte temp          = data[i];
+                data[i]            = data[size - 1 - i];
+                data[size - 1 - i] = temp;
+        }
+}
+inline void add_counter(byte *macro, unsigned long step) {
+        // Note: we reverse because we are on little endian and we want
+        // to increment what would be the MSB
+        // Maybe there should be a check about this, although it's not that
+        // important as of now, or we could just increment the LSB (left side),
+        // since the effect is all the same on our schema
+        reverse128bits(macro);
+        (*(uint128_t *)macro) += step;
+        reverse128bits(macro);
+}
+
 void *w_keymix(void *a) {
         worker_args_t *args = (worker_args_t *)a;
         keymix_ctx_t *ctx   = args->ctx;

@@ -1,6 +1,5 @@
 #include "utils.h"
 
-#include "config.h"
 #include "types.h"
 #include <assert.h>
 #include <byteswap.h>
@@ -25,27 +24,6 @@ byte *checked_malloc(size_t size) {
                 exit(1);
         }
         return buf;
-}
-
-inline void reverse_16B(byte *data) {
-        size_t size = SIZE_BLOCK;
-        for (size_t i = 0; i < size / 2; i++) {
-                byte temp          = data[i];
-                data[i]            = data[size - 1 - i];
-                data[size - 1 - i] = temp;
-        }
-}
-
-inline void increment_counter(byte *macro, unsigned long step) {
-        byte *second_block = macro + SIZE_BLOCK;
-        // Note: we reverse because we are on little endian and we want
-        // to increment what would be the MSB
-        // Maybe there should be a check about this, although it's not that
-        // important as of now, or we could just increment the LSB (left side),
-        // since the effect is all the same on our schema
-        reverse_16B(second_block);
-        (*(uint128_t *)second_block) += step;
-        reverse_16B(second_block);
 }
 
 inline uint64_t intpow(uint64_t base, uint64_t exp) {
