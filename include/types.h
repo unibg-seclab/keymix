@@ -51,15 +51,4 @@ typedef struct {
         unsigned int nof_threads;
 } inter_intra_keymix_data;
 
-typedef struct {
-        char *input;
-        char *output;
-        char *secret_path;
-        byte *iv;
-        unsigned int fanout;
-        mixctr_t mixfunc;
-        unsigned int threads;
-        unsigned short verbose;
-} cli_args_t;
-
 #endif

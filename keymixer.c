@@ -1,16 +1,24 @@
-#include "config.h"
-#include "enc.h"
 #include "file.h"
 #include "mixctr.h"
 #include "types.h"
 #include "utils.h"
 #include <argp.h>
 #include <string.h>
-#include <unistd.h>
 
 #define ERROR_MSG(...) fprintf(stderr, __VA_ARGS__);
 
 // ------------------------------------------------------------------ Option definitions
+
+typedef struct {
+        char *input;
+        char *output;
+        char *secret_path;
+        byte *iv;
+        unsigned int fanout;
+        mixctr_t mixfunc;
+        unsigned int threads;
+        unsigned short verbose;
+} cli_args_t;
 
 const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
