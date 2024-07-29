@@ -10,8 +10,8 @@ typedef unsigned char byte;
 
 typedef __uint128_t uint128_t;
 
-#define SIZE_KB 1024
-#define SIZE_1MiB (1024 * SIZE_KB)
+#define SIZE_1KiB 1024
+#define SIZE_1MiB (1024 * SIZE_1KiB)
 #define SIZE_1GiB (1024 * SIZE_1MiB)
 
 typedef int (*mixctrpass_impl_t)(byte *in, byte *out, size_t size);
