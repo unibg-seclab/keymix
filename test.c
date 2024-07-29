@@ -80,17 +80,6 @@ void setup_seeds(uint8_t diff_factor, size_t **seed_sizes, uint8_t *seed_sizes_c
         }
 }
 
-void setup_configs(uint8_t diff_factor, mixing_config *configs) {
-        configs[0].diff_factor = diff_factor;
-        configs[0].mixfunc     = &wolfssl;
-
-        configs[1].diff_factor = diff_factor;
-        configs[1].mixfunc     = &openssl;
-
-        configs[2].diff_factor = diff_factor;
-        configs[2].mixfunc     = &aesni;
-}
-
 void setup_valid_internal_threads(uint8_t diff_factor, uint8_t internal_threads[],
                                   uint8_t *internal_threads_count) {
         // Diff factors can be only one of 3, so we can just wing a switch
