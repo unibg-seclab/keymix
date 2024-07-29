@@ -22,18 +22,18 @@ typedef struct {
 } cli_args_t;
 
 enum args_key {
-        ARG_KEY_INPUT   = 'i',
         ARG_KEY_OUTPUT  = 'o',
         ARG_KEY_SECRET  = 's',
         ARG_KEY_FANOUT  = 'f',
         ARG_KEY_LIBRARY = 'l',
         ARG_KEY_THREADS = 't',
         ARG_KEY_VERBOSE = 'v',
-        ARG_KEY_IV      = 1, // Not a printable char = no short option
+        ARG_KEY_IV      = 'i',
 };
 
 const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
+static char args_doc[]               = "INPUT";
 
 // The order for an argp_opption is
 // - long name
@@ -44,8 +44,7 @@ const char *argp_program_bug_address = "<seclab@unibg.it>";
 // - the group the option is in, this is just a way to sort options alphabetically
 //   in the same group (automatic options are put into group -1)
 static struct argp_option options[] = {
-    {"input", ARG_KEY_INPUT, "PATH", 0, "Path of the resource to protect"},
-    {"output", ARG_KEY_OUTPUT, "PATH", 0, "Path of the output result (default is [input].enc)"},
+    {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
     {"secret", ARG_KEY_SECRET, "PATH", 0, "Path of the secret"},
     {"iv", ARG_KEY_IV, "STRING", 0,
      "16-Byte initialization vector in hexadecimal format (default 0)"},
@@ -58,7 +57,7 @@ static struct argp_option options[] = {
 
 error_t parse_opt(int, char *, struct argp_state *);
 
-static struct argp argp = {options, parse_opt, "",
+static struct argp argp = {options, parse_opt, args_doc,
                            "keymixer -- a cli program to encrypt resources using large secrets"};
 
 // ------------------------------------------------------------------ Argument parsing
@@ -94,21 +93,9 @@ inline bool is_valid_fanout(int value) {
         return value == FANOUT2 || value == FANOUT3 || value == FANOUT4;
 }
 
-inline int check_missing(void *arg, char *name) {
-        if (arg == NULL) {
-                fprintf(stderr, "Argument required: %s\n", name);
-                return 1;
-        }
-        return 0;
-}
-
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
         cli_args_t *arguments = state->input;
-        int missing           = 0;
         switch (key) {
-        case ARG_KEY_INPUT:
-                arguments->input = arg;
-                break;
         case ARG_KEY_OUTPUT:
                 arguments->output = arg;
                 break;
@@ -121,45 +108,54 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARG_KEY_IV:
                 if (strlen(arg) != 16) {
                         ERROR_MSG("Invalid IV: must be 16 Bytes\n");
-                        goto arg_error;
+                        return ERR_ARGP;
                 }
 
                 if (hex2int(&(arguments->iv), arg)) {
                         ERROR_MSG("Invalid IV: must consist of valid hex characters\n");
-                        goto arg_error;
+                        return ERR_ARGP;
                 }
                 break;
         case ARG_KEY_FANOUT:
                 arguments->fanout = atoi(arg);
                 if (!is_valid_fanout(arguments->fanout)) {
                         ERROR_MSG("Invalid fanout: must be 2, 3, or 4\n");
-                        goto arg_error;
+                        return ERR_ARGP;
                 }
                 break;
         case ARG_KEY_LIBRARY:
                 arguments->mixfunc = mixctr_from_str(arg);
                 if (arguments->mixfunc == -1) {
                         ERROR_MSG("Invalid library: must be wolfssl, openssl, or aesni\n");
-                        goto arg_error;
+                        return ERR_ARGP;
                 }
                 break;
         case ARG_KEY_THREADS:
                 arguments->threads = strtoul(arg, NULL, 10);
                 if (arguments->threads == 0) {
                         ERROR_MSG("Invalid threads: cannot be zero\n");
-                        goto arg_error;
+                        return ERR_ARGP;
                 }
                 break;
         case ARGP_KEY_ARG:
+                // We accept only 1 input argument, the file
+                if (state->arg_num > 0) {
+                        // Too many arguments, note that argp_usage exits
+                        argp_usage(state);
+                }
+                arguments->input = arg;
+                break;
         case ARGP_KEY_END:
+                if (state->arg_num < 1) {
+                        // Too few arguments, note that argp_usage exits
+                        argp_usage(state);
+                }
                 break;
         default:
                 return ARGP_ERR_UNKNOWN;
         }
-        return 0;
 
-arg_error:
-        exit(ERR_ARGP);
+        return 0;
 }
 
 FILE *fopen_msg(const char *resource, char *mode) {
@@ -171,6 +167,7 @@ FILE *fopen_msg(const char *resource, char *mode) {
 
 int main(int argc, char **argv) {
         cli_args_t args;
+        int err = 0;
 
         // Setup defaults
         args.input   = NULL;
@@ -181,27 +178,15 @@ int main(int argc, char **argv) {
         args.mixfunc = MIXCTR_WOLFSSL;
         args.threads = 1;
         args.verbose = false;
+        args.output  = "-";
 
         // Start parsing
-        argp_parse(&argp, argc, argv, 0, 0, &args);
+        if (argp_parse(&argp, argc, argv, 0, 0, &args))
+                return EXIT_FAILURE;
 
-        if (args.input == NULL) {
-                ERROR_MSG("Required argument: input\n");
-                goto cleanup;
-        }
         if (args.secret == NULL) {
                 ERROR_MSG("Required argument: secret\n");
-        }
-
-        bool clean_output = false;
-        if (args.output == NULL) {
-                size_t in_len = strlen(args.input);
-
-                // Allocate with space for ".enc" (4) and '\n' (1)
-                args.output = malloc(in_len + 4 + 1);
-                strcpy(args.output, args.input);
-                strcpy(args.output + in_len, ".enc");
-                clean_output = true;
+                return EXIT_FAILURE;
         }
 
         if (args.verbose) {
@@ -228,12 +213,15 @@ int main(int argc, char **argv) {
                 printf("fanout:   %d\n", args.fanout);
                 printf("threads:  %d\n", args.threads);
                 printf("===============\n");
-                return 0;
         }
 
         // prepare the streams
-        FILE *fin  = fopen_msg(args.input, "r");
-        FILE *fout = fopen_msg(args.output, "w");
+        FILE *fin = fopen_msg(args.input, "r");
+        FILE *fout;
+        if (strcmp(args.output, "-") == 0)
+                fout = stdout;
+        else
+                fout = fopen_msg(args.output, "w");
         FILE *fkey = fopen_msg(args.secret, "r");
         if (fin == NULL || fout == NULL || fkey == NULL)
                 goto cleanup;
@@ -261,13 +249,11 @@ int main(int argc, char **argv) {
         ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
 
         // Do the encryption
-        int err = file_encrypt(fout, fin, &ctx, args.threads);
+        err = file_encrypt(fout, fin, &ctx, args.threads);
 
 cleanup:
         safe_explicit_bzero(key, key_size);
         free(key);
-        if (clean_output)
-                free(args.output);
         safe_fclose(fkey);
         safe_fclose(fout);
         safe_fclose(fin);
