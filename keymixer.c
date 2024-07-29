@@ -1,4 +1,5 @@
 #include "config.h"
+#include "enc.h"
 #include "file.h"
 #include "keymix_seq.h"
 #include "mixctr.h"
@@ -156,11 +157,6 @@ FILE *fopen_msg(char *resource, char *mode) {
         return fp;
 };
 
-void safe_fclose(FILE *fp) {
-        if (fp)
-                fclose(fp);
-}
-
 int main(int argc, char **argv) {
         cli_args_t args;
         argp_parse(&argp, argc, argv, 0, 0, &args);
@@ -197,80 +193,37 @@ int main(int argc, char **argv) {
         if (fin == NULL || fout == NULL || fkey == NULL)
                 goto cleanup;
 
-        int err               = 0;
-        size_t size_threshold = SIZE_1MiB;
+        // Read the key into memory
+        size_t key_size = get_file_size(fkey);
+        byte *key       = checked_malloc(key_size);
 
-        // get the size of the secret and the resource
-        size_t secret_size   = get_file_size(fkey);
-        size_t resource_size = get_file_size(fin);
-        if (args.verbose) {
-                printf("Resource size is %ld bytes, secret size is %ld bytes\n", resource_size,
-                       secret_size);
-        }
-
-        // read the secret
-        byte *secret = checked_malloc(secret_size);
-        size_t read  = fread(secret, secret_size, 1, fkey);
-        if (read != 1)
-                goto cleanup;
-
-        // determine the encryption mode
-        int (*mixseqfunc)(cli_args_t *, FILE *, FILE *, size_t, size_t, byte *, size_t) = NULL;
-
-        uint8_t internal_threads = 1;
-        uint8_t external_threads = 1;
-
-        if (args.threads == 1) {
-                mixseqfunc = &keymix_seq;
-                if (args.verbose)
-                        printf("Encrypting with single-core keymix\n");
-        } else if (ISPOWEROF(args.threads, args.fanout)) {
-                internal_threads = args.threads;
-                external_threads = 1;
-                mixseqfunc       = &keymix_intra_seq;
-                if (args.verbose)
-                        printf("Encrypting with intra-keymix\n");
-        } else if (args.threads % args.fanout == 0) {
-                // Find highest power of fanout and use that as the internal threads,
-                // and the external threads will be the remaining.
-                // In this way, we always guarantee that we use at most the
-                // number of threads chosen by the user.
-                internal_threads = args.fanout;
-                while (internal_threads * args.fanout <= args.threads)
-                        internal_threads *= args.fanout;
-
-                external_threads = args.threads - internal_threads;
-                mixseqfunc       = &keymix_inter_intra_seq;
-                if (args.verbose)
-                        printf("Encrypting with inter-intra-keymix\n");
-        } else {
-                internal_threads = 1;
-                external_threads = args.threads;
-                mixseqfunc       = &keymix_inter_seq;
-                if (args.verbose)
-                        printf("Encrypting with inter-keymix\n");
-        }
-
-        // keymix
-        if (mixseqfunc == NULL) {
-                ERROR_MSG("No suitable encryption mode found\n");
-                err = ERR_MODE;
+        if (key_size % SIZE_MACRO != 0) {
+                ERROR_MSG("Wrong key size: must be a multiple of 48 B\n");
                 goto cleanup;
         }
-        err = (*(mixseqfunc))(&args, fout, fin, getpagesize(), resource_size, secret, secret_size);
-        if (err)
+
+        size_t num_macros = key_size / SIZE_MACRO;
+        if (!ISPOWEROF(num_macros, args.fanout)) {
+                ERROR_MSG("Wrong key size: number of 48 B blocks is not a power of fanout\n");
                 goto cleanup;
+        }
+
+        if (fread(key, key_size, 1, fkey) != 1)
+                goto cleanup;
+
+        // Setup the encryption context
+        keymix_ctx_t ctx;
+        ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, *(uint128_t *)args.iv, args.fanout);
+
+        // Do the encryption
+        int err = file_encrypt(fout, fin, &ctx, args.threads);
 
 cleanup:
-        explicit_bzero(secret, secret_size);
-        free(secret);
-        if (fkey)
-                fclose(fkey);
-        if (fout)
-                fclose(fout);
-        if (fin)
-                fclose(fin);
-        safe_explicit_bzero(args.iv, SIZE_BLOCK);
+        safe_explicit_bzero(key, key_size);
+        free(key);
+        safe_fclose(fkey);
+        safe_fclose(fout);
+        safe_fclose(fin);
         free(args.iv);
         return errno || err;
 }
