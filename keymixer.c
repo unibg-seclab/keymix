@@ -257,7 +257,9 @@ cleanup:
         safe_explicit_bzero(key, key_size);
         free(key);
         safe_fclose(fkey);
-        safe_fclose(fout);
-        safe_fclose(fin);
+        if (args.input != NULL)
+                safe_fclose(fin);
+        if (args.output != NULL)
+                safe_fclose(fout);
         return err;
 }
