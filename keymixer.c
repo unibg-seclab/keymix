@@ -67,7 +67,7 @@ static struct argp argp = {options, parse_opt, args_doc,
 // Adapted from https://stackoverflow.com/questions/10156409/convert-hex-string-char-to-int
 inline int hex2int(uint128_t *valp, char *hex) {
         // Work on a local copy (less pointer headaches is better)
-        uint128_t val = *valp;
+        uint128_t val = 0;
         while (*hex) {
                 byte byte = tolower(*hex);
                 // transform hex character to the 4bit equivalent number, using the ascii table
