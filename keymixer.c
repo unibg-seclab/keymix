@@ -23,7 +23,6 @@ typedef struct {
 
 enum args_key {
         ARG_KEY_OUTPUT  = 'o',
-        ARG_KEY_SECRET  = 's',
         ARG_KEY_FANOUT  = 'f',
         ARG_KEY_LIBRARY = 'l',
         ARG_KEY_THREADS = 't',
@@ -33,7 +32,7 @@ enum args_key {
 
 const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
-static char args_doc[]               = "[INPUT]";
+static char args_doc[]               = "SECRET [INPUT]";
 
 // The order for an argp_opption is
 // - long name
@@ -45,7 +44,6 @@ static char args_doc[]               = "[INPUT]";
 //   in the same group (automatic options are put into group -1)
 static struct argp_option options[] = {
     {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
-    {"secret", ARG_KEY_SECRET, "PATH", 0, "Path of the secret"},
     {"iv", ARG_KEY_IV, "STRING", 0,
      "16-Byte initialization vector in hexadecimal format (default 0)"},
     {"fanout", ARG_KEY_FANOUT, "UINT", 0, "2, 3 (default), or 4"},
@@ -99,9 +97,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARG_KEY_OUTPUT:
                 arguments->output = arg;
                 break;
-        case ARG_KEY_SECRET:
-                arguments->secret = arg;
-                break;
         case ARG_KEY_VERBOSE:
                 arguments->verbose = true;
                 break;
@@ -138,14 +133,19 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 }
                 break;
         case ARGP_KEY_ARG:
-                // We accept only 1 input argument, the file
-                if (state->arg_num > 0) {
+                // We accept only 2 input argument, the secret and (possibly) the file
+                if (state->arg_num == 0)
+                        arguments->secret = arg;
+                else if (state->arg_num == 1)
+                        arguments->input = arg;
+                else
                         // Too many arguments, note that argp_usage exits
                         argp_usage(state);
-                }
-                arguments->input = arg;
                 break;
         case ARGP_KEY_END:
+                if (state->arg_num < 1)
+                        // Too few arguments, note that argp_usage exits
+                        argp_usage(state);
                 break;
         default:
                 return ARGP_ERR_UNKNOWN;
@@ -231,13 +231,15 @@ int main(int argc, char **argv) {
         byte *key       = checked_malloc(key_size);
 
         if (key_size % SIZE_MACRO != 0) {
-                ERROR_MSG("Wrong key size: must be a multiple of 48 B\n");
+                ERROR_MSG("Secret error: must be a multiple of 48 B\n");
                 goto cleanup;
         }
 
         size_t num_macros = key_size / SIZE_MACRO;
         if (!ISPOWEROF(num_macros, args.fanout)) {
-                ERROR_MSG("Wrong key size: number of 48 B blocks is not a power of fanout\n");
+                ERROR_MSG("Secret error: number of 48-B blocks is not a power of fanout (which "
+                          "is %d)\n",
+                          args.fanout);
                 goto cleanup;
         }
 
