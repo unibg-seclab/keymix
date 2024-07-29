@@ -1,7 +1,6 @@
 #include "config.h"
 #include "enc.h"
 #include "file.h"
-#include "keymix_seq.h"
 #include "mixctr.h"
 #include "types.h"
 #include "utils.h"
