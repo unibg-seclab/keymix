@@ -189,8 +189,6 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size
 
         _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
 
-        mixing_config config = {mixctrpass, fanout};
-
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {

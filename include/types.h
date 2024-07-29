@@ -7,7 +7,6 @@
 
 #include "config.h"
 
-// Custom common types
 typedef unsigned char byte;
 
 typedef __uint128_t uint128_t;
@@ -29,26 +28,5 @@ typedef enum {
         MIXCTR_OPENSSL,
         MIXCTR_AESNI,
 } mixctr_t;
-
-typedef struct {
-        mixctrpass_impl_t mixfunc;
-        uint8_t diff_factor; // diffusion factor (swap function): 3 (128 bits), 4
-                             // (96 bits), 6 (64 bits), 12 (32 bits)
-} mixing_config;
-
-typedef struct {
-        byte *out;
-        byte *secret;
-        size_t seed_size;
-        mixing_config *mixconfig;
-} inter_keymix_data;
-
-typedef struct {
-        byte *out;
-        byte *secret;
-        size_t seed_size;
-        mixing_config *mixconfig;
-        unsigned int nof_threads;
-} inter_intra_keymix_data;
 
 #endif

@@ -46,9 +46,8 @@
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
 byte *checked_malloc(size_t size);
-void memxor(void *dst, void *src, size_t size);
+void memxor(void *dst, void *a, void *b, size_t size);
 void memswap(byte *a, byte *b, size_t bytes);
-void memxor_ex(void *dst, void *a, void *b, size_t size);
 void safe_explicit_bzero(void *ptr, size_t size);
 
 uint64_t intpow(uint64_t base, uint64_t exp);

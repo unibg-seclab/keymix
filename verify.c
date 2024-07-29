@@ -58,10 +58,6 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fan
         assert(size % nof_threads == 0);
         assert(thread_chunk_size % SIZE_MACRO == 0);
 
-        // We are emulating only shuffling around, no need to set an encryption
-        // function
-        mixing_config mconf = {NULL, fanout};
-
         for (uint8_t t = 0; t < nof_threads; t++) {
                 spread_chunks_args_t *arg = thread_args + t;
 
