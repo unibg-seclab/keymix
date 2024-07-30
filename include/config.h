@@ -1,14 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// errors
-#define ERR_ENC 1
-#define ERR_ARGP 2
-#define ERR_FREAD 3
-#define ERR_FWRITE 4
-#define ERR_RLIMIT 5
-#define ERR_MODE 6
-
 // An AES block size (128 bits)
 #define SIZE_BLOCK 16
 

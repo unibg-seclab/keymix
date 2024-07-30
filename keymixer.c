@@ -8,6 +8,13 @@
 #include <string.h>
 #include <time.h>
 
+// ------------------------------------------------------------------ Error management and codes
+
+// Error 1 is given by EXIT_FAILURE
+#define ERR_ENC 2
+#define ERR_FILE 3
+#define ERR_KEY_SIZE 4
+
 void errmsg(const char *fmt, ...) {
         va_list args;
         va_start(args, fmt);
@@ -226,7 +233,7 @@ int main(int argc, char **argv) {
                 fout = fopen_msg(args.output, "w");
 
         if (fin == NULL || fout == NULL || fkey == NULL) {
-                err = EXIT_FAILURE;
+                err = ERR_FILE;
                 goto cleanup;
         }
 
@@ -236,22 +243,27 @@ int main(int argc, char **argv) {
 
         if (key_size % SIZE_MACRO != 0) {
                 errmsg("key must be a multiple of %d B", SIZE_MACRO);
+                err = ERR_KEY_SIZE;
                 goto cleanup;
         }
 
         size_t num_macros = key_size / SIZE_MACRO;
         if (!ISPOWEROF(num_macros, args.fanout)) {
                 errmsg("key;s number of 48-B blocks is not a power of fanout (%d)", args.fanout);
+                err = ERR_KEY_SIZE;
                 goto cleanup;
         }
 
-        if (fread(key, key_size, 1, fkey) != 1)
+        if (fread(key, key_size, 1, fkey) != 1) {
+                err = ERR_FILE;
                 goto cleanup;
+        }
 
         // Do the encryption
         keymix_ctx_t ctx;
         ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
-        err = stream_encrypt(fout, fin, &ctx, args.threads);
+        if (stream_encrypt(fout, fin, &ctx, args.threads))
+                err = ERR_ENC;
 
         // ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
         // ctx_enable_iv_counter(&ctx, args.iv);
