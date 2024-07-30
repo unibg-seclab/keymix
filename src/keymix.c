@@ -105,9 +105,9 @@ int barrier_destroy(thr_barrier_t *state) {
 
 // --------------------------------------------------------- Some utility functions
 
-inline uint8_t total_levels(size_t size, uint8_t diff_factor) {
+inline uint8_t total_levels(size_t size, uint8_t fanout) {
         uint64_t nof_macros = size / SIZE_MACRO;
-        return 1 + LOGBASE(nof_macros, diff_factor);
+        return 1 + LOGBASE(nof_macros, fanout);
 }
 
 void keymix_inner(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8_t fanout,

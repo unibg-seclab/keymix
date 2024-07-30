@@ -46,7 +46,6 @@ int main() {
                 goto clean;
         }
 
-        // {function_name, descr, diff_factor}
         mixctrpass_impl_t configs[] = {
             &wolfssl,
             &openssl,
@@ -90,7 +89,7 @@ int main() {
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
-                printf("diff_factor:\t\t%d\n", 3);
+                printf("fanout:\t\t%d\n", 3);
 
                 double time = MEASURE({ err = keymix(configs[i], key, out, key_size, 3, 1); });
 

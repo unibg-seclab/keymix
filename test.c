@@ -42,51 +42,51 @@ void csv_header() {
                 "internal_threads,");       // Number of internal threads
         fprintf(fout, "external_threads,"); // Number of threads to generate the different Ts
         fprintf(fout, "implementation,");   // AES implementation/library used
-        fprintf(fout, "diff_factor,");      // Fanout
+        fprintf(fout, "fanout,");           // Fanout
         fprintf(fout, "time\n");            // Time in ms
         fflush(fout);
 }
 void csv_line(size_t key_size, uint64_t expansion, uint8_t internal_threads,
-              uint8_t external_threads, char *implementation, uint8_t diff_factor, double time) {
+              uint8_t external_threads, char *implementation, uint8_t fanout, double time) {
         fprintf(fout, "%zu,", key_size);
         fprintf(fout, "%zu,", expansion);
         fprintf(fout, "%d,", internal_threads);
         fprintf(fout, "%d,", external_threads);
         fprintf(fout, "%s,", implementation);
-        fprintf(fout, "%d,", diff_factor);
+        fprintf(fout, "%d,", fanout);
         fprintf(fout, "%.2f\n", time);
         fflush(fout);
 }
 
-uint8_t first_x_that_surpasses(double bar, uint8_t diff_factor) {
+uint8_t first_x_that_surpasses(double bar, uint8_t fanout) {
         uint8_t x = 0;
         size_t size;
         do {
                 x++;
-                size = SIZE_MACRO * pow(diff_factor, x);
+                size = SIZE_MACRO * pow(fanout, x);
         } while (size < bar);
 
         return x;
 }
 
-void setup_keys(uint8_t diff_factor, size_t **key_sizes, uint8_t *key_sizes_count) {
-        uint8_t min_x = first_x_that_surpasses(MIN_KEY_SIZE, diff_factor);
-        uint8_t max_x = first_x_that_surpasses(MAX_KEY_SIZE, diff_factor);
+void setup_keys(uint8_t fanout, size_t **key_sizes, uint8_t *key_sizes_count) {
+        uint8_t min_x = first_x_that_surpasses(MIN_KEY_SIZE, fanout);
+        uint8_t max_x = first_x_that_surpasses(MAX_KEY_SIZE, fanout);
 
         *key_sizes_count = max_x + 1 - min_x;
         *key_sizes       = realloc(*key_sizes, *key_sizes_count * sizeof(size_t));
 
         for (uint8_t x = min_x; x <= max_x; x++) {
-                (*key_sizes)[x - min_x] = SIZE_MACRO * pow(diff_factor, x);
+                (*key_sizes)[x - min_x] = SIZE_MACRO * pow(fanout, x);
         }
 }
 
-void setup_valid_internal_threads(uint8_t diff_factor, uint8_t internal_threads[],
+void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
                                   uint8_t *internal_threads_count) {
         // Diff factors can be only one of 3, so we can just wing a switch
         // Just be sure to keep the maximum reasonable
 
-        switch (diff_factor) {
+        switch (fanout) {
         case 2:
                 *internal_threads_count = 5;
                 internal_threads[0]     = 1;

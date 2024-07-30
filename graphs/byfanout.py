@@ -7,17 +7,17 @@ df = pd.read_csv(FILE)
 
 implementations = list(df.implementation.unique())
 markers = ['*', 'o', 'x']
-fanouts = list(df.diff_factor.unique())
+fanouts = list(df.fanout.unique())
 
 for fanout in fanouts:
     plt.figure()
     plt.title(f'Fanout = {fanout}')
     for marker, impl in zip(markers, implementations):
-            data = df[(df.implementation == impl) & (df.diff_factor == fanout)]
-            data = data.groupby('seed_size', as_index=False).agg({'time': ['mean', 'std']})
-            data.columns = ['seed_size', 'time_mean', 'time_std']
+            data = df[(df.implementation == impl) & (df.fanout == fanout)]
+            data = data.groupby('key_size', as_index=False).agg({'time': ['mean', 'std']})
+            data.columns = ['key_size', 'time_mean', 'time_std']
             data.reindex(columns=data.columns)
-            xs = [x / 1024 / 1024 for x in data.seed_size]
+            xs = [x / 1024 / 1024 for x in data.key_size]
             ys = [y / 1000 for y in data.time_mean]
             plt.plot(xs, ys, marker=marker)
     plt.legend(implementations)
@@ -30,12 +30,12 @@ for fanout in fanouts:
     plt.figure()
     plt.title(f'Fanout = {fanout}')
     for marker, impl in zip(markers, implementations):
-            data = df[(df.implementation == impl) & (df.diff_factor == fanout)]
-            data = data.groupby('seed_size', as_index=False).agg({'time': ['mean', 'std']})
-            data.columns = ['seed_size', 'time_mean', 'time_std']
+            data = df[(df.implementation == impl) & (df.fanout == fanout)]
+            data = data.groupby('key_size', as_index=False).agg({'time': ['mean', 'std']})
+            data.columns = ['key_size', 'time_mean', 'time_std']
             data.reindex(columns=data.columns)
-            # print(data.seed_size, data.time_mean)
-            xs = [x / 1024 / 1024 for x in data.seed_size]
+            # print(data.key_size, data.time_mean)
+            xs = [x / 1024 / 1024 for x in data.key_size]
             ys = [x / (y / 1000) for x, y in zip(xs, data.time_mean)]
             plt.plot(xs, ys, marker=marker)
     plt.legend(implementations)
