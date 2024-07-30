@@ -30,26 +30,11 @@ void safe_fclose(FILE *fp) {
 void derive_thread_numbers(uint8_t *internal_threads, uint8_t *external_threads, uint8_t fanout,
                            uint8_t threads) {
         uint8_t ithr, ethr;
-        if (threads == 1) {
-                ithr = 1;
-                ethr = 1;
-        } else if (ISPOWEROF(threads, fanout)) {
-                ithr = threads;
-                ethr = 1;
-        } else if (threads % fanout == 0) {
-                // Find highest power of fanout and use that as the internal threads,
-                // and the external threads will be the remaining.
-                // In this way, we always guarantee that we use at most the
-                // number of threads chosen by the user.
-                ithr = fanout;
-                while (ithr * fanout <= threads)
-                        ithr *= fanout;
+        ithr = 1;
+        while (threads % (ithr * fanout) == 0)
+                ithr *= fanout;
 
-                ethr = threads - ithr;
-        } else {
-                ithr = 1;
-                ethr = threads;
-        }
+        ethr = threads / ithr;
 
         *internal_threads = ithr;
         *external_threads = ethr;
