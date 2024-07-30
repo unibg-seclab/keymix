@@ -42,7 +42,7 @@ void derive_thread_numbers(uint8_t *internal_threads, uint8_t *external_threads,
                 // In this way, we always guarantee that we use at most the
                 // number of threads chosen by the user.
                 ithr = fanout;
-                while ((ithr)*fanout <= threads)
+                while (ithr * fanout <= threads)
                         ithr *= fanout;
 
                 ethr = threads - ithr;
