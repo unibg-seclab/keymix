@@ -62,4 +62,5 @@ log
 # secrets
 secret
 resource.txt
-resource.txt.enc
+*.enc
+*.dec
