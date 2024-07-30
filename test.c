@@ -1,14 +1,13 @@
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-#include "aesni.h"
-#include "keymix_t.h"
+#include "enc.h"
 #include "log.h"
-#include "openssl.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
 
 // -------------------------------------------------- Configure tests
 
@@ -82,17 +81,6 @@ void setup_seeds(uint8_t diff_factor, size_t **seed_sizes, uint8_t *seed_sizes_c
         }
 }
 
-void setup_configs(uint8_t diff_factor, mixing_config *configs) {
-        configs[0].diff_factor = diff_factor;
-        configs[0].mixfunc     = &wolfssl;
-
-        configs[1].diff_factor = diff_factor;
-        configs[1].mixfunc     = &openssl;
-
-        configs[2].diff_factor = diff_factor;
-        configs[2].mixfunc     = &aesni;
-}
-
 void setup_valid_internal_threads(uint8_t diff_factor, uint8_t internal_threads[],
                                   uint8_t *internal_threads_count) {
         // Diff factors can be only one of 3, so we can just wing a switch
@@ -124,47 +112,47 @@ void setup_valid_internal_threads(uint8_t diff_factor, uint8_t internal_threads[
 
 // -------------------------------------------------- Actual test functions
 
-void test_keymix(byte *seed, byte *out, size_t seed_size, uint64_t expansion,
-                 uint8_t internal_threads, uint8_t external_threads, mixing_config *config) {
+void test_keymix(keymix_ctx_t *ctx, byte *out, uint64_t expansion, uint8_t internal_threads,
+                 uint8_t external_threads) {
         char *impl = "(unspecified)";
-        if (config->mixfunc == &aesni) {
+        if (ctx->mixctrpass == &aesni) {
                 impl = "aesni";
-        } else if (config->mixfunc == &openssl) {
+        } else if (ctx->mixctrpass == &openssl) {
                 impl = "openssl";
-        } else if (config->mixfunc == &wolfssl) {
+        } else if (ctx->mixctrpass == &wolfssl) {
                 impl = "wolfssl";
         }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
-             external_threads, impl, config->diff_factor, expansion);
+             external_threads, impl, ctx->fanout, expansion);
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
-                double time = MEASURE(keymix_t(seed, seed_size, out, expansion * seed_size, config,
-                                               external_threads, internal_threads, 0));
-                csv_line(seed_size, expansion, internal_threads, external_threads, impl,
-                         config->diff_factor, time);
+                double time = MEASURE(keymix_t(ctx, out, expansion * ctx->key_size,
+                                               external_threads, internal_threads));
+                csv_line(ctx->key_size, expansion, internal_threads, external_threads, impl,
+                         ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
 }
 
-void test_enc(byte *seed, byte *in, byte *out, size_t seed_size, uint64_t expansion,
-              uint8_t internal_threads, uint8_t external_threads, mixing_config *config) {
+void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, uint64_t expansion, uint8_t internal_threads,
+              uint8_t external_threads) {
         char *impl = "(unspecified)";
-        if (config->mixfunc == &aesni) {
+        if (ctx->mixctrpass == &aesni) {
                 impl = "aesni";
-        } else if (config->mixfunc == &openssl) {
+        } else if (ctx->mixctrpass == &openssl) {
                 impl = "openssl";
-        } else if (config->mixfunc == &wolfssl) {
+        } else if (ctx->mixctrpass == &wolfssl) {
                 impl = "wolfssl";
         }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
-             external_threads, impl, config->diff_factor, expansion);
+             external_threads, impl, ctx->fanout, expansion);
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
-                double time = MEASURE(enc_ex(seed, seed_size, in, out, expansion * seed_size,
-                                             config, external_threads, internal_threads, 0, 0));
-                csv_line(seed_size, expansion, internal_threads, external_threads, impl,
-                         config->diff_factor, time);
+                double time = MEASURE(encrypt_t(ctx, in, out, expansion * ctx->key_size,
+                                                external_threads, internal_threads));
+                csv_line(ctx->key_size, expansion, internal_threads, external_threads, impl,
+                         ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
@@ -180,8 +168,8 @@ int main(int argc, char *argv[]) {
         }
 
         // Gli unici per cui il nostro schema funzione e ha senso
-        uint8_t diff_factors[]     = {2, 3, 4};
-        uint8_t diff_factors_count = sizeof(diff_factors) / sizeof(__typeof__(*diff_factors));
+        uint8_t fanouts[]     = {2, 3, 4};
+        uint8_t fanouts_count = sizeof(fanouts) / sizeof(__typeof__(*fanouts));
 
         byte *seed = NULL;
         byte *out  = NULL;
@@ -198,8 +186,7 @@ int main(int argc, char *argv[]) {
         uint8_t internal_threads[5] = {0, 0, 0, 0, 0};
         uint8_t internal_threads_count;
 
-        mixing_config configs[3] = {};
-        uint8_t configs_count    = sizeof(configs) / sizeof(__typeof__(*configs));
+        keymix_ctx_t ctx;
 
 #ifdef DO_EXPANSION_TESTS
         _log(LOG_INFO, "Doing %d tests (each dot = 1 test)\n", NUM_OF_TESTS);
@@ -207,25 +194,31 @@ int main(int argc, char *argv[]) {
         fout = fopen(argv[1], "w");
         csv_header();
 
-        FOR_EVERY(diff_p, diff_factors, diff_factors_count) {
-                uint8_t diff_factor = *diff_p;
+        FOR_EVERY(diff_p, fanouts, fanouts_count) {
+                uint8_t fanout = *diff_p;
 
-                setup_seeds(diff_factor, &seed_sizes, &seed_sizes_count);
-                setup_configs(diff_factor, configs);
-                setup_valid_internal_threads(diff_factor, internal_threads,
-                                             &internal_threads_count);
+                setup_seeds(fanout, &seed_sizes, &seed_sizes_count);
+                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
                 FOR_EVERY(size, seed_sizes, seed_sizes_count) {
                         // Setup seed
                         _log(LOG_INFO, "Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
                         SAFE_REALLOC(seed, *size);
 
-                        FOR_EVERY(config, configs, configs_count)
+                        // FOR_EVERY(config, ctxs, configs_count)
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count)
                         for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
                                 SAFE_REALLOC(out, exp * (*size));
-                                test_keymix(seed, out, *size, exp, *ithr, *ethr, config);
+
+                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, seed, *size, fanout);
+                                test_keymix(&ctx, out, exp, *ithr, *ethr);
+
+                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, seed, *size, fanout);
+                                test_keymix(&ctx, out, exp, *ithr, *ethr);
+
+                                ctx_keymix_init(&ctx, MIXCTR_AESNI, seed, *size, fanout);
+                                test_keymix(&ctx, out, exp, *ithr, *ethr);
                         }
                 }
         }
@@ -240,26 +233,31 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        FOR_EVERY(diff_p, diff_factors, diff_factors_count) {
-                uint8_t diff_factor = *diff_p;
+        FOR_EVERY(fanout_p, fanouts, fanouts_count) {
+                uint8_t fanout = *fanout_p;
 
-                setup_seeds(diff_factor, &seed_sizes, &seed_sizes_count);
-                setup_configs(diff_factor, configs);
-                setup_valid_internal_threads(diff_factor, internal_threads,
-                                             &internal_threads_count);
+                setup_seeds(fanout, &seed_sizes, &seed_sizes_count);
+                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
                 FOR_EVERY(size, seed_sizes, seed_sizes_count) {
                         // Setup seed
                         _log(LOG_INFO, "Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
                         SAFE_REALLOC(seed, *size);
 
-                        FOR_EVERY(config, configs, configs_count)
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count)
                         for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
                                 SAFE_REALLOC(out, exp * (*size));
                                 SAFE_REALLOC(in, exp * (*size));
-                                test_enc(seed, in, out, *size, exp, *ithr, *ethr, config);
+
+                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, seed, *size, fanout);
+                                test_enc(&ctx, in, out, exp, *ithr, *ethr);
+
+                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, seed, *size, fanout);
+                                test_enc(&ctx, in, out, exp, *ithr, *ethr);
+
+                                ctx_keymix_init(&ctx, MIXCTR_AESNI, seed, *size, fanout);
+                                test_enc(&ctx, in, out, exp, *ithr, *ethr);
                         }
                 }
         }

@@ -1,10 +1,9 @@
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef UTILS_H
+#define UTILS_H
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <math.h> // For log
+// #include <stdio.h>
+// #include <stdlib.h>
 
 #include "config.h"
 #include "types.h"
@@ -12,6 +11,7 @@
 #ifdef NO_MEASURE
 #define MEASURE(F) 0
 #else
+#include <time.h>
 #define MEASURE(F)                                                                                 \
         ({                                                                                         \
                 double t;                                                                          \
@@ -45,16 +45,11 @@
 #define LOGBASE(x, base) (round(log(x) / log(base)))
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
-int barrier_init(barrier_status *state);
-int barrier(barrier_status *state, int8_t nof_threads);
-int barrier_destroy(barrier_status *state);
 byte *checked_malloc(size_t size);
-size_t get_file_size(FILE *fstr);
-void increment_counter(byte *macro, unsigned long step);
-void memxor(void *dst, void *src, size_t size);
-uint8_t total_levels(size_t seed_size, uint8_t fanout);
+void memxor(void *dst, void *a, void *b, size_t size);
+void memswap(byte *a, byte *b, size_t bytes);
+void safe_explicit_bzero(void *ptr, size_t size);
 
-void spread_inplace(byte *buffer, size_t size, uint8_t level, uint8_t fanout);
-void spread_chunks_inplace(thread_data *args, uint8_t level);
+uint64_t intpow(uint64_t base, uint64_t exp);
 
-#endif // UTILS_H_
+#endif

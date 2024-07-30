@@ -16,14 +16,12 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#include "aesni.h"
 #include "config.h"
 #include "keymix.h"
 #include "log.h"
-#include "openssl.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
 
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);
@@ -69,7 +67,8 @@ int main() {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
                 int pe              = 0;
                 uint8_t nof_threads = threads[t];
-                double time = MEASURE({ pe = keymix(seed, out, seed_size, &mconf, nof_threads); });
+                double time =
+                    MEASURE({ pe = keymix(&wolfssl, seed, out, seed_size, 3, nof_threads); });
                 uint8_t precision    = 2;
                 double readable_size = (double)seed_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
@@ -100,7 +99,10 @@ int main() {
                 printf("%s mixing...\n", descr[i]);
                 printf("diff_factor:\t\t%d\n", configs[i].diff_factor);
 
-                double time = MEASURE({ err = keymix(seed, out, seed_size, &configs[i], 1); });
+                double time = MEASURE({
+                        err = keymix(configs[i].mixfunc, seed, out, seed_size,
+                                     configs[i].diff_factor, 1);
+                });
 
                 explicit_bzero(out, seed_size);
 

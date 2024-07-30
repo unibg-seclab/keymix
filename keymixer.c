@@ -1,368 +1,264 @@
-#include <argp.h>
-#include <errno.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
-
-#include "aesni.h"
-#include "config.h"
-#include "keymix_seq.h"
-#include "log.h"
-#include "openssl.h"
+#include "enc.h"
+#include "file.h"
+#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
-#include "wolfssl.h"
+#include <argp.h>
+#include <string.h>
+#include <time.h>
 
-const char *argp_program_version     = "keymixer 1.0";
+#define ERROR_MSG(...) fprintf(stderr, __VA_ARGS__);
+
+// ------------------------------------------------------------------ Option definitions
+
+typedef struct {
+        const char *input;
+        const char *output;
+        const char *secret;
+        uint128_t iv;
+        unsigned int fanout;
+        mixctr_t mixfunc;
+        unsigned int threads;
+        unsigned short verbose;
+} cli_args_t;
+
+enum args_key {
+        ARG_KEY_OUTPUT  = 'o',
+        ARG_KEY_FANOUT  = 'f',
+        ARG_KEY_LIBRARY = 'l',
+        ARG_KEY_THREADS = 't',
+        ARG_KEY_VERBOSE = 'v',
+        ARG_KEY_IV      = 'i',
+};
+
+const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
-static char doc[]      = "keymixer -- a cli program to encrypt resources using large secrets";
-static char args_doc[] = ""; // no need to print a standard usage
+static char args_doc[]               = "SECRET [INPUT]";
 
+// The order for an argp_opption is
+// - long name
+// - short name (if not zero)
+// - argument name (if not NULL)
+// - some flags, always zero for us
+// - help description
 static struct argp_option options[] = {
-    {"resource", 'r', "PATH", 0, "Path of the resource to protect", 0},
-    {"output", 'o', "PATH", 0, "Path of the output result", 1},
-    {"secret", 's', "PATH", 0, "Path of the secret", 2},
-    {"iv", 'i', "STRING", 0, "16-Byte initialization vector (hexadecimal format)", 3},
-    {"diffusion", 'd', "UINT", 0, "Number of blocks per 384-bit macro (default is 3)", 4},
-    {"library", 'l', "STRING", 0, "wolfssl (default), openssl or aesni", 5},
-    {"threads", 't', "UINT", 0, "Number of threads available", 6},
-    {"verbose", 'v', 0, 0, "Verbose mode", 7},
-    {0}};
+    {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
+    {"iv", ARG_KEY_IV, "STRING", 0,
+     "16-Byte initialization vector in hexadecimal format (default 0)"},
+    {"fanout", ARG_KEY_FANOUT, "UINT", 0, "2, 3 (default), or 4"},
+    {"library", ARG_KEY_LIBRARY, "STRING", 0, "wolfssl (default), openssl or aesni"},
+    {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default 1)"},
+    {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
+    {NULL}, // as per doc, this is necessary to terminate the options
+};
 
-static void check_missing_arguments(struct argp_state *state) {
-        struct arguments *arguments = state->input;
-        if (arguments->resource_path == NULL || arguments->output_path == NULL ||
-            arguments->secret_path == NULL || arguments->iv == NULL) {
-                printf("(!) Missing arguments -- resource, output, secret and iv are mandatory\n");
-                goto cleanup;
+error_t parse_opt(int, char *, struct argp_state *);
+
+static struct argp argp = {options, parse_opt, args_doc,
+                           "keymixer -- a cli program to encrypt resources using large secrets"};
+
+// ------------------------------------------------------------------ Argument parsing
+
+// I know about `strtol` and all the other stuff, but we need a 16-B unsigned
+// integer, and `strtol` does a signed long :(
+// Adapted from https://stackoverflow.com/questions/10156409/convert-hex-string-char-to-int
+inline int hex2int(uint128_t *valp, char *hex) {
+        // Work on a local copy (less pointer headaches is better)
+        uint128_t val = 0;
+        while (*hex) {
+                byte byte = tolower(*hex);
+                // transform hex character to the 4bit equivalent number, using the ascii table
+                // indexes
+                if (byte >= '0' && byte <= '9')
+                        byte = byte - '0';
+                else if (byte >= 'a' && byte <= 'f')
+                        byte = byte - 'a' + 10;
+                else
+                        return 1; // Invalid character detected
+
+                // shift 4 to make space for new digit, and add the 4 bits of the new digit
+                val = (val << 4) | (byte & 0xF);
+
+                // go to next byte
+                hex++;
         }
-        return;
-cleanup:
-        if (arguments->iv != NULL) {
-                explicit_bzero(arguments->iv, SIZE_BLOCK);
-                free(arguments->iv);
+        // Everything is good, update the value
+        *valp = val;
+        return 0;
+}
+inline int strtofanout(fanout_t *out, char *str) {
+        int x = atoi(str);
+        switch (x) {
+        case FANOUT2:
+        case FANOUT3:
+        case FANOUT4:
+                *out = x;
+                return 0;
+        default:
+                return 1;
         }
-        exit(ERR_ARGP);
 }
 
-static error_t parse_opt(int key, char *arg, struct argp_state *state) {
-        struct arguments *arguments = state->input;
+error_t parse_opt(int key, char *arg, struct argp_state *state) {
+        cli_args_t *arguments = state->input;
         switch (key) {
-        case ARGP_KEY_INIT:
-                /* initialize struct args */
-                arguments->resource_path = NULL;
-                arguments->output_path   = NULL;
-                arguments->secret_path   = NULL;
-                arguments->iv            = NULL;
-                arguments->diffusion     = 3;
-                arguments->mixfunc       = &wolfssl;
-                arguments->threads       = 1;
-                arguments->verbose       = 0;
-                arguments->mixfunc_descr = "wolfssl";
+        case ARG_KEY_OUTPUT:
+                arguments->output = arg;
                 break;
-        case 'r':
-                arguments->resource_path = arg;
+        case ARG_KEY_VERBOSE:
+                arguments->verbose = true;
                 break;
-        case 'o':
-                arguments->output_path = arg;
+        case ARG_KEY_IV:
+                if (strlen(arg) != 16)
+                        argp_error(state, "IV must be 16-B long");
+                if (hex2int(&(arguments->iv), arg))
+                        argp_error(state, "IV must consist of valid hex characters");
                 break;
-        case 's':
-                arguments->secret_path = arg;
+        case ARG_KEY_FANOUT:
+                if (strtofanout(&(arguments->fanout), arg))
+                        argp_error(state, "fanout must be one of %d, %d, %d", FANOUT2, FANOUT3,
+                                   FANOUT4);
                 break;
-        case 'i':
-                arguments->iv = checked_malloc(SIZE_BLOCK);
-                if (strlen(arg) != SIZE_BLOCK) {
-                        printf("(!) A 16-Byte initialization vector is required\n");
-                        goto cleanup;
-                }
-                char dict[16] = "0123456789abcdef";
-                int hex_found;
-                for (int i = 0; i < SIZE_BLOCK; i++) {
-                        hex_found = 0;
-                        for (int j = 0; j < 16; j++)
-                                if (arg[i] == dict[i]) {
-                                        hex_found = 1;
-                                        break;
-                                }
-                        if (hex_found == 0) {
-                                printf("(!) Unrecognized hex symbol found in iv\n");
-                                goto cleanup;
-                        }
-                        *(arguments->iv + i) = (byte)(arg[i]);
-                };
+        case ARG_KEY_LIBRARY:
+                arguments->mixfunc = mixctr_from_str(arg);
+                if (arguments->mixfunc == -1)
+                        argp_error(state, "library must be one of wolfssl, openssl, aesni");
                 break;
-        case 'd':
-                arguments->diffusion   = atoi(arg);
-                unsigned int values[3] = {2, 3, 4};
-                int diff_found         = 0;
-                for (unsigned int i = 0; i < sizeof(values) / sizeof(unsigned int); i++)
-                        if (arguments->diffusion == values[i]) {
-                                diff_found = 1;
-                                break;
-                        }
-                if (diff_found == 0) {
-                        _log(LOG_INFO, "(!) Invalid DIFFUSION input -- choose among 2, 3, 4\n");
-                        goto cleanup;
-                }
+        case ARG_KEY_THREADS:
+                arguments->threads = strtoul(arg, NULL, 10);
+                if (arguments->threads == 0)
+                        argp_error(state, "threads must be a positive number");
                 break;
-        case 'l':
-                if (strcmp(arg, "wolfssl") == 0) {
-                        arguments->mixfunc       = &wolfssl;
-                        arguments->mixfunc_descr = "wolfssl";
-                } else if (strcmp(arg, "openssl") == 0) {
-                        arguments->mixfunc       = &openssl;
-                        arguments->mixfunc_descr = "openssl";
-                } else if (strcmp(arg, "aesni") == 0) {
-                        arguments->mixfunc       = &aesni;
-                        arguments->mixfunc_descr = "aesni";
-                } else {
-                        _log(LOG_INFO,
-                             "(!) Invalid LIBRARY -- choose among wolfssl, openssl, aesni\n");
-                        goto cleanup;
-                }
-                break;
-        case 't':
-                arguments->threads = atoi(arg);
-                if (arguments->threads < 1 || arguments->threads > 128) {
-                        _log(LOG_INFO, "(!) Unsupported number of threads\n");
-                        goto cleanup;
-                }
-                break;
-        case 'v':
-                arguments->verbose = 1;
-                break;
-        case ARGP_KEY_NO_ARGS:
+        case ARGP_KEY_ARG:
+                // We accept only 2 input argument, the secret and (possibly) the file
+                if (state->arg_num == 0)
+                        arguments->secret = arg;
+                else if (state->arg_num == 1)
+                        arguments->input = arg;
+                else
+                        // Too many arguments, note that argp_usage exits
+                        argp_usage(state);
                 break;
         case ARGP_KEY_END:
-                check_missing_arguments(state);
-                break;
-        case ARGP_KEY_FINI:
-                break;
-        case ARGP_KEY_SUCCESS:
+                if (state->arg_num < 1)
+                        // Too few arguments, note that argp_usage exits
+                        argp_usage(state);
                 break;
         default:
-                printf("Unrecognized input argument [%s] for key [%x]\n", arg, key);
-                goto cleanup;
+                return ARGP_ERR_UNKNOWN;
         }
-        return 0;
-cleanup:
-        if (arguments->iv != NULL) {
-                explicit_bzero(arguments->iv, SIZE_BLOCK);
-                free(arguments->iv);
-        }
-        exit(ERR_ARGP);
-}
-
-static struct argp argp = {options, parse_opt, args_doc, doc};
-
-int storage_read(byte *dst, FILE *fstr, size_t fstr_size, size_t page_size) {
-
-        size_t nof_pages = fstr_size / page_size;
-        size_t remainder = fstr_size % page_size;
-
-        // read the pages
-        for (; nof_pages > 0; nof_pages--) {
-                if (1 != fread(dst, page_size, 1, fstr))
-                        return ERR_FREAD;
-        }
-        // read the remainder (bytes)
-        if (remainder != fread(dst, 1, remainder, fstr))
-                return ERR_FREAD;
 
         return 0;
 }
 
-// Writes to fstr_output the encrypted resource. The function can be
-// simplified by reading and writing all the bytes with a single
-// operation, however, that might fail on platforms where size_t is
-// not large enough to store the size of min(resource_size,
-// seed_size).  It seems there is no observable difference (in terms
-// of performance) between using machine specific page-size vs reading
-// the whole resource at once. mmap() as an alternative for fread()
-// has been considered, again, apparently no particular performance
-// difference for seeds larger than 10MiB.
-int storage_write(FILE *fstr_output, FILE *fstr_resource, size_t resource_size, byte *out,
-                  size_t seed_size, size_t page_size) {
-
-        int write_status = 0;
-
-        size_t min_size  = MIN(resource_size, seed_size);
-        size_t nof_pages = min_size / page_size;
-        size_t remainder = min_size % page_size;
-
-        // fwrite is slower than fread, so xor is done in memory using
-        // a temporary buffer (in the future we can avoid reallocating
-        // this buffer for every T, T+1, ...)
-        byte *resource_page = checked_malloc(page_size);
-        size_t offset       = 0;
-        for (; nof_pages > 0; nof_pages--) {
-                // read the resource
-                if (1 != fread(resource_page, page_size, 1, fstr_resource)) {
-                        write_status = ERR_FREAD;
-                        goto clean_write;
-                }
-                // xor the resource with the mixed key
-                memxor(out + offset, resource_page, page_size);
-                // write thre result to fstr_encrypted
-                if (1 != fwrite(out + offset, page_size, 1, fstr_output)) {
-                        write_status = ERR_FWRITE;
-                        goto clean_write;
-                }
-                offset += page_size;
-        }
-        // do the previous operations for the remainder of the
-        // resource (when the tail is smaller than the seed_size)
-        if (remainder != fread(resource_page, 1, remainder, fstr_resource)) {
-                write_status = ERR_FREAD;
-                goto clean_write;
-        }
-        memxor(out + offset, resource_page, remainder);
-        if (remainder != fwrite(out + offset, 1, remainder, fstr_output)) {
-                write_status = ERR_FWRITE;
-                goto clean_write;
-        }
-
-clean_write:
-        explicit_bzero(resource_page, page_size);
-        free(resource_page);
-        return write_status;
-}
-
-int encrypt(struct arguments *arguments, FILE *fstr_output, FILE *fstr_resource,
-            FILE *fstr_secret) {
-
-        // encrypt local config
-        int encrypt_status    = 0;
-        size_t size_threshold = SIZE_1MiB;
-
-        // get the size of the secret and the resource
-        size_t secret_size   = get_file_size(fstr_secret);
-        size_t resource_size = get_file_size(fstr_resource);
-        if (arguments->verbose) {
-                printf("Resource size is %ld bytes, secret size is %ld bytes\n", resource_size,
-                       secret_size);
-        }
-
-        // get the size of storage pages
-        int page_size = getpagesize();
-
-        // read the secret
-        byte *secret   = checked_malloc(secret_size);
-        encrypt_status = storage_read(secret, fstr_secret, secret_size, page_size);
-        if (encrypt_status != 0)
-                goto cleanup;
-
-        // determine the encryption mode
-        int (*mixseqfunc)(struct arguments *, FILE *, FILE *, size_t, size_t, byte *, size_t) =
-            NULL;
-        char *description = NULL;
-        unsigned int pow  = arguments->diffusion;
-        while (pow * arguments->diffusion <= arguments->threads)
-                pow *= arguments->diffusion;
-        if (arguments->threads == 1) {
-                // 1 core -> single-threaded
-                mixseqfunc  = &keymix_seq;
-                description = "Encrypting with single-core keymix";
-        } else if (secret_size < size_threshold) {
-                // small seed + many threads -> inter-keymix
-                mixseqfunc  = &keymix_inter_seq;
-                description = "Encrypting with inter-keymix";
-        } else if (arguments->threads % pow != 0) {
-                // large seed + unbalanced number of threads -> inter-mix
-                mixseqfunc  = &keymix_inter_seq;
-                description = "Encrypting with inter-keymix";
-        } else if (arguments->threads == pow) {
-                //  large seed + power nof threads -> intra-keymix
-                mixseqfunc  = &keymix_intra_seq;
-                description = "Encrypting with intra-keymix";
-        } else if (arguments->threads % pow == 0) {
-                // large seed + multiple of power nof threads -> inter & intra-keymix
-                mixseqfunc  = &keymix_inter_intra_seq;
-                description = "Encrypting with inter-intra-keymix";
-        }
-
-        // keymix
-        if (mixseqfunc == NULL) {
-                printf("No suitable encryption mode found\n");
-                encrypt_status = ERR_MODE;
-                goto cleanup;
-        }
-        if (arguments->verbose)
-                printf("%s\n", description);
-        encrypt_status = (*(mixseqfunc))(arguments, fstr_output, fstr_resource, page_size,
-                                         resource_size, secret, secret_size);
-        if (encrypt_status != 0)
-                goto cleanup;
-
-cleanup:
-        explicit_bzero(secret, secret_size);
-        free(secret);
-        return encrypt_status;
-}
+FILE *fopen_msg(const char *resource, char *mode) {
+        FILE *fp = fopen(resource, mode);
+        if (fp == NULL)
+                ERROR_MSG("No such file: %s\n", resource);
+        return fp;
+};
 
 int main(int argc, char **argv) {
+        cli_args_t args;
+        int err = 0;
 
-        unsigned int prog_status = 0;
-        // parse and check the arguments
-        struct arguments arguments;
-        argp_parse(&argp, argc, argv, 0, 0, &arguments);
-        if (arguments.verbose) {
+        // Setup defaults
+        args.input   = NULL;
+        args.output  = NULL;
+        args.secret  = NULL;
+        args.iv      = 0;
+        args.fanout  = 3;
+        args.mixfunc = MIXCTR_WOLFSSL;
+        args.threads = 1;
+        args.verbose = false;
+
+        // Start parsing
+        if (argp_parse(&argp, argc, argv, 0, 0, &args))
+                return EXIT_FAILURE;
+
+        if (args.secret == NULL) {
+                ERROR_MSG("Required argument: secret\n");
+                return EXIT_FAILURE;
+        }
+
+        if (args.verbose) {
                 printf("===============\n");
                 printf("KEYMIXER CONFIG\n");
                 printf("===============\n");
-                printf("resource:\t%s\noutput:\t\t%s\nsecret:\t\t%s\n", arguments.resource_path,
-                       arguments.output_path, arguments.secret_path);
-                printf("iv:\t\t%s\ndiffusion:\t%d\nlibrary:\t%s\nthreads:\t%d\n", arguments.iv,
-                       arguments.diffusion, arguments.mixfunc_descr, arguments.threads);
+                printf("resource: %s\n", args.input);
+                printf("output:   %s\n", args.output);
+                printf("secret:   %s\n", args.secret);
+                printf("iv:       [redacted]\n");
+                // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
+                printf("aes impl: ");
+                switch (args.mixfunc) {
+                case MIXCTR_WOLFSSL:
+                        printf("woflssl\n");
+                        break;
+                case MIXCTR_OPENSSL:
+                        printf("openssl\n");
+                        break;
+                case MIXCTR_AESNI:
+                        printf("aesni\n");
+                        break;
+                }
+                printf("fanout:   %d\n", args.fanout);
+                printf("threads:  %d\n", args.threads);
                 printf("===============\n");
         }
+
         // prepare the streams
-        FILE *fstr_resource = fopen(arguments.resource_path, "r");
-        if (fstr_resource == NULL) {
-                printf("(!) Cannot open resource file\n");
-                prog_status = errno;
-                goto close_fstr_resource;
+        FILE *fkey = fopen_msg(args.secret, "r");
+
+        FILE *fin = stdin;
+        if (args.input != NULL)
+                fin = fopen_msg(args.input, "r");
+
+        FILE *fout = stdout;
+        if (args.output != NULL)
+                fout = fopen_msg(args.output, "w");
+
+        if (fin == NULL || fout == NULL || fkey == NULL) {
+                err = EXIT_FAILURE;
+                goto cleanup;
         }
-        // remove the previously encrypted resource if it exists
-        FILE *fstr_output = fopen(arguments.output_path, "r");
-        if (fstr_output != NULL) {
-                fclose(fstr_output);
-                if (remove(arguments.output_path) == 0) {
-                        if (arguments.verbose)
-                                printf("Previous encrypted resource correctly removed\n");
-                } else {
-                        printf("(!) Unable to delete the previously encrypted resource\n");
-                        prog_status = errno;
-                        goto close_fstr_secret;
-                }
+
+        // Read the key into memory
+        size_t key_size = get_file_size(fkey);
+        byte *key       = checked_malloc(key_size);
+
+        if (key_size % SIZE_MACRO != 0) {
+                ERROR_MSG("Secret error: must be a multiple of 48 B\n");
+                goto cleanup;
         }
-        fstr_output = fopen(arguments.output_path, "w");
-        if (fstr_output == NULL) {
-                printf("(!) Cannot open create encrypted file file\n");
-                prog_status = errno;
-                goto close_fstr_output;
+
+        size_t num_macros = key_size / SIZE_MACRO;
+        if (!ISPOWEROF(num_macros, args.fanout)) {
+                ERROR_MSG("Secret error: number of 48-B blocks is not a power of fanout (which "
+                          "is %d)\n",
+                          args.fanout);
+                goto cleanup;
         }
-        FILE *fstr_secret = fopen(arguments.secret_path, "r");
-        if (fstr_secret == NULL) {
-                printf("(!) Cannot open secret file\n");
-                prog_status = errno;
-                goto close_fstr_secret;
-        }
-        // encrypt
-        prog_status = encrypt(&arguments, fstr_output, fstr_resource, fstr_secret);
-close_fstr_secret:
-        fclose(fstr_secret);
-close_fstr_output:
-        fclose(fstr_output);
-close_fstr_resource:
-        fclose(fstr_resource);
-clean_arguments:
-        explicit_bzero(arguments.iv, SIZE_BLOCK);
-        free(arguments.iv);
-        exit(prog_status);
+
+        if (fread(key, key_size, 1, fkey) != 1)
+                goto cleanup;
+
+        // Do the encryption
+        keymix_ctx_t ctx;
+        ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
+        err = stream_encrypt(fout, fin, &ctx, args.threads);
+
+        // ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
+        // ctx_enable_iv_counter(&ctx, args.iv);
+        // err = stream_encrypt2(fout, fin, &ctx, args.threads);
+
+cleanup:
+        safe_explicit_bzero(key, key_size);
+        free(key);
+        safe_fclose(fkey);
+        if (args.input != NULL)
+                safe_fclose(fin);
+        if (args.output != NULL)
+                safe_fclose(fout);
+        return err;
 }
