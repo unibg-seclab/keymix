@@ -5,11 +5,14 @@
 
 #include "enc.h"
 #include "log.h"
-#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
 
 // -------------------------------------------------- Configure tests
+
+#define SIZE_1KiB 1024
+#define SIZE_1MiB (1024 * SIZE_1KiB)
+#define SIZE_1GiB (1024 * SIZE_1MiB)
 
 #define NUM_OF_TESTS 20
 #define MIN_KEY_SIZE (8 * SIZE_1MiB)
@@ -115,12 +118,16 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
 void test_keymix(keymix_ctx_t *ctx, byte *out, uint64_t expansion, uint8_t internal_threads,
                  uint8_t external_threads) {
         char *impl = "(unspecified)";
-        if (ctx->mixctrpass == &aesni) {
+        switch (ctx->mixctr) {
+        case MIXCTR_AESNI:
                 impl = "aesni";
-        } else if (ctx->mixctrpass == &openssl) {
-                impl = "openssl";
-        } else if (ctx->mixctrpass == &wolfssl) {
+                break;
+        case MIXCTR_WOLFSSL:
                 impl = "wolfssl";
+                break;
+        case MIXCTR_OPENSSL:
+                impl = "wolfssl";
+                break;
         }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
              external_threads, impl, ctx->fanout, expansion);
@@ -138,12 +145,16 @@ void test_keymix(keymix_ctx_t *ctx, byte *out, uint64_t expansion, uint8_t inter
 void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, uint64_t expansion, uint8_t internal_threads,
               uint8_t external_threads) {
         char *impl = "(unspecified)";
-        if (ctx->mixctrpass == &aesni) {
+        switch (ctx->mixctr) {
+        case MIXCTR_AESNI:
                 impl = "aesni";
-        } else if (ctx->mixctrpass == &openssl) {
-                impl = "openssl";
-        } else if (ctx->mixctrpass == &wolfssl) {
+                break;
+        case MIXCTR_WOLFSSL:
                 impl = "wolfssl";
+                break;
+        case MIXCTR_OPENSSL:
+                impl = "wolfssl";
+                break;
         }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
              external_threads, impl, ctx->fanout, expansion);

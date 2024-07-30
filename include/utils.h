@@ -1,9 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <math.h> // For log
-// #include <stdio.h>
-// #include <stdlib.h>
+#include <math.h> // For logarithm
 
 #include "config.h"
 #include "types.h"
@@ -46,10 +44,17 @@
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
 byte *checked_malloc(size_t size);
-void memxor(void *dst, void *a, void *b, size_t size);
+
+// Does `dst = a ^ b` but on memory areas. Size is specified in bytes.
+void memxor(void *dst, void *a, void *b, size_t bytes);
+
+// Swaps two memory areas.
 void memswap(byte *a, byte *b, size_t bytes);
+
+// Applies `explicit_bzero` to `ptr` if it is not `NULL`.
 void safe_explicit_bzero(void *ptr, size_t size);
 
+// Power over 64-bit integers.
 uint64_t intpow(uint64_t base, uint64_t exp);
 
 #endif

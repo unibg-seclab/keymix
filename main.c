@@ -23,6 +23,8 @@
 #include "types.h"
 #include "utils.h"
 
+#define SIZE_1MiB (1024 * 1024)
+
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);
         for (size_t i = 0; i < size; i++) {

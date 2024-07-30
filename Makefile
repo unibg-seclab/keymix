@@ -27,8 +27,6 @@ build: $(OBJECTS)
 
 all: $(OUUT) $(TEST) $(VERIFY) $(KEYMIXER)
 
-%.c: %.h
-
 wolfssl:
 ifeq ($(shell which makepkg &> /dev/null && echo "yes" || echo "no"), yes)
 	@ cd pkgs/wolfssl-ecb && makepkg -sfi

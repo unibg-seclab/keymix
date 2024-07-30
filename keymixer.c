@@ -1,6 +1,5 @@
 #include "enc.h"
 #include "file.h"
-#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
 #include <argp.h>
@@ -76,7 +75,7 @@ static struct argp argp = {options, parse_opt, args_doc,
 // I know about `strtol` and all the other stuff, but we need a 16-B unsigned
 // integer, and `strtol` does a signed long :(
 // Adapted from https://stackoverflow.com/questions/10156409/convert-hex-string-char-to-int
-inline int hex2int(uint128_t *valp, char *hex) {
+inline int parse_hex(uint128_t *valp, char *hex) {
         // Work on a local copy (less pointer headaches is better)
         uint128_t val = 0;
         while (*hex) {
@@ -100,7 +99,7 @@ inline int hex2int(uint128_t *valp, char *hex) {
         *valp = val;
         return 0;
 }
-inline int strtofanout(fanout_t *out, char *str) {
+inline int parse_fanout(fanout_t *out, char *str) {
         int x = atoi(str);
         switch (x) {
         case FANOUT2:
@@ -111,6 +110,19 @@ inline int strtofanout(fanout_t *out, char *str) {
         default:
                 return 1;
         }
+}
+
+mixctr_t parse_mixctr(char *name) {
+        if (strcmp("wolfssl", name) == 0)
+                return MIXCTR_WOLFSSL;
+
+        if (strcmp("openssl", name) == 0)
+                return MIXCTR_OPENSSL;
+
+        if (strcmp("aesni", name) == 0)
+                return MIXCTR_AESNI;
+
+        return -1;
 }
 
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -125,16 +137,16 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARG_KEY_IV:
                 if (strlen(arg) != 16)
                         argp_error(state, "IV must be 16-B long");
-                if (hex2int(&(arguments->iv), arg))
+                if (parse_hex(&(arguments->iv), arg))
                         argp_error(state, "IV must consist of valid hex characters");
                 break;
         case ARG_KEY_FANOUT:
-                if (strtofanout(&(arguments->fanout), arg))
+                if (parse_fanout(&(arguments->fanout), arg))
                         argp_error(state, "fanout must be one of %d, %d, %d", FANOUT2, FANOUT3,
                                    FANOUT4);
                 break;
         case ARG_KEY_LIBRARY:
-                arguments->mixctr = mixctr_from_str(arg);
+                arguments->mixctr = parse_mixctr(arg);
                 if (arguments->mixctr == -1)
                         argp_error(state, "library must be one of wolfssl, openssl, aesni");
                 break;
@@ -277,11 +289,12 @@ int main(int argc, char **argv) {
 cleanup:
         safe_explicit_bzero(key, key_size);
         free(key);
-        safe_fclose(fkey);
+        if (fkey != NULL)
+                fclose(fkey);
         // Do NOT close stdin or stdout
-        if (args.input != NULL)
-                safe_fclose(fin);
-        if (args.output != NULL)
-                safe_fclose(fout);
+        if (args.input != NULL && fin != NULL)
+                fclose(fin);
+        if (args.output != NULL && fout != NULL)
+                fclose(fout);
         return err;
 }

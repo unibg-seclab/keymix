@@ -182,9 +182,9 @@ int verify_keymix(size_t fanout, uint8_t level) {
         byte *out_openssl = setup(size, false);
         byte *out_aesni   = setup(size, false);
 
-        keymix(&wolfssl, in, out_wolfssl, size, fanout, 1);
-        keymix(&openssl, in, out_openssl, size, fanout, 1);
-        keymix(&aesni, in, out_aesni, size, fanout, 1);
+        keymix(get_mixctr_impl(MIXCTR_WOLFSSL), in, out_wolfssl, size, fanout, 1);
+        keymix(get_mixctr_impl(MIXCTR_OPENSSL), in, out_openssl, size, fanout, 1);
+        keymix(get_mixctr_impl(MIXCTR_AESNI), in, out_aesni, size, fanout, 1);
 
         int err = 0;
         err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
@@ -217,10 +217,12 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         size_t thrff  = fanout * fanout;
         size_t thrfff = fanout * fanout * fanout;
 
-        keymix(&aesni, in, out1, size, fanout, thr1);
-        keymix(&aesni, in, outf, size, fanout, thrf);
-        keymix(&aesni, in, outff, size, fanout, thrff);
-        keymix(&aesni, in, outfff, size, fanout, thrfff);
+        mixctrpass_impl_t aesni = get_mixctr_impl(MIXCTR_AESNI);
+
+        keymix(aesni, in, out1, size, fanout, thr1);
+        keymix(aesni, in, outf, size, fanout, thrf);
+        keymix(aesni, in, outff, size, fanout, thrff);
+        keymix(aesni, in, outfff, size, fanout, thrfff);
 
         // Comparisons
         int err = 0;
@@ -261,7 +263,7 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         keymix_ctx_t ctx;
         ctx_keymix_init(&ctx, MIXCTR_AESNI, in, size, fanout);
 
-        keymix(&aesni, in, out_simple, size, fanout, 1);
+        keymix(get_mixctr_impl(MIXCTR_AESNI), in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
 
         keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);

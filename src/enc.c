@@ -15,18 +15,20 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
                       fanout_t fanout) {
         ctx->key        = key;
         ctx->key_size   = size;
+        ctx->mixctr     = mixctr;
         ctx->mixctrpass = get_mixctr_impl(mixctr);
         ctx->fanout     = fanout;
-        ctx_enable_xor(ctx);
+        ctx_enable_encryption(ctx);
         ctx_enable_iv_counter(ctx, iv);
 }
 
 void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
         ctx->key        = key;
         ctx->key_size   = size;
+        ctx->mixctr     = mixctr;
         ctx->mixctrpass = get_mixctr_impl(mixctr);
         ctx->fanout     = fanout;
-        ctx_disable_xor(ctx);
+        ctx_disable_encryption(ctx);
         ctx_disable_iv_counter(ctx);
 }
 
@@ -88,7 +90,7 @@ void *w_keymix(void *a) {
         // the result of keymix somewhere, and then do the xor only on the
         // corresponding part.
         byte *outbuffer = args->out;
-        if (ctx->do_xor) {
+        if (ctx->encrypt) {
                 outbuffer = malloc(ctx->key_size);
         }
 
@@ -117,7 +119,7 @@ void *w_keymix(void *a) {
                 keymix(ctx->mixctrpass, tmpkey, outbuffer, ctx->key_size, ctx->fanout,
                        args->internal_threads);
 
-                if (ctx->do_xor) {
+                if (ctx->encrypt) {
                         memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
                         in += ctx->key_size;
                 }
@@ -128,14 +130,14 @@ void *w_keymix(void *a) {
                 }
 
                 out += ctx->key_size;
-                if (!ctx->do_xor)
+                if (!ctx->encrypt)
                         outbuffer = out;
                 if (remaining_size >= ctx->key_size)
                         remaining_size -= ctx->key_size;
         }
 
         free(tmpkey);
-        if (ctx->do_xor)
+        if (ctx->encrypt)
                 free(outbuffer);
         return NULL;
 }
@@ -174,7 +176,7 @@ int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t
                 started_threads++;
 
                 out += thread_size;
-                if (ctx->do_xor)
+                if (ctx->encrypt)
                         in += thread_size;
                 if (remaining_size > ctx->key_size)
                         remaining_size -= thread_size;
@@ -192,14 +194,15 @@ int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t
 
 // ---------------------------------------------- Principal interface
 
-int keymix_t(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads,
+int keymix_t(keymix_ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
              uint8_t internal_threads) {
-        return keymix_ex(ctx, out, size, external_threads, internal_threads, 0);
+        return keymix_ex(ctx, buffer, size, external_threads, internal_threads, 0);
 }
 
-int keymix_ex(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads,
+int keymix_ex(keymix_ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
               uint8_t internal_threads, uint128_t starting_counter) {
-        return keymix_internal(ctx, NULL, out, size, external_threads, internal_threads,
+        assert(!ctx->encrypt && "You can't use an encryption context with keymix");
+        return keymix_internal(ctx, NULL, buffer, size, external_threads, internal_threads,
                                starting_counter);
 }
 
@@ -214,7 +217,7 @@ int encrypt_t(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t exter
 
 int encrypt_ex(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
                uint8_t internal_threads, uint128_t starting_counter) {
-        assert(ctx->do_xor && ctx->do_iv_counter &&
+        assert(ctx->encrypt && ctx->do_iv_counter &&
                "You must use an encryption context with encrypt");
         return keymix_internal(ctx, in, out, size, external_threads, internal_threads,
                                starting_counter);

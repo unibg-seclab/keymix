@@ -29,19 +29,6 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         }
 }
 
-mixctr_t mixctr_from_str(char *name) {
-        if (strcmp("wolfssl", name) == 0)
-                return MIXCTR_WOLFSSL;
-
-        if (strcmp("openssl", name) == 0)
-                return MIXCTR_OPENSSL;
-
-        if (strcmp("aesni", name) == 0)
-                return MIXCTR_AESNI;
-
-        return -1;
-}
-
 // ------------------------------------------------------------ WolfSSL
 
 int wolfssl(byte *in, byte *out, size_t size) {

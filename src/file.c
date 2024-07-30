@@ -22,11 +22,6 @@ size_t get_file_size(FILE *fp) {
         return (size_t)res;
 }
 
-void safe_fclose(FILE *fp) {
-        if (fp != NULL)
-                fclose(fp);
-}
-
 void derive_thread_numbers(uint8_t *internal_threads, uint8_t *external_threads, uint8_t fanout,
                            uint8_t threads) {
         uint8_t ithr, ethr;
