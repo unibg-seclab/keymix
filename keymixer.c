@@ -245,12 +245,12 @@ int main(int argc, char **argv) {
 
         // Do the encryption
         keymix_ctx_t ctx;
-        // ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
-        // err = stream_encrypt(fout, fin, &ctx, args.threads);
+        ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
+        err = stream_encrypt(fout, fin, &ctx, args.threads);
 
-        ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
-        ctx_enable_iv_counter(&ctx, args.iv);
-        err = stream_encrypt2(fout, fin, &ctx, args.threads);
+        // ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
+        // ctx_enable_iv_counter(&ctx, args.iv);
+        // err = stream_encrypt2(fout, fin, &ctx, args.threads);
 
 cleanup:
         safe_explicit_bzero(key, key_size);

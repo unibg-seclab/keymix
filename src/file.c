@@ -72,30 +72,27 @@ int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         // and the remaining resource, which is why we track input_size
 
         size_t buffer_size = external_threads * ctx->key_size;
-        byte *in_buffer    = malloc(buffer_size);
-        byte *out_buffer   = malloc(buffer_size);
+        byte *buffer       = malloc(buffer_size);
 
         uint128_t counter = 0;
         size_t read       = 0;
 
         do {
                 // Read a certain number of bytes
-                read = fread(in_buffer, 1, buffer_size, fin);
+                read = fread(buffer, 1, buffer_size, fin);
 
                 // We have read everything we can, we don't need to encrypt
                 // an empty buffer, nor to write anything to the output
                 if (read == 0)
                         break;
 
-                encrypt_ex(ctx, in_buffer, out_buffer, read, external_threads, internal_threads,
-                           counter);
+                encrypt_ex(ctx, buffer, buffer, read, external_threads, internal_threads, counter);
 
-                fwrite(out_buffer, read, 1, fout);
+                fwrite(buffer, read, 1, fout);
                 counter += external_threads; // We encrypt `external_threads` at a time
         } while (read == buffer_size);
 
-        free(in_buffer);
-        free(out_buffer);
+        free(buffer);
         return 0;
 }
 
@@ -123,28 +120,25 @@ int stream_encrypt2(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         uint128_t counter = 0;
         size_t read       = 0;
         do {
-
                 byte *bp = buffer;
+
+                read = fread(fbuf, 1, fbuf_size, fin);
+                if (read == 0)
+                        goto while_end;
 
                 keymix_ex(ctx, buffer, buffer_size, external_threads, internal_threads, counter);
 
                 // We have to XOR the whole buffe (however, we can break away
                 // if we get to the EOF first)
-                for (; bp < buffer + buffer_size; bp += fbuf_size) {
-                        read = fread(fbuf, 1, fbuf_size, fin);
-                        // If we finish early, stop the stuff
-                        // However, we unfortunately have already done an extra
-                        // keymix in this case
-                        if (read == 0)
-                                goto while_end;
-
-                        // XOR it with the keymix result
-                        // read is either less than or equal to fbuf_size,
-                        // so MIN(read, fbuf_size) = read
+                for (; bp < buffer + buffer_size && read > 0; bp += fbuf_size) {
                         memxor(fbuf, fbuf, bp, read);
 
-                        // And write it back
                         fwrite(fbuf, read, 1, fout);
+
+                        // Read the next, but only if we havent finished the
+                        // buffer, otherwise we do one read too much
+                        if (bp + fbuf_size < buffer + buffer_size)
+                                read = fread(fbuf, 1, fbuf_size, fin);
                 }
 
                 counter += external_threads;
