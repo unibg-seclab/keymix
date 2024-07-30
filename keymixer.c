@@ -4,10 +4,18 @@
 #include "types.h"
 #include "utils.h"
 #include <argp.h>
+#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
-#define ERROR_MSG(...) fprintf(stderr, __VA_ARGS__);
+void errmsg(const char *fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        fprintf(stderr, "keymixer: ");
+        vfprintf(stderr, fmt, args);
+        fprintf(stderr, "\n");
+        va_end(args);
+}
 
 // ------------------------------------------------------------------ Option definitions
 
@@ -154,7 +162,7 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
 FILE *fopen_msg(const char *resource, char *mode) {
         FILE *fp = fopen(resource, mode);
         if (fp == NULL)
-                ERROR_MSG("No such file: %s\n", resource);
+                errmsg("no such file '%s'", resource);
         return fp;
 };
 
@@ -227,15 +235,13 @@ int main(int argc, char **argv) {
         key      = checked_malloc(key_size);
 
         if (key_size % SIZE_MACRO != 0) {
-                ERROR_MSG("Key error: must be a multiple of 48 B\n");
+                errmsg("key must be a multiple of %d B", SIZE_MACRO);
                 goto cleanup;
         }
 
         size_t num_macros = key_size / SIZE_MACRO;
         if (!ISPOWEROF(num_macros, args.fanout)) {
-                ERROR_MSG("Key error: number of 48-B blocks is not a power of fanout (which "
-                          "is %d)\n",
-                          args.fanout);
+                errmsg("key;s number of 48-B blocks is not a power of fanout (%d)", args.fanout);
                 goto cleanup;
         }
 
