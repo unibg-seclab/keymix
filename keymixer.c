@@ -176,11 +176,6 @@ int main(int argc, char **argv) {
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
                 return EXIT_FAILURE;
 
-        if (args.key == NULL) {
-                ERROR_MSG("Required argument: key\n");
-                return EXIT_FAILURE;
-        }
-
         if (args.verbose) {
                 printf("===============\n");
                 printf("KEYMIXER CONFIG\n");
