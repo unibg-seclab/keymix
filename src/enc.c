@@ -193,7 +193,8 @@ int keymix_t(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads
 
 int keymix_ex(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t external_threads,
               uint8_t internal_threads, uint128_t starting_counter) {
-        return keymix_internal(ctx, NULL, out, size, external_threads, internal_threads, 0);
+        return keymix_internal(ctx, NULL, out, size, external_threads, internal_threads,
+                               starting_counter);
 }
 
 int encrypt(keymix_ctx_t *ctx, byte *in, byte *out, size_t size) {
