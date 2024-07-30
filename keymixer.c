@@ -30,10 +30,10 @@ typedef struct {
         const char *output;
         const char *key;
         uint128_t iv;
-        unsigned int fanout;
-        mixctr_t mixfunc;
-        unsigned int threads;
-        unsigned short verbose;
+        fanout_t fanout;
+        mixctr_t mixctr;
+        uint8_t threads;
+        bool verbose;
 } cli_args_t;
 
 enum args_key {
@@ -134,8 +134,8 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                                    FANOUT4);
                 break;
         case ARG_KEY_LIBRARY:
-                arguments->mixfunc = mixctr_from_str(arg);
-                if (arguments->mixfunc == -1)
+                arguments->mixctr = mixctr_from_str(arg);
+                if (arguments->mixctr == -1)
                         argp_error(state, "library must be one of wolfssl, openssl, aesni");
                 break;
         case ARG_KEY_THREADS:
@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
         args.key     = NULL;
         args.iv      = 0;
         args.fanout  = 3;
-        args.mixfunc = MIXCTR_WOLFSSL;
+        args.mixctr  = MIXCTR_WOLFSSL;
         args.threads = 1;
         args.verbose = false;
 
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
                 printf("iv:       [redacted]\n");
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
                 printf("aes impl: ");
-                switch (args.mixfunc) {
+                switch (args.mixctr) {
                 case MIXCTR_WOLFSSL:
                         printf("woflssl\n");
                         break;
@@ -266,7 +266,7 @@ int main(int argc, char **argv) {
 
         // Do the encryption
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, args.mixfunc, key, key_size, args.iv, args.fanout);
+        ctx_encrypt_init(&ctx, args.mixctr, key, key_size, args.iv, args.fanout);
         if (stream_encrypt(fout, fin, &ctx, args.threads))
                 err = ERR_ENC;
 
