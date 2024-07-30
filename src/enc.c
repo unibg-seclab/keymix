@@ -55,7 +55,8 @@ typedef struct {
 // Note: this two functions are currently unused, because we increment directly
 // using a cast to uint128_t. If we want to not have endianness stuff, we can
 // just switch to these.
-inline void reverse128bits(byte *data) {
+inline void _reverse128bits(uint128_t *x) {
+        byte *data  = (byte *)x;
         size_t size = SIZE_BLOCK;
         for (size_t i = 0; i < size / 2; i++) {
                 byte temp          = data[i];
@@ -63,16 +64,12 @@ inline void reverse128bits(byte *data) {
                 data[size - 1 - i] = temp;
         }
 }
-inline void add_counter(byte *macro, unsigned long step) {
-        // Note: we reverse because we are on little endian and we want
-        // to increment what would be the MSB
-        // Maybe there should be a check about this, although it's not that
-        // important as of now, or we could just increment the LSB (left side),
-        // since the effect is all the same on our schema
-        reverse128bits(macro);
-        (*(uint128_t *)macro) += step;
-        reverse128bits(macro);
-}
+
+#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
+#define __correct_endianness(...) _reverse128bits(__VA_ARGS_)
+#else
+#define __correct_endianness(...)
+#endif
 
 void *w_keymix(void *a) {
         worker_args_t *args = (worker_args_t *)a;
@@ -100,10 +97,17 @@ void *w_keymix(void *a) {
         // First block -> XOR with (unchanging) IV
         // Second block -> incremented
 
-        uint128_t *buffer_as_blocks = (uint128_t *)tmpkey;
+        uint128_t *key_as_blocks = (uint128_t *)tmpkey;
+
         if (ctx->do_iv_counter) {
-                buffer_as_blocks[0] ^= ctx->iv;
-                buffer_as_blocks[1] += args->counter;
+                __correct_endianness(&key_as_blocks[0]);
+                __correct_endianness(&key_as_blocks[1]);
+
+                key_as_blocks[0] ^= ctx->iv;
+                key_as_blocks[1] += args->counter;
+
+                __correct_endianness(&key_as_blocks[0]);
+                __correct_endianness(&key_as_blocks[1]);
         }
 
         byte *in              = args->in;
@@ -118,8 +122,11 @@ void *w_keymix(void *a) {
                         memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
                         in += ctx->key_size;
                 }
-                if (ctx->do_iv_counter)
-                        buffer_as_blocks[1]++;
+                if (ctx->do_iv_counter) {
+                        __correct_endianness(&key_as_blocks[1]);
+                        key_as_blocks[1]++;
+                        __correct_endianness(&key_as_blocks[1]);
+                }
 
                 out += ctx->key_size;
                 if (!ctx->do_xor)
