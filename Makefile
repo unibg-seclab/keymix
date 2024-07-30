@@ -19,7 +19,7 @@ SECRET = secret
 # ------------ Compiler flags
 
 CC = gcc
-CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -fPIC
+CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude
 LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
 # ------------ Generic building
@@ -28,6 +28,7 @@ build: $(OBJECTS)
 
 all: $(OUUT) $(TEST) $(VERIFY) $(KEYMIXER)
 
+$(LIBRARY): CFLAGS += -fPIC
 $(LIBRARY): $(OBJECTS)
 	@ gcc -shared -o $(LIBRARY) $(OBJECTS)
 
