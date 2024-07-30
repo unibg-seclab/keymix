@@ -2,35 +2,11 @@
 
 #include "assert.h"
 #include "keymix.h"
-#include "mixctr.h"
 #include "types.h"
 #include "utils.h"
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-
-// ---------------------------------------------- Context init
-
-void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
-                      fanout_t fanout) {
-        ctx->key        = key;
-        ctx->key_size   = size;
-        ctx->mixctr     = mixctr;
-        ctx->mixctrpass = get_mixctr_impl(mixctr);
-        ctx->fanout     = fanout;
-        ctx_enable_encryption(ctx);
-        ctx_enable_iv_counter(ctx, iv);
-}
-
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
-        ctx->key        = key;
-        ctx->key_size   = size;
-        ctx->mixctr     = mixctr;
-        ctx->mixctrpass = get_mixctr_impl(mixctr);
-        ctx->fanout     = fanout;
-        ctx_disable_encryption(ctx);
-        ctx_disable_iv_counter(ctx);
-}
 
 // ---------------------------------------------- Keymix internals
 
