@@ -10,6 +10,7 @@ TEST = test
 VERIFY = verify
 PERFDATA = perf.data
 KEYMIXER = keymixer
+LIBRARY = libkeymix.so
 
 RESOURCE = resource.txt
 ENC_RESOURCE = resource.txt.enc
@@ -18,7 +19,7 @@ SECRET = secret
 # ------------ Compiler flags
 
 CC = gcc
-CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude
+CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -fPIC
 LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
 # ------------ Generic building
@@ -26,6 +27,9 @@ LDLIBS = -lcrypto -lm -lwolfssl -pthread
 build: $(OBJECTS)
 
 all: $(OUUT) $(TEST) $(VERIFY) $(KEYMIXER)
+
+$(LIBRARY): $(OBJECTS)
+	@ gcc -shared -o $(LIBRARY) $(OBJECTS)
 
 wolfssl:
 ifeq ($(shell which makepkg &> /dev/null && echo "yes" || echo "no"), yes)
