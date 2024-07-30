@@ -16,11 +16,10 @@ typedef struct {
 
 // Context initializatino
 
-void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *secret, size_t size, uint128_t iv,
+void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
                       fanout_t fanout);
 
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *secret, size_t size,
-                     fanout_t fanout);
+void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout);
 
 inline void ctx_enable_xor(keymix_ctx_t *ctx) { ctx->do_xor = true; }
 inline void ctx_disable_xor(keymix_ctx_t *ctx) { ctx->do_xor = false; }

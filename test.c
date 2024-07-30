@@ -12,8 +12,8 @@
 // -------------------------------------------------- Configure tests
 
 #define NUM_OF_TESTS 20
-#define MINIMUM_SEED_SIZE (8 * SIZE_1MiB)
-#define MAXIMUM_SEED_SIZE (1.9 * SIZE_1GiB)
+#define MIN_KEY_SIZE (8 * SIZE_1MiB)
+#define MAX_KEY_SIZE (1.9 * SIZE_1GiB)
 
 #define MAX_EXPANSION 20
 
@@ -36,8 +36,8 @@ inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 FILE *fout;
 
 void csv_header() {
-        fprintf(fout, "seed_size,"); // Seed size in B
-        fprintf(fout, "expansion,"); // How many Ts to generate (each seed_size big)
+        fprintf(fout, "key_size,");  // Key size in B
+        fprintf(fout, "expansion,"); // How many Ts to generate (each key_size big)
         fprintf(fout,
                 "internal_threads,");       // Number of internal threads
         fprintf(fout, "external_threads,"); // Number of threads to generate the different Ts
@@ -46,9 +46,9 @@ void csv_header() {
         fprintf(fout, "time\n");            // Time in ms
         fflush(fout);
 }
-void csv_line(size_t seed_size, uint64_t expansion, uint8_t internal_threads,
+void csv_line(size_t key_size, uint64_t expansion, uint8_t internal_threads,
               uint8_t external_threads, char *implementation, uint8_t diff_factor, double time) {
-        fprintf(fout, "%zu,", seed_size);
+        fprintf(fout, "%zu,", key_size);
         fprintf(fout, "%zu,", expansion);
         fprintf(fout, "%d,", internal_threads);
         fprintf(fout, "%d,", external_threads);
@@ -69,15 +69,15 @@ uint8_t first_x_that_surpasses(double bar, uint8_t diff_factor) {
         return x;
 }
 
-void setup_seeds(uint8_t diff_factor, size_t **seed_sizes, uint8_t *seed_sizes_count) {
-        uint8_t min_x = first_x_that_surpasses(MINIMUM_SEED_SIZE, diff_factor);
-        uint8_t max_x = first_x_that_surpasses(MAXIMUM_SEED_SIZE, diff_factor);
+void setup_keys(uint8_t diff_factor, size_t **key_sizes, uint8_t *key_sizes_count) {
+        uint8_t min_x = first_x_that_surpasses(MIN_KEY_SIZE, diff_factor);
+        uint8_t max_x = first_x_that_surpasses(MAX_KEY_SIZE, diff_factor);
 
-        *seed_sizes_count = max_x + 1 - min_x;
-        *seed_sizes       = realloc(*seed_sizes, *seed_sizes_count * sizeof(size_t));
+        *key_sizes_count = max_x + 1 - min_x;
+        *key_sizes       = realloc(*key_sizes, *key_sizes_count * sizeof(size_t));
 
         for (uint8_t x = min_x; x <= max_x; x++) {
-                (*seed_sizes)[x - min_x] = SIZE_MACRO * pow(diff_factor, x);
+                (*key_sizes)[x - min_x] = SIZE_MACRO * pow(diff_factor, x);
         }
 }
 
@@ -171,12 +171,12 @@ int main(int argc, char *argv[]) {
         uint8_t fanouts[]     = {2, 3, 4};
         uint8_t fanouts_count = sizeof(fanouts) / sizeof(__typeof__(*fanouts));
 
-        byte *seed = NULL;
-        byte *out  = NULL;
-        byte *in   = NULL;
+        byte *key = NULL;
+        byte *out = NULL;
+        byte *in  = NULL;
 
-        size_t *seed_sizes = NULL;
-        uint8_t seed_sizes_count;
+        size_t *key_sizes = NULL;
+        uint8_t key_sizes_count;
 
         uint8_t external_threads[] = {1, 2, 4, 8, 16};
         uint8_t external_threads_count =
@@ -197,27 +197,25 @@ int main(int argc, char *argv[]) {
         FOR_EVERY(diff_p, fanouts, fanouts_count) {
                 uint8_t fanout = *diff_p;
 
-                setup_seeds(fanout, &seed_sizes, &seed_sizes_count);
+                setup_keys(fanout, &key_sizes, &key_sizes_count);
                 setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
-                FOR_EVERY(size, seed_sizes, seed_sizes_count) {
-                        // Setup seed
-                        _log(LOG_INFO, "Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
-                        SAFE_REALLOC(seed, *size);
+                FOR_EVERY(size, key_sizes, key_sizes_count) {
+                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *size, MiB(*size));
+                        SAFE_REALLOC(key, *size);
 
-                        // FOR_EVERY(config, ctxs, configs_count)
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count)
                         for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
                                 SAFE_REALLOC(out, exp * (*size));
 
-                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, *size, fanout);
                                 test_keymix(&ctx, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, *size, fanout);
                                 test_keymix(&ctx, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTR_AESNI, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_AESNI, key, *size, fanout);
                                 test_keymix(&ctx, out, exp, *ithr, *ethr);
                         }
                 }
@@ -236,13 +234,12 @@ int main(int argc, char *argv[]) {
         FOR_EVERY(fanout_p, fanouts, fanouts_count) {
                 uint8_t fanout = *fanout_p;
 
-                setup_seeds(fanout, &seed_sizes, &seed_sizes_count);
+                setup_keys(fanout, &key_sizes, &key_sizes_count);
                 setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
-                FOR_EVERY(size, seed_sizes, seed_sizes_count) {
-                        // Setup seed
-                        _log(LOG_INFO, "Testing seed size %zu B (%.2f MiB)\n", *size, MiB(*size));
-                        SAFE_REALLOC(seed, *size);
+                FOR_EVERY(size, key_sizes, key_sizes_count) {
+                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *size, MiB(*size));
+                        SAFE_REALLOC(key, *size);
 
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count)
@@ -250,13 +247,13 @@ int main(int argc, char *argv[]) {
                                 SAFE_REALLOC(out, exp * (*size));
                                 SAFE_REALLOC(in, exp * (*size));
 
-                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, *size, fanout);
                                 test_enc(&ctx, in, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, *size, fanout);
                                 test_enc(&ctx, in, out, exp, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTR_AESNI, seed, *size, fanout);
+                                ctx_keymix_init(&ctx, MIXCTR_AESNI, key, *size, fanout);
                                 test_enc(&ctx, in, out, exp, *ithr, *ethr);
                         }
                 }
@@ -269,8 +266,8 @@ int main(int argc, char *argv[]) {
 cleanup:
         if (fout)
                 fclose(fout);
-        free(seed);
+        free(key);
         free(out);
-        free(seed_sizes);
+        free(key_sizes);
         return 0;
 }

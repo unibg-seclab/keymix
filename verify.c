@@ -79,7 +79,7 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fan
         }
 }
 
-// Verify equivalence of the shuffling operations for mixing a seed of size
+// Verify equivalence of the shuffling operations for mixing a key of size
 // fanout^level macro blocks.
 // Note, since shuffle and spread use two different mixing schemas these do
 // not produce the same results, hence we do not compare them.
@@ -125,7 +125,7 @@ int verify_shuffles(size_t fanout, uint8_t level) {
         return err;
 }
 
-// Verify equivalence of the shuffling operations for mixing a seed of size
+// Verify equivalence of the shuffling operations for mixing a key of size
 // fanout^level macro blocks with a varying number of threads.
 // Note, since shuffle and spread use two different mixing schemas these do
 // not produce the same results, hence we do not compare them.
@@ -346,8 +346,8 @@ int verify_enc(size_t fanout, uint8_t level) {
                 goto cleanup;
 
 int main() {
-        uint64_t seed = time(NULL);
-        srand(seed);
+        uint64_t rand_seed = time(NULL);
+        srand(rand_seed);
 
         int err = 0;
 
@@ -366,7 +366,7 @@ int main() {
 
 cleanup:
         if (err)
-                _log(LOG_INFO, "Failed, seed was %u\n", seed);
+                _log(LOG_INFO, "Failed, seed was %u\n", rand_seed);
         else
                 _log(LOG_INFO, "All ok\n");
         return err;

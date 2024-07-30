@@ -105,14 +105,14 @@ int barrier_destroy(thr_barrier_t *state) {
 
 // --------------------------------------------------------- Some utility functions
 
-inline uint8_t total_levels(size_t seed_size, uint8_t diff_factor) {
-        uint64_t nof_macros = seed_size / SIZE_MACRO;
+inline uint8_t total_levels(size_t size, uint8_t diff_factor) {
+        uint64_t nof_macros = size / SIZE_MACRO;
         return 1 + LOGBASE(nof_macros, diff_factor);
 }
 
-void keymix_inner(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t size, uint8_t fanout,
+void keymix_inner(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8_t fanout,
                   uint8_t levels) {
-        (*mixctrpass)(seed, out, size);
+        (*mixctrpass)(in, out, size);
         for (uint8_t l = 1; l < levels; l++) {
                 spread(out, size, l, fanout);
                 (*mixctrpass)(out, out, size);
@@ -174,7 +174,7 @@ thread_exit:
         return NULL;
 }
 
-int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size, uint8_t fanout,
+int keymix(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8_t fanout,
            uint8_t nof_threads) {
         if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
@@ -183,20 +183,20 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size
 
         // We can't assign more than 1 thread to a single macro, so we will
         // never spawn more than nof_macros threads
-        uint64_t nof_macros = seed_size / SIZE_MACRO;
+        uint64_t nof_macros = size / SIZE_MACRO;
         nof_threads         = MIN(nof_threads, nof_macros);
-        uint8_t levels      = total_levels(seed_size, fanout);
+        uint8_t levels      = total_levels(size, fanout);
 
         _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
 
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
-                keymix_inner(mixctrpass, seed, out, seed_size, fanout, levels);
+                keymix_inner(mixctrpass, in, out, size, fanout, levels);
                 return 0;
         }
 
-        size_t thread_chunk_size = seed_size / nof_threads;
+        size_t thread_chunk_size = size / nof_threads;
         uint8_t thread_levels    = total_levels(thread_chunk_size, fanout);
 
         _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
@@ -216,13 +216,13 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *seed, byte *out, size_t seed_size
         for (uint8_t t = 0; t < nof_threads; t++) {
                 thr_keymix_t *a = args + t;
                 a->id           = t;
-                a->in           = seed + t * thread_chunk_size;
+                a->in           = in + t * thread_chunk_size;
                 a->out          = out + t * thread_chunk_size;
                 a->barrier      = &barrier;
 
                 a->abs_out = out;
 
-                a->total_size    = seed_size;
+                a->total_size    = size;
                 a->chunk_size    = thread_chunk_size;
                 a->thread_levels = thread_levels;
                 a->total_levels  = levels;

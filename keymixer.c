@@ -14,7 +14,7 @@
 typedef struct {
         const char *input;
         const char *output;
-        const char *secret;
+        const char *key;
         uint128_t iv;
         unsigned int fanout;
         mixctr_t mixfunc;
@@ -33,7 +33,7 @@ enum args_key {
 
 const char *argp_program_version     = "1.0.0";
 const char *argp_program_bug_address = "<seclab@unibg.it>";
-static char args_doc[]               = "SECRET [INPUT]";
+static char args_doc[]               = "KEYFILE [INPUT]";
 
 // The order for an argp_opption is
 // - long name
@@ -55,7 +55,7 @@ static struct argp_option options[] = {
 error_t parse_opt(int, char *, struct argp_state *);
 
 static struct argp argp = {options, parse_opt, args_doc,
-                           "keymixer -- a cli program to encrypt resources using large secrets"};
+                           "keymixer -- a cli program to encrypt resources using large keys"};
 
 // ------------------------------------------------------------------ Argument parsing
 
@@ -130,9 +130,9 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         argp_error(state, "threads must be a positive number");
                 break;
         case ARGP_KEY_ARG:
-                // We accept only 2 input argument, the secret and (possibly) the file
+                // We accept only 2 input argument, the key and (possibly) the file
                 if (state->arg_num == 0)
-                        arguments->secret = arg;
+                        arguments->key = arg;
                 else if (state->arg_num == 1)
                         arguments->input = arg;
                 else
@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
         // Setup defaults
         args.input   = NULL;
         args.output  = NULL;
-        args.secret  = NULL;
+        args.key     = NULL;
         args.iv      = 0;
         args.fanout  = 3;
         args.mixfunc = MIXCTR_WOLFSSL;
@@ -176,8 +176,8 @@ int main(int argc, char **argv) {
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
                 return EXIT_FAILURE;
 
-        if (args.secret == NULL) {
-                ERROR_MSG("Required argument: secret\n");
+        if (args.key == NULL) {
+                ERROR_MSG("Required argument: key\n");
                 return EXIT_FAILURE;
         }
 
@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
                 printf("===============\n");
                 printf("resource: %s\n", args.input);
                 printf("output:   %s\n", args.output);
-                printf("secret:   %s\n", args.secret);
+                printf("key:      %s\n", args.key);
                 printf("iv:       [redacted]\n");
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
                 printf("aes impl: ");
@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
         }
 
         // prepare the streams
-        FILE *fkey = fopen_msg(args.secret, "r");
+        FILE *fkey = fopen_msg(args.key, "r");
 
         FILE *fin = stdin;
         if (args.input != NULL)
@@ -228,13 +228,13 @@ int main(int argc, char **argv) {
         byte *key       = checked_malloc(key_size);
 
         if (key_size % SIZE_MACRO != 0) {
-                ERROR_MSG("Secret error: must be a multiple of 48 B\n");
+                ERROR_MSG("Key error: must be a multiple of 48 B\n");
                 goto cleanup;
         }
 
         size_t num_macros = key_size / SIZE_MACRO;
         if (!ISPOWEROF(num_macros, args.fanout)) {
-                ERROR_MSG("Secret error: number of 48-B blocks is not a power of fanout (which "
+                ERROR_MSG("Key error: number of 48-B blocks is not a power of fanout (which "
                           "is %d)\n",
                           args.fanout);
                 goto cleanup;

@@ -44,14 +44,14 @@ mixctr_t mixctr_from_str(char *name) {
 
 // ------------------------------------------------------------ WolfSSL
 
-int wolfssl(byte *seed, byte *out, size_t seed_size) {
+int wolfssl(byte *in, byte *out, size_t size) {
         Aes aes;
         wc_AesInit(&aes, NULL, INVALID_DEVID);
 
-        byte *last = seed + seed_size;
-        for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key      = seed;
-                uint128_t data = *(uint128_t *)(seed + 2 * SIZE_BLOCK);
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                byte *key      = in;
+                uint128_t data = *(uint128_t *)(in + 2 * SIZE_BLOCK);
                 uint128_t in[] = {data, data + 1, data + 2};
                 if (DEBUG)
                         assert(sizeof(in) == SIZE_MACRO);
@@ -68,16 +68,16 @@ int wolfssl(byte *seed, byte *out, size_t seed_size) {
 
 // ------------------------------------------------------------ OpenSSL
 
-int openssl(byte *seed, byte *out, size_t seed_size) {
+int openssl(byte *in, byte *out, size_t size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
         EVP_EncryptInit(ctx, EVP_aes_256_ecb(), NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
 
-        byte *last = seed + seed_size;
-        for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key      = seed;
-                uint128_t data = *(uint128_t *)(seed + 2 * SIZE_BLOCK);
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                byte *key      = in;
+                uint128_t data = *(uint128_t *)(in + 2 * SIZE_BLOCK);
 
                 uint128_t in[] = {data, data + 1, data + 2};
                 if (DEBUG)
@@ -170,13 +170,13 @@ void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         _mm_storeu_si128((__m128i *)out, m);
 }
 
-int aesni(byte *seed, byte *out, size_t seed_size) {
-        byte *last = seed + seed_size;
+int aesni(byte *in, byte *out, size_t size) {
+        byte *last = in + size;
         __m128i key_schedule[15];
 
-        for (; seed < last; seed += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key         = seed;
-                uint128_t iv      = *(uint128_t *)(seed + 2 * SIZE_BLOCK);
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                byte *key         = in;
+                uint128_t iv      = *(uint128_t *)(in + 2 * SIZE_BLOCK);
                 uint128_t data[3] = {iv, iv + 1, iv + 2};
 
                 aes_256_key_expansion(key, key_schedule);

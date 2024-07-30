@@ -21,9 +21,8 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         ctx_enable_iv_counter(ctx, iv);
 }
 
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *secret, size_t size,
-                     fanout_t fanout) {
-        ctx->key        = secret;
+void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
+        ctx->key        = key;
         ctx->key_size   = size;
         ctx->mixctrpass = get_mixctr_impl(mixctr);
         ctx->fanout     = fanout;
@@ -75,7 +74,7 @@ void *w_keymix(void *a) {
         worker_args_t *args = (worker_args_t *)a;
         keymix_ctx_t *ctx   = args->ctx;
 
-        // Keep a local copy of the seed: it needs to be modified, and we are
+        // Keep a local copy of the key: it needs to be modified, and we are
         // in a multithreaded environment, so we can't just overwrite the same
         // memory area while other threads are trying to read it and modify it
         // themselves
@@ -93,7 +92,7 @@ void *w_keymix(void *a) {
                 outbuffer = malloc(ctx->key_size);
         }
 
-        // The seed gets modified as follows
+        // The key gets modified as follows
         // First block -> XOR with (unchanging) IV
         // Second block -> incremented
 
