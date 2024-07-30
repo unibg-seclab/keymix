@@ -207,6 +207,10 @@ int main(int argc, char **argv) {
                 printf("===============\n");
         }
 
+        // Setup variables here, before the gotos start
+        size_t key_size = 0;
+        byte *key       = NULL;
+
         // prepare the streams
         FILE *fkey = fopen_msg(args.key, "r");
 
@@ -224,8 +228,8 @@ int main(int argc, char **argv) {
         }
 
         // Read the key into memory
-        size_t key_size = get_file_size(fkey);
-        byte *key       = checked_malloc(key_size);
+        key_size = get_file_size(fkey);
+        key      = checked_malloc(key_size);
 
         if (key_size % SIZE_MACRO != 0) {
                 ERROR_MSG("Key error: must be a multiple of 48 B\n");
