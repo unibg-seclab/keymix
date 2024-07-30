@@ -1,3 +1,5 @@
+.PHONY: doc
+
 SOURCES = $(wildcard src/*.c)
 OBJECTS = $(SOURCES:%.c=%.o)
 
@@ -57,6 +59,12 @@ $(VERIFY): verify.o $(OBJECTS)
 
 $(KEYMIXER): keymixer.o $(OBJECTS)
 cli: $(KEYMIXER)
+
+# ------------ Documentation
+
+doc: $(KEYMIXER)
+	@ (which help2man &> /dev/null) || (echo "You need to install help2man for this"; exit 1)
+	@ help2man --no-info --no-discard-stderr './keymixer' > doc/keymixer
 
 # ------------ Cleaning
 
