@@ -66,11 +66,6 @@ int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         // that is, we read `external_threads` groups, each one of size
         // `ctx->key_size`, use encrypt_t on that, and lastly write the result
         // to the output.
-
-        // However, note that the resource could be not a multiple of key_size,
-        // hence we have to read the MINIMUM between `external_threads * key_size`
-        // and the remaining resource, which is why we track input_size
-
         size_t buffer_size = external_threads * ctx->key_size;
         byte *buffer       = malloc(buffer_size);
 
