@@ -76,10 +76,11 @@ int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
         byte *out_buffer   = malloc(buffer_size);
 
         uint128_t counter = 0;
+        size_t read       = 0;
 
-        while (true) {
+        do {
                 // Read a certain number of bytes
-                size_t read = fread(in_buffer, 1, buffer_size, fin);
+                read = fread(in_buffer, 1, buffer_size, fin);
 
                 // We have read everything we can, we don't need to encrypt
                 // an empty buffer, nor to write anything to the output
@@ -91,9 +92,66 @@ int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
 
                 fwrite(out_buffer, read, 1, fout);
                 counter += external_threads; // We encrypt `external_threads` at a time
-        }
+        } while (read == buffer_size);
 
         free(in_buffer);
         free(out_buffer);
+        return 0;
+}
+
+// Equal to stream_encrypt, but allocates less RAM.
+// Essentially, we first call `keymix_ex` and not `encrypt_ex`, so that we can
+// read smaller chunks from the file and manually XOR them.
+// One thing of note: this code does one extr keymix when the file is an exact
+// multiple of external_threads * key_size, because we read after doing the keymix
+// and hence we don't check if the file has ended before.
+int stream_encrypt2(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
+        uint8_t internal_threads, external_threads;
+
+        derive_thread_numbers(&internal_threads, &external_threads, ctx->fanout, threads);
+
+        size_t buffer_size = external_threads * ctx->key_size;
+        byte *buffer       = malloc(buffer_size);
+
+        // We use key_size because it is surely a divisor of buffer_size.
+        // If it weren't, then we would have to manage cases where we read
+        // more than we have keymix-ed, and then use the read data to XOR
+        // with others
+        size_t fbuf_size = ctx->key_size;
+        byte *fbuf       = malloc(fbuf_size);
+
+        uint128_t counter = 0;
+        size_t read       = 0;
+        do {
+
+                byte *bp = buffer;
+
+                keymix_ex(ctx, buffer, buffer_size, external_threads, internal_threads, counter);
+
+                // We have to XOR the whole buffe (however, we can break away
+                // if we get to the EOF first)
+                for (; bp < buffer + buffer_size; bp += fbuf_size) {
+                        read = fread(fbuf, 1, fbuf_size, fin);
+                        // If we finish early, stop the stuff
+                        // However, we unfortunately have already done an extra
+                        // keymix in this case
+                        if (read == 0)
+                                goto while_end;
+
+                        // XOR it with the keymix result
+                        // read is either less than or equal to fbuf_size,
+                        // so MIN(read, fbuf_size) = read
+                        memxor(fbuf, fbuf, bp, read);
+
+                        // And write it back
+                        fwrite(fbuf, read, 1, fout);
+                }
+
+                counter += external_threads;
+        } while (read == fbuf_size);
+
+while_end:
+        free(buffer);
+        free(fbuf);
         return 0;
 }
