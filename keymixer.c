@@ -10,10 +10,9 @@
 
 // ------------------------------------------------------------------ Error management and codes
 
-// Error 1 is given by EXIT_FAILURE
-#define ERR_ENC 2
-#define ERR_FILE 3
-#define ERR_KEY_SIZE 4
+#define ERR_ENC 100
+#define ERR_KEY_SIZE 101
+#define ERR_KEY_READ 102
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -166,11 +165,16 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         return 0;
 }
 
-FILE *fopen_msg(const char *resource, char *mode) {
-        FILE *fp = fopen(resource, mode);
-        if (fp == NULL)
-                errmsg("no such file '%s'", resource);
-        return fp;
+int checked_fopen(FILE **fp, const char *resource, char *mode, FILE *default_fp) {
+        *fp = default_fp;
+        if (resource != NULL) {
+                *fp = fopen(resource, mode);
+                if (*fp == NULL) {
+                        errmsg("no such file '%s'", resource);
+                        return ENOENT;
+                }
+        }
+        return 0;
 };
 
 int main(int argc, char **argv) {
@@ -222,20 +226,21 @@ int main(int argc, char **argv) {
         byte *key       = NULL;
 
         // prepare the streams
-        FILE *fkey = fopen_msg(args.key, "r");
+        FILE *fkey = NULL;
+        FILE *fin  = NULL;
+        FILE *fout = NULL;
 
-        FILE *fin = stdin;
-        if (args.input != NULL)
-                fin = fopen_msg(args.input, "r");
-
-        FILE *fout = stdout;
-        if (args.output != NULL)
-                fout = fopen_msg(args.output, "w");
-
-        if (fin == NULL || fout == NULL || fkey == NULL) {
-                err = ERR_FILE;
+        err = checked_fopen(&fkey, args.key, "r", NULL);
+        if (err)
                 goto cleanup;
-        }
+
+        err = checked_fopen(&fin, args.input, "r", stdin);
+        if (err)
+                goto cleanup;
+
+        err = checked_fopen(&fout, args.output, "w", stdout);
+        if (err)
+                goto cleanup;
 
         // Read the key into memory
         key_size = get_file_size(fkey);
@@ -249,13 +254,13 @@ int main(int argc, char **argv) {
 
         size_t num_macros = key_size / SIZE_MACRO;
         if (!ISPOWEROF(num_macros, args.fanout)) {
-                errmsg("key;s number of 48-B blocks is not a power of fanout (%d)", args.fanout);
+                errmsg("key's number of 48-B blocks is not a power of fanout (%d)", args.fanout);
                 err = ERR_KEY_SIZE;
                 goto cleanup;
         }
 
-        if (fread(key, key_size, 1, fkey) != 1) {
-                err = ERR_FILE;
+        if (fread(key, 1, key_size, fkey) != key_size) {
+                err = ERR_KEY_READ;
                 goto cleanup;
         }
 
@@ -273,6 +278,7 @@ cleanup:
         safe_explicit_bzero(key, key_size);
         free(key);
         safe_fclose(fkey);
+        // Do NOT close stdin or stdout
         if (args.input != NULL)
                 safe_fclose(fin);
         if (args.output != NULL)
