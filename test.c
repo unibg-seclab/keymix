@@ -10,18 +10,15 @@
 
 // -------------------------------------------------- Configure tests
 
-#define SIZE_1KiB 1024
+#define SIZE_1KiB 1024UL
 #define SIZE_1MiB (1024 * SIZE_1KiB)
 #define SIZE_1GiB (1024 * SIZE_1MiB)
 
-#define NUM_OF_TESTS 20
+#define NUM_OF_TESTS 5
 #define MIN_KEY_SIZE (8 * SIZE_1MiB)
 #define MAX_KEY_SIZE (1.9 * SIZE_1GiB)
 
-#define MAX_EXPANSION 20
-
-#define DO_EXPANSION_TESTS
-#define DO_ENCRYPTION_TESTS
+#define MAX_EXPANSION 10
 
 #define FOR_EVERY(x, ptr, size) for (__typeof__(*ptr) *x = ptr; x < ptr + size; x++)
 
@@ -39,8 +36,8 @@ inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 FILE *fout;
 
 void csv_header() {
-        fprintf(fout, "key_size,");  // Key size in B
-        fprintf(fout, "expansion,"); // How many Ts to generate (each key_size big)
+        fprintf(fout, "key_size,"); // Key size in B
+        fprintf(fout, "outsize,");  // Output size, you can get expansion by dividing by key_size
         fprintf(fout,
                 "internal_threads,");       // Number of internal threads
         fprintf(fout, "external_threads,"); // Number of threads to generate the different Ts
@@ -49,10 +46,10 @@ void csv_header() {
         fprintf(fout, "time\n");            // Time in ms
         fflush(fout);
 }
-void csv_line(size_t key_size, uint64_t expansion, uint8_t internal_threads,
-              uint8_t external_threads, char *implementation, uint8_t fanout, double time) {
+void csv_line(size_t key_size, size_t size, uint8_t internal_threads, uint8_t external_threads,
+              char *implementation, uint8_t fanout, double time) {
         fprintf(fout, "%zu,", key_size);
-        fprintf(fout, "%zu,", expansion);
+        fprintf(fout, "%zu,", size);
         fprintf(fout, "%d,", internal_threads);
         fprintf(fout, "%d,", external_threads);
         fprintf(fout, "%s,", implementation);
@@ -126,7 +123,7 @@ void test_keymix(keymix_ctx_t *ctx, byte *out, uint64_t expansion, uint8_t inter
                 impl = "wolfssl";
                 break;
         case MIXCTR_OPENSSL:
-                impl = "wolfssl";
+                impl = "openssl";
                 break;
         }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
@@ -135,14 +132,14 @@ void test_keymix(keymix_ctx_t *ctx, byte *out, uint64_t expansion, uint8_t inter
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE(keymix_t(ctx, out, expansion * ctx->key_size,
                                                external_threads, internal_threads));
-                csv_line(ctx->key_size, expansion, internal_threads, external_threads, impl,
-                         ctx->fanout, time);
+                csv_line(ctx->key_size, expansion * ctx->key_size, internal_threads,
+                         external_threads, impl, ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
 }
 
-void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, uint64_t expansion, uint8_t internal_threads,
+void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
               uint8_t external_threads) {
         char *impl = "(unspecified)";
         switch (ctx->mixctr) {
@@ -153,17 +150,17 @@ void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, uint64_t expansion, uint8_
                 impl = "wolfssl";
                 break;
         case MIXCTR_OPENSSL:
-                impl = "wolfssl";
+                impl = "openssl";
                 break;
         }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
-             external_threads, impl, ctx->fanout, expansion);
+             external_threads, impl, ctx->fanout, CEILDIV(size, ctx->key_size));
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
-                double time = MEASURE(encrypt_t(ctx, in, out, expansion * ctx->key_size,
-                                                external_threads, internal_threads));
-                csv_line(ctx->key_size, expansion, internal_threads, external_threads, impl,
-                         ctx->fanout, time);
+                double time =
+                    MEASURE(encrypt_t(ctx, in, out, size, external_threads, internal_threads));
+                csv_line(ctx->key_size, size, internal_threads, external_threads, impl, ctx->fanout,
+                         time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
@@ -173,8 +170,15 @@ void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, uint64_t expansion, uint8_
 
 int main(int argc, char *argv[]) {
         if (argc < 3) {
+#ifdef DO_EXPANSION_TESTS
+                _log(LOG_INFO, "Doing expansion\n");
+#endif
+#ifdef DO_ENCRYPTION_TESTS
+                _log(LOG_INFO, "Doing encryption\n");
+#endif
                 _log(LOG_INFO, "Usage:\n");
-                _log(LOG_INFO, "  test [EXP OUTPUT] [ENC OUTPUT]\n");
+                _log(LOG_INFO,
+                     "  test [ENCRYPTION EXPANSION OUTPUT] [ENCRIPTION SAME FILE OUTPUT]\n");
                 return 1;
         }
 
@@ -200,44 +204,7 @@ int main(int argc, char *argv[]) {
         keymix_ctx_t ctx;
 
 #ifdef DO_EXPANSION_TESTS
-        _log(LOG_INFO, "Doing %d tests (each dot = 1 test)\n", NUM_OF_TESTS);
-
         fout = fopen(argv[1], "w");
-        csv_header();
-
-        FOR_EVERY(diff_p, fanouts, fanouts_count) {
-                uint8_t fanout = *diff_p;
-
-                setup_keys(fanout, &key_sizes, &key_sizes_count);
-                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
-
-                FOR_EVERY(size, key_sizes, key_sizes_count) {
-                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *size, MiB(*size));
-                        SAFE_REALLOC(key, *size);
-
-                        FOR_EVERY(ithr, internal_threads, internal_threads_count)
-                        FOR_EVERY(ethr, external_threads, external_threads_count)
-                        for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
-                                SAFE_REALLOC(out, exp * (*size));
-
-                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, *size, fanout);
-                                test_keymix(&ctx, out, exp, *ithr, *ethr);
-
-                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, *size, fanout);
-                                test_keymix(&ctx, out, exp, *ithr, *ethr);
-
-                                ctx_keymix_init(&ctx, MIXCTR_AESNI, key, *size, fanout);
-                                test_keymix(&ctx, out, exp, *ithr, *ethr);
-                        }
-                }
-        }
-
-        fclose(fout);
-        fout = NULL;
-#endif
-
-#ifdef DO_ENCRYPTION_TESTS
-        fout = fopen(argv[2], "w");
         _log(LOG_INFO, "Testing encryption\n");
 
         csv_header();
@@ -248,24 +215,73 @@ int main(int argc, char *argv[]) {
                 setup_keys(fanout, &key_sizes, &key_sizes_count);
                 setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
-                FOR_EVERY(size, key_sizes, key_sizes_count) {
-                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *size, MiB(*size));
-                        SAFE_REALLOC(key, *size);
+                FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
+                        size_t key_size = *key_size_p;
+                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *key_size_p,
+                             MiB(*key_size_p));
+                        SAFE_REALLOC(key, key_size);
 
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count)
                         for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
-                                SAFE_REALLOC(out, exp * (*size));
-                                SAFE_REALLOC(in, exp * (*size));
+                                size_t size = exp * key_size;
+                                SAFE_REALLOC(out, size);
+                                SAFE_REALLOC(in, size);
 
-                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, *size, fanout);
-                                test_enc(&ctx, in, out, exp, *ithr, *ethr);
+                                ctx_encrypt_init(&ctx, MIXCTR_WOLFSSL, key, key_size, 0, fanout);
+                                test_enc(&ctx, in, out, size, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, *size, fanout);
-                                test_enc(&ctx, in, out, exp, *ithr, *ethr);
+                                ctx_encrypt_init(&ctx, MIXCTR_OPENSSL, key, key_size, 0, fanout);
+                                test_enc(&ctx, in, out, size, *ithr, *ethr);
 
-                                ctx_keymix_init(&ctx, MIXCTR_AESNI, key, *size, fanout);
-                                test_enc(&ctx, in, out, exp, *ithr, *ethr);
+                                ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, 0, fanout);
+                                test_enc(&ctx, in, out, size, *ithr, *ethr);
+                        }
+                }
+        }
+
+        fclose(fout);
+        fout = NULL;
+#endif
+
+#ifdef DO_ENCRYPTION_TESTS
+        fout = fopen(argv[1], "w");
+        _log(LOG_INFO, "Testing encryption\n");
+
+        size_t file_sizes[]     = {SIZE_1MiB,       5 * SIZE_1MiB, 10 * SIZE_1MiB, 50 * SIZE_1MiB,
+                                   100 * SIZE_1MiB, SIZE_1GiB,     5UL * SIZE_1GiB};
+        size_t file_sizes_count = sizeof(file_sizes) / sizeof(size_t);
+
+        csv_header();
+
+        FOR_EVERY(fanout_p, fanouts, fanouts_count) {
+                uint8_t fanout = *fanout_p;
+
+                setup_keys(fanout, &key_sizes, &key_sizes_count);
+                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
+
+                FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
+                        size_t key_size = *key_size_p;
+                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", key_size,
+                             MiB(key_size));
+                        SAFE_REALLOC(key, key_size);
+
+                        FOR_EVERY(ithr, internal_threads, internal_threads_count)
+                        FOR_EVERY(ethr, external_threads, external_threads_count)
+                        FOR_EVERY(sizep, file_sizes, file_sizes_count) {
+                                size_t size = *sizep;
+
+                                SAFE_REALLOC(out, size);
+                                SAFE_REALLOC(in, size);
+
+                                ctx_encrypt_init(&ctx, MIXCTR_WOLFSSL, key, key_size, 0, fanout);
+                                test_enc(&ctx, in, out, size, *ithr, *ethr);
+
+                                ctx_encrypt_init(&ctx, MIXCTR_OPENSSL, key, key_size, 0, fanout);
+                                test_enc(&ctx, in, out, size, *ithr, *ethr);
+
+                                ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, 0, fanout);
+                                test_enc(&ctx, in, out, size, *ithr, *ethr);
                         }
                 }
         }

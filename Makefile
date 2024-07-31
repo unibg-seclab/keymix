@@ -1,4 +1,4 @@
-.PHONY: doc
+.PHONY: doc run-test
 
 SOURCES = $(wildcard src/*.c)
 OBJECTS = $(SOURCES:%.c=%.o)
@@ -48,11 +48,20 @@ run: $(OUT)
 # ------------ Testing
 
 $(TEST): test.o $(OBJECTS)
-run-test: $(TEST)
-	@ ./$(TEST) data/out.csv data/enc.csv
 
-daemon: $(TEST)
+exp-test: CFLAGS += -DDO_EXPANSION_TESTS
+exp-test: clean | $(TEST)
+
+enc-test: CFLAGS += -DDO_ENCRYPTION_TESTS
+enc-test: clean | $(TEST)
+
+all-test: CFLAGS += -DDO_EXPANSION_TESTS
+all-test: CFLAGS += -DDO_ENCRYPTION_TESTS
+all-test: clean | $(TEST)
+
+run-test:
 	@ ./$(TEST) data/out.csv data/enc.csv 2> log & disown
+	@ echo "Started"
 
 # ------------ Verifying
 
