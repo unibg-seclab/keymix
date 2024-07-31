@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <openssl/evp.h>
+#include <stdint.h>
 #include <string.h>
 #include <wmmintrin.h>
 #include <wolfssl/options.h>
