@@ -1,4 +1,5 @@
-pkgname=wolfssl
+pkgname=wolfssl-ecb
+_pkgname=wolfssl
 pkgver=5.7.2
 pkgrel=2
 pkgdesc="Lightweight, portable, C-language-based SSL/TLS library"
@@ -7,9 +8,10 @@ url="https://www.wolfssl.com/"
 license=(GPL-2.0-or-later)
 depends=(glibc)
 provides=(libwolfssl.so)
+conflicts=(wolfssl)
 source=(
-  $pkgname-$pkgver-stable.tar.gz::https://github.com/$pkgname/$pkgname/archive/refs/tags/v$pkgver-stable.tar.gz
-  https://github.com/$pkgname/$pkgname/releases/download/v$pkgver-stable/$pkgname-$pkgver-stable.tar.gz.asc
+  ${_pkgname}-$pkgver-stable.tar.gz::https://github.com/${_pkgname}/${_pkgname}/archive/refs/tags/v$pkgver-stable.tar.gz
+  https://github.com/${_pkgname}/${_pkgname}/releases/download/v$pkgver-stable/${_pkgname}-$pkgver-stable.tar.gz.asc
 )
 sha512sums=('daec6427cbee6628da0dcaad2f721efb0591532fcb3bd688e7212aaca8a442ac10176e5b9eb6b14fea6c49a613d6b086ff777eafc5c27b25d51f758ad0aa13bd'
             'SKIP')
@@ -20,19 +22,19 @@ validpgpkeys=(
 )
 
 build() {
-  cd "$srcdir/$pkgname-$pkgver-stable"
+  cd "$srcdir/${_pkgname}-$pkgver-stable"
   ./autogen.sh
   ./configure --enable-aesni --enable-intelasm --enable-aesctr --enable-aescbc CFLAGS="-DHAVE_AES_ECB"
   make
 }
 
 check() {
-  cd "$srcdir/$pkgname-$pkgver-stable"
+  cd "$srcdir/${_pkgname}-$pkgver-stable"
   make check
 }
 
 package() {
-  cd "$srcdir/$pkgname-$pkgver-stable"
+  cd "$srcdir/${_pkgname}-$pkgver-stable"
   DESTDIR="$pkgdir" make install
 
   # Make puts libraries in /usr/local
