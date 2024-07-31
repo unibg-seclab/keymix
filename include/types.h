@@ -1,10 +1,6 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-
 // A single byte.
 typedef unsigned char byte;
 
