@@ -43,6 +43,8 @@
 #define LOGBASE(x, base) (round(log(x) / log(base)))
 #define ISPOWEROF(x, base) (x == pow(base, (int)LOGBASE(x, base)))
 
+#define CEILDIV(a, b) ((__typeof__(a))ceil((double)(a) / (b)))
+
 byte *checked_malloc(size_t size);
 
 // Does `dst = a ^ b` but on memory areas. Size is specified in bytes.

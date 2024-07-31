@@ -303,7 +303,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         byte *out2 = setup(resource_size, false);
         byte *out3 = setup(resource_size, false);
 
-        size_t keymix_out_size = ceil((double)resource_size / key_size) * key_size;
+        size_t keymix_out_size = CEILDIV(resource_size, key_size) * key_size;
         // size_t keymix_out_size = key_size;
         byte *outman = setup(keymix_out_size, false);
 

@@ -123,7 +123,7 @@ int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t
         pthread_t threads[external_threads];
         worker_args_t args[external_threads];
 
-        uint64_t keys_to_do   = ceil((double)size / ctx->key_size);
+        uint64_t keys_to_do   = CEILDIV(size, ctx->key_size);
         uint128_t counter     = starting_counter;
         size_t remaining_size = size;
 
