@@ -1,7 +1,12 @@
 #include "ctx.h"
+#include "utils.h"
+#include <assert.h>
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
                       fanout_t fanout) {
+        size_t num_macros = size / SIZE_MACRO;
+        assert(size % SIZE_MACRO == 0 && ISPOWEROF(num_macros, fanout) &&
+               "Number of 48-B blocks in the key should be a power of fanout");
         ctx->key        = key;
         ctx->key_size   = size;
         ctx->mixctr     = mixctr;
@@ -12,6 +17,9 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
 }
 
 void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
+        size_t num_macros = size / SIZE_MACRO;
+        assert(size % SIZE_MACRO == 0 && ISPOWEROF(num_macros, fanout) &&
+               "Number of 48-B blocks in the key should be a power of fanout");
         ctx->key        = key;
         ctx->key_size   = size;
         ctx->mixctr     = mixctr;

@@ -106,7 +106,7 @@ int barrier_destroy(thr_barrier_t *state) {
 // --------------------------------------------------------- Some utility functions
 
 inline uint8_t total_levels(size_t size, uint8_t fanout) {
-        uint64_t nof_macros = CEILDIV(size, SIZE_MACRO);
+        uint64_t nof_macros = size / SIZE_MACRO;
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
@@ -183,7 +183,7 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8
 
         // We can't assign more than 1 thread to a single macro, so we will
         // never spawn more than nof_macros threads
-        uint64_t nof_macros = CEILDIV(size, SIZE_MACRO);
+        uint64_t nof_macros = size / SIZE_MACRO;
         nof_threads         = MIN(nof_threads, nof_macros);
         uint8_t levels      = total_levels(size, fanout);
 
