@@ -19,7 +19,7 @@ SECRET = secret
 # ------------ Compiler flags
 
 CC = gcc
-CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude
+CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -Isrc
 LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
 # ------------ Generic building
