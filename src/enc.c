@@ -130,6 +130,20 @@ int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t
         uint64_t offset         = 0;
         uint8_t started_threads = 0;
 
+        if (external_threads == 1) {
+                worker_args_t arg = {
+                    .ctx              = ctx,
+                    .keys_to_do       = keys_to_do,
+                    .in               = in,
+                    .resource_size    = remaining_size,
+                    .out              = out,
+                    .counter          = counter,
+                    .internal_threads = internal_threads,
+                };
+                w_keymix(&arg);
+                return 0;
+        }
+
         for (uint8_t t = 0; t < external_threads; t++) {
                 if (keys_to_do == 0) {
                         break;
