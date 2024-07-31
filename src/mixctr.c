@@ -10,25 +10,6 @@
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
 
-int wolfssl(byte *in, byte *out, size_t size);
-int openssl(byte *in, byte *out, size_t size);
-int aesni(byte *in, byte *out, size_t size);
-
-// ------------------------------------------------------------ Generic mixctr code
-
-inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
-        switch (name) {
-        case MIXCTR_WOLFSSL:
-                return &wolfssl;
-        case MIXCTR_OPENSSL:
-                return &openssl;
-        case MIXCTR_AESNI:
-                return &aesni;
-        default:
-                return NULL;
-        }
-}
-
 // ------------------------------------------------------------ WolfSSL
 
 int wolfssl(byte *in, byte *out, size_t size) {
@@ -172,4 +153,19 @@ int aesni(byte *in, byte *out, size_t size) {
                 }
         }
         return 0;
+}
+
+// ------------------------------------------------------------ Generic mixctr code
+
+inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
+        switch (name) {
+        case MIXCTR_WOLFSSL:
+                return &wolfssl;
+        case MIXCTR_OPENSSL:
+                return &openssl;
+        case MIXCTR_AESNI:
+                return &aesni;
+        default:
+                return NULL;
+        }
 }
