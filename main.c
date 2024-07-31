@@ -49,9 +49,9 @@ int main() {
         }
 
         mixctrpass_impl_t configs[] = {
-            &wolfssl,
-            &openssl,
-            &aesni,
+            get_mixctr_impl(MIXCTR_WOLFSSL),
+            get_mixctr_impl(MIXCTR_OPENSSL),
+            get_mixctr_impl(MIXCTR_AESNI),
         };
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
@@ -62,7 +62,7 @@ int main() {
                 int pe              = 0;
                 uint8_t nof_threads = threads[t];
                 double time =
-                    MEASURE({ pe = keymix(&wolfssl, key, out, key_size, 3, nof_threads); });
+                    MEASURE({ pe = keymix(configs[0], key, out, key_size, 3, nof_threads); });
                 uint8_t precision    = 2;
                 double readable_size = (double)key_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
