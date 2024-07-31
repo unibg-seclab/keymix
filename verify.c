@@ -342,6 +342,31 @@ int verify_enc(size_t fanout, uint8_t level) {
         return err;
 }
 
+int custom_checks() {
+        byte key[SIZE_MACRO] = {0};
+
+        uint128_t iv     = 0;
+        uint128_t fanout = 2;
+        size_t size      = (rand() & 10) * SIZE_MACRO + (rand() % SIZE_MACRO);
+
+        byte in[size];
+        for (size_t i = 0; i < size; i++)
+                in[i] = rand() % 256;
+
+        byte enc[size];
+        byte dec[size];
+
+        keymix_ctx_t ctx;
+        ctx_encrypt_init(&ctx, MIXCTR_OPENSSL, key, SIZE_MACRO, iv, fanout);
+        encrypt(&ctx, in, enc, size);
+        encrypt(&ctx, enc, dec, size);
+
+        int err = 0;
+        err += COMPARE(in, dec, size, "Enc != INV(Dec)\n");
+
+        return err;
+}
+
 #define CHECKED(F)                                                                                 \
         err = F;                                                                                   \
         if (err)                                                                                   \
@@ -352,6 +377,8 @@ int main() {
         srand(rand_seed);
 
         int err = 0;
+
+        CHECKED(custom_checks());
 
         for (uint8_t fanout = 2; fanout <= 4; fanout++) {
                 _log(LOG_INFO, "Verifying with fanout %zu\n", fanout);
