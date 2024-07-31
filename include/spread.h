@@ -2,6 +2,8 @@
 #define SPREAD_H
 
 #include "types.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 // Implements the spread algorithm in-place.
 void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout);

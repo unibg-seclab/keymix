@@ -3,6 +3,7 @@
 
 #include "mixctr.h"
 #include "types.h"
+#include <stdint.h>
 
 // The Keymix primitive.
 // Applies MixCTR as defined by `mixctrpass` to `in`, putting the result in `out`.

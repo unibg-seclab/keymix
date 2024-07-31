@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#include <stdlib.h>
+
 // A function that implements MixCTR on a series of 48-B blocks.
 // Here `size` must be a multiple of `SIZE_MACRO` (48).
 typedef int (*mixctrpass_impl_t)(byte *in, byte *out, size_t size);

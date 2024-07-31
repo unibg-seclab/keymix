@@ -1,10 +1,10 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <math.h> // For logarithm
-
 #include "config.h"
 #include "types.h"
+#include <math.h> // For logarithm
+#include <stdint.h>
 
 #ifdef NO_MEASURE
 #define MEASURE(F) 0

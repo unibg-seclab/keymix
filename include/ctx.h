@@ -3,6 +3,7 @@
 
 #include "mixctr.h"
 #include "types.h"
+#include <stdbool.h>
 
 // The context for keymix operations. It houses all shared information that
 // won't be modified by the algorithm.

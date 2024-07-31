@@ -15,4 +15,11 @@ typedef enum {
         FANOUT4 = 4,
 } fanout_t;
 
+// An AES block size (128 bits)
+#define SIZE_BLOCK 16
+
+// A macro of ours is composed by 3 AES blocks
+#define BLOCKS_PER_MACRO 3
+#define SIZE_MACRO 48
+
 #endif

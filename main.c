@@ -16,7 +16,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#include "config.h"
 #include "keymix.h"
 #include "log.h"
 #include "mixctr.h"

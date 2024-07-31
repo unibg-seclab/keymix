@@ -2,6 +2,7 @@
 #define ENC_H
 
 #include "ctx.h"
+#include <stdint.h>
 
 // Callable functions
 

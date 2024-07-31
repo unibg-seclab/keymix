@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void safe_explicit_bzero(void *ptr, size_t size) {
