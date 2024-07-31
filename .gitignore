@@ -50,9 +50,9 @@ perf.*
 # flamegraphdir
 .FlameGraphDir
 
-pkgs/wolfssl-ecb/*
-!pkgs/wolfssl-ecb/PKGBUILD
-!pkgs/wolfssl-ecb/install.sh
+deps/wolfssl-ecb/*
+!deps/wolfssl-ecb/PKGBUILD
+!deps/wolfssl-ecb/install.sh
 
 venv
 graphs/*.pdf

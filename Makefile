@@ -34,9 +34,9 @@ $(LIBRARY): $(OBJECTS)
 
 wolfssl:
 ifeq ($(shell which makepkg &> /dev/null && echo "yes" || echo "no"), yes)
-	@ cd pkgs/wolfssl-ecb && makepkg -sfi
+	@ cd deps/wolfssl-ecb && makepkg -sfi
 else
-	@ cd pkgs/wolfssl-ecb && ./install.sh
+	@ cd deps/wolfssl-ecb && ./install.sh
 endif
 
 # ------------ main.c for quick tests
