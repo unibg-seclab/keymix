@@ -26,7 +26,7 @@ LDLIBS = -lcrypto -lm -lwolfssl -pthread
 
 build: $(OBJECTS)
 
-all: $(OUUT) $(TEST) $(VERIFY) $(KEYMIXER)
+all: $(OUT) $(TEST) $(VERIFY) $(KEYMIXER)
 
 $(LIBRARY): CFLAGS += -fPIC
 $(LIBRARY): $(OBJECTS)
