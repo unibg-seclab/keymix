@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) {
         size_t *key_sizes = NULL;
         uint8_t key_sizes_count;
 
-        uint8_t external_threads[] = {1, 2, 4, 8, 16};
+        uint8_t external_threads[] = {1, 2, 4, 8};
         uint8_t external_threads_count =
             sizeof(external_threads) / sizeof(__typeof__(*external_threads));
 
