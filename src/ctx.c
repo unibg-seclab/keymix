@@ -37,6 +37,8 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
         ctx->fanout     = fanout;
         ctx_disable_encryption(ctx);
         ctx_disable_iv_counter(ctx);
+
+        openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 }
 
 inline void ctx_enable_encryption(keymix_ctx_t *ctx) { ctx->encrypt = true; }
