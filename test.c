@@ -21,8 +21,6 @@
 #define MIN_KEY_SIZE (8 * SIZE_1MiB)
 #define MAX_KEY_SIZE (1.9 * SIZE_1GiB)
 
-#define MAX_EXPANSION 10
-
 #define FOR_EVERY(x, ptr, size) for (__typeof__(*ptr) *x = ptr; x < ptr + size; x++)
 
 #define SAFE_REALLOC(PTR, SIZE)                                                                    \
@@ -177,8 +175,7 @@ int main(int argc, char *argv[]) {
                 _log(LOG_INFO, "Doing encryption\n");
 #endif
                 _log(LOG_INFO, "Usage:\n");
-                _log(LOG_INFO,
-                     "  test [ENCRYPTION EXPANSION OUTPUT] [ENCRIPTION SAME FILE OUTPUT]\n");
+                _log(LOG_INFO, "  test [KEYMIX  OUTPUT] [ENCRIPTION SAME FILE OUTPUT]\n");
                 return 1;
         }
         OpenSSL_add_all_algorithms();
@@ -207,7 +204,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef DO_KEYMIX_TESTS
         fout = fopen(argv[1], "w");
-        _log(LOG_INFO, "Testing encryption\n");
+        _log(LOG_INFO, "Testing keymix\n");
 
         csv_header();
 
