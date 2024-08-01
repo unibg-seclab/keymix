@@ -58,6 +58,8 @@ venv
 graphs/*.pdf
 graphs/__pycache__
 log
+.direnv
+.envrc
 
 # secrets
 secret
