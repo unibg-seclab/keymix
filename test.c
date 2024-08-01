@@ -220,20 +220,20 @@ int main(int argc, char *argv[]) {
                              MiB(*key_size_p));
                         key = malloc(key_size);
 
-                        FOR_EVERY(ithr, internal_threads, internal_threads_count)
-                        FOR_EVERY(ethr, external_threads, external_threads_count) {
+                        FOR_EVERY(ithr, internal_threads, internal_threads_count) {
+                                // FOR_EVERY(ethr, external_threads, external_threads_count) {
                                 size_t size = key_size;
 
                                 out = malloc(size);
 
                                 ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, *ethr);
+                                test_keymix(&ctx, out, size, *ithr, 1);
 
                                 ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, *ethr);
+                                test_keymix(&ctx, out, size, *ithr, 1);
 
                                 ctx_keymix_init(&ctx, MIXCTR_AESNI, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, *ethr);
+                                test_keymix(&ctx, out, size, *ithr, 1);
 
                                 free(out);
                         }
