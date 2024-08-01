@@ -37,9 +37,11 @@ int wolfssl(byte *in, byte *out, size_t size) {
 
 // ------------------------------------------------------------ OpenSSL
 
+EVP_CIPHER *openssl_aes256ecb;
+
 int openssl(byte *in, byte *out, size_t size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        EVP_EncryptInit(ctx, EVP_aes_256_ecb(), NULL, NULL);
+        EVP_EncryptInit(ctx, openssl_aes256ecb, NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
 

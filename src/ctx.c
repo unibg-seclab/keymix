@@ -2,6 +2,14 @@
 #include "utils.h"
 #include <assert.h>
 
+#include <openssl/evp.h>
+
+// This is a little hack, because OpenSSL is *painfully* slow when used in
+// multi-threaded environments.
+// https://github.com/openssl/openssl/issues/17064
+// This is defined in mixctr.c
+extern EVP_CIPHER *openssl_aes256ecb;
+
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
                       fanout_t fanout) {
         size_t num_macros = size / SIZE_MACRO;
@@ -14,6 +22,8 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         ctx->fanout     = fanout;
         ctx_enable_encryption(ctx);
         ctx_enable_iv_counter(ctx, iv);
+
+        openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 }
 
 void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
