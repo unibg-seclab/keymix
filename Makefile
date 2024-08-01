@@ -49,13 +49,13 @@ run: $(OUT)
 
 $(TEST): test.o $(OBJECTS)
 
-exp-test: CFLAGS += -DDO_EXPANSION_TESTS
+exp-test: CFLAGS += -DDO_KEYMIX_TESTS
 exp-test: clean | $(TEST)
 
 enc-test: CFLAGS += -DDO_ENCRYPTION_TESTS
 enc-test: clean | $(TEST)
 
-all-test: CFLAGS += -DDO_EXPANSION_TESTS
+all-test: CFLAGS += -DDO_KEYMIX_TESTS
 all-test: CFLAGS += -DDO_ENCRYPTION_TESTS
 all-test: clean | $(TEST)
 

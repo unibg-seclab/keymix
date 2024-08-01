@@ -3,6 +3,9 @@
 #include <string.h>
 #include <time.h>
 
+#include <openssl/err.h>
+#include <openssl/evp.h>
+
 #include "enc.h"
 #include "log.h"
 #include "types.h"
@@ -88,12 +91,11 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
 
         switch (fanout) {
         case 2:
-                *internal_threads_count = 5;
+                *internal_threads_count = 4;
                 internal_threads[0]     = 1;
                 internal_threads[1]     = 2;
                 internal_threads[2]     = 4;
                 internal_threads[3]     = 8;
-                internal_threads[4]     = 16;
                 break;
         case 3:
                 *internal_threads_count = 3;
@@ -102,17 +104,16 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
                 internal_threads[2]     = 9;
                 break;
         case 4:
-                *internal_threads_count = 3;
+                *internal_threads_count = 2;
                 internal_threads[0]     = 1;
                 internal_threads[1]     = 4;
-                internal_threads[2]     = 16;
                 break;
         }
 }
 
 // -------------------------------------------------- Actual test functions
 
-void test_keymix(keymix_ctx_t *ctx, byte *out, uint64_t expansion, uint8_t internal_threads,
+void test_keymix(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
                  uint8_t external_threads) {
         char *impl = "(unspecified)";
         switch (ctx->mixctr) {
@@ -127,13 +128,12 @@ void test_keymix(keymix_ctx_t *ctx, byte *out, uint64_t expansion, uint8_t inter
                 break;
         }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
-             external_threads, impl, ctx->fanout, expansion);
+             external_threads, impl, ctx->fanout, size / ctx->key_size);
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
-                double time = MEASURE(keymix_t(ctx, out, expansion * ctx->key_size,
-                                               external_threads, internal_threads));
-                csv_line(ctx->key_size, expansion * ctx->key_size, internal_threads,
-                         external_threads, impl, ctx->fanout, time);
+                double time = MEASURE(keymix_t(ctx, out, size, external_threads, internal_threads));
+                csv_line(ctx->key_size, size, internal_threads, external_threads, impl, ctx->fanout,
+                         time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
@@ -170,8 +170,8 @@ void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t inter
 
 int main(int argc, char *argv[]) {
         if (argc < 3) {
-#ifdef DO_EXPANSION_TESTS
-                _log(LOG_INFO, "Doing expansion\n");
+#ifdef DO_KEYMIX_TESTS
+                _log(LOG_INFO, "Doing keymix\n");
 #endif
 #ifdef DO_ENCRYPTION_TESTS
                 _log(LOG_INFO, "Doing encryption\n");
@@ -181,6 +181,8 @@ int main(int argc, char *argv[]) {
                      "  test [ENCRYPTION EXPANSION OUTPUT] [ENCRIPTION SAME FILE OUTPUT]\n");
                 return 1;
         }
+        OpenSSL_add_all_algorithms();
+        ERR_load_crypto_strings();
 
         // Gli unici per cui il nostro schema funzione e ha senso
         uint8_t fanouts[]     = {2, 3, 4};
@@ -203,7 +205,7 @@ int main(int argc, char *argv[]) {
 
         keymix_ctx_t ctx;
 
-#ifdef DO_EXPANSION_TESTS
+#ifdef DO_KEYMIX_TESTS
         fout = fopen(argv[1], "w");
         _log(LOG_INFO, "Testing encryption\n");
 
@@ -222,20 +224,18 @@ int main(int argc, char *argv[]) {
                         SAFE_REALLOC(key, key_size);
 
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
-                        FOR_EVERY(ethr, external_threads, external_threads_count)
-                        for (uint64_t exp = 1; exp <= MAX_EXPANSION; exp++) {
-                                size_t size = exp * key_size;
+                        FOR_EVERY(ethr, external_threads, external_threads_count) {
+                                size_t size = key_size;
                                 SAFE_REALLOC(out, size);
-                                SAFE_REALLOC(in, size);
 
-                                ctx_encrypt_init(&ctx, MIXCTR_WOLFSSL, key, key_size, 0, fanout);
-                                test_enc(&ctx, in, out, size, *ithr, *ethr);
+                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, key_size, fanout);
+                                test_keymix(&ctx, out, size, *ithr, *ethr);
 
-                                ctx_encrypt_init(&ctx, MIXCTR_OPENSSL, key, key_size, 0, fanout);
-                                test_enc(&ctx, in, out, size, *ithr, *ethr);
+                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, key_size, fanout);
+                                test_keymix(&ctx, out, size, *ithr, *ethr);
 
-                                ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, 0, fanout);
-                                test_enc(&ctx, in, out, size, *ithr, *ethr);
+                                ctx_keymix_init(&ctx, MIXCTR_AESNI, key, key_size, fanout);
+                                test_keymix(&ctx, out, size, *ithr, *ethr);
                         }
                 }
         }
