@@ -218,12 +218,13 @@ int main(int argc, char *argv[]) {
                         size_t key_size = *key_size_p;
                         _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *key_size_p,
                              MiB(*key_size_p));
-                        SAFE_REALLOC(key, key_size);
+                        key = malloc(key_size);
 
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count) {
                                 size_t size = key_size;
-                                SAFE_REALLOC(out, size);
+
+                                out = malloc(size);
 
                                 ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, key_size, fanout);
                                 test_keymix(&ctx, out, size, *ithr, *ethr);
@@ -233,7 +234,11 @@ int main(int argc, char *argv[]) {
 
                                 ctx_keymix_init(&ctx, MIXCTR_AESNI, key, key_size, fanout);
                                 test_keymix(&ctx, out, size, *ithr, *ethr);
+
+                                free(out);
                         }
+
+                        free(key);
                 }
         }
 
@@ -261,15 +266,18 @@ int main(int argc, char *argv[]) {
                         size_t key_size = *key_size_p;
                         _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", key_size,
                              MiB(key_size));
-                        SAFE_REALLOC(key, key_size);
+                        // SAFE_REALLOC(key, key_size);
+                        key = malloc(key_size);
 
                         FOR_EVERY(ithr, internal_threads, internal_threads_count)
                         FOR_EVERY(ethr, external_threads, external_threads_count)
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
-                                SAFE_REALLOC(out, size);
-                                SAFE_REALLOC(in, size);
+                                // SAFE_REALLOC(out, size);
+                                // SAFE_REALLOC(in, size);
+                                out = malloc(size);
+                                in  = malloc(size);
 
                                 ctx_encrypt_init(&ctx, MIXCTR_WOLFSSL, key, key_size, 0, fanout);
                                 test_enc(&ctx, in, out, size, *ithr, *ethr);
@@ -279,7 +287,12 @@ int main(int argc, char *argv[]) {
 
                                 ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, 0, fanout);
                                 test_enc(&ctx, in, out, size, *ithr, *ethr);
+
+                                free(out);
+                                free(in);
                         }
+
+                        free(key);
                 }
         }
 
@@ -290,8 +303,6 @@ int main(int argc, char *argv[]) {
 cleanup:
         if (fout)
                 fclose(fout);
-        free(key);
-        free(out);
         free(key_sizes);
         return 0;
 }
