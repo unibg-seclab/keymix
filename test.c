@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -181,6 +182,11 @@ int main(int argc, char *argv[]) {
         OpenSSL_add_all_algorithms();
         ERR_load_crypto_strings();
 
+        char *out_keymix = argv[1];
+        char *out_enc    = argv[2];
+
+        assert(strcmp(out_keymix, out_enc) != 0);
+
         // Gli unici per cui il nostro schema funzione e ha senso
         uint8_t fanouts[]     = {2, 3, 4};
         uint8_t fanouts_count = sizeof(fanouts) / sizeof(__typeof__(*fanouts));
@@ -203,7 +209,7 @@ int main(int argc, char *argv[]) {
         keymix_ctx_t ctx;
 
 #ifdef DO_KEYMIX_TESTS
-        fout = fopen(argv[1], "w");
+        fout = fopen(out_keymix, "w");
         _log(LOG_INFO, "Testing keymix\n");
 
         csv_header();
@@ -247,7 +253,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef DO_ENCRYPTION_TESTS
-        fout = fopen(argv[1], "w");
+        fout = fopen(out_enc, "w");
         _log(LOG_INFO, "Testing encryption\n");
 
         size_t file_sizes[]     = {SIZE_1MiB,       5 * SIZE_1MiB, 10 * SIZE_1MiB, 50 * SIZE_1MiB,
