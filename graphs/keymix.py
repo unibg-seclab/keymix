@@ -48,7 +48,7 @@ for fanout in fanouts:
     plt.legend(implementations + [f'{impl} ({threads} threads)' for impl in implementations])
     plt.xlabel('Key size [MiB]')
     plt.ylabel('Average time [s]')
-    plt.ylim(1e1, 1e3)
+    plt.ylim(1e-2, 1e3)
     plt.savefig(f'graphs/keymix-f{fanout}-time.pdf', bbox_inches='tight')
 
     # --------------------------- speed
