@@ -45,7 +45,7 @@ for fanout in fanouts:
         plt.loglog(xs, ys, marker=m, linestyle='dashed')
 
 
-    plt.legend(implementations + [f'{impl} ({threads} threads)' for impl in implementations])
+    pltlegend(plt, implementations + [f'{impl} ({threads} threads)' for impl in implementations])
     plt.xlabel('Key size [MiB]')
     plt.ylabel('Average time [s]')
     plt.ylim(1e-2, 1e3)
