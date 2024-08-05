@@ -1,6 +1,6 @@
 import matplotlib
 
-matplotlib.rc('font', size=18)
+matplotlib.rc('font', size=12)
 matplotlib.rc('pdf', fonttype=42)
 
 def to_mib(bytes):
@@ -10,8 +10,8 @@ def to_sec(ms):
     return ms / 1000
 
 def pltlegend(plt, labels):
-    x0, y0 = -0.09, 1.02
-    width = 1.15
+    x0, y0 = 0, 1.02
+    width = 1
     height = 0.2
     plt.legend(labels,
                frameon=False,
