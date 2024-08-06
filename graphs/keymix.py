@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from itertools import product
+from matplotlib.ticker import MaxNLocator
 
 from common import *
 
@@ -98,9 +99,10 @@ for fanout in fanouts:
 
     pltlegend(plt, impl_legend, cols=2)
     plt.xlabel('Number of threads')
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.ylabel('Average time [s]')
     plt.ylim(0, 140)
-    plt.xscale('log')
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
 
     plt.figure()
@@ -114,7 +116,8 @@ for fanout in fanouts:
 
     pltlegend(plt, impl_legend, cols=2)
     plt.xlabel('Number of threads')
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 250)
-    plt.xscale('log')
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
