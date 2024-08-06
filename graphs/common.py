@@ -10,8 +10,13 @@ def to_sec(ms):
     return ms / 1000
 
 def pltlegend(plt, labels):
-    x0, y0 = -0.14, 1.02
-    width = 1.17
+    columns = len(labels) // 2
+    if columns < 3:
+        x0, y0 = 0.1, 1.02
+        width = 0.8
+    else:
+        x0, y0 = -0.14, 1.02
+        width = 1.17
     height = 0.2
     plt.legend(labels,
                frameon=False,
