@@ -9,7 +9,7 @@ def to_mib(bytes):
 def to_sec(ms):
     return ms / 1000
 
-def pltlegend(plt, labels):
+def pltlegend(plt, labels, ncol=2):
     x0, y0 = 0, 1.02
     width = 1
     height = 0.2
@@ -17,6 +17,6 @@ def pltlegend(plt, labels):
                frameon=False,
                mode='expand',
                bbox_to_anchor=(x0, y0, width, height),
-               ncol=2,
+               ncol=ncol,
                handlelength=1,
                loc="lower left")
