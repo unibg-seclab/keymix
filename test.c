@@ -103,9 +103,10 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
                 internal_threads[2]     = 9;
                 break;
         case 4:
-                *internal_threads_count = 2;
+                *internal_threads_count = 3;
                 internal_threads[0]     = 1;
                 internal_threads[1]     = 4;
+                internal_threads[2]     = 16;
                 break;
         }
 }
