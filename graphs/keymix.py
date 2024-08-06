@@ -22,6 +22,8 @@ def derive_data(df, impl, fanout, threads):
     data.reindex(columns=data.columns)
     return data
 
+# ---------------------------------------------------------- Basic keymix graphs
+
 for fanout in fanouts:
     match fanout:
         case 2:
@@ -68,3 +70,51 @@ for fanout in fanouts:
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(1e1, 1e3)
     plt.savefig(f'graphs/keymix-f{fanout}-speed.pdf', bbox_inches='tight')
+
+# ---------------------------------------------------------- Threading improvements
+
+def derive_data_threads(df, fanout, impl, size):
+        data = df[(df.fanout == fanout) & (df.implementation == impl) & (df.key_size == size)]
+        data = data.groupby('internal_threads', as_index=False).agg({'time': ['mean', 'std']})
+        data.columns = ['internal_threads', 'time_mean', 'time_std']
+        data.reindex(columns=data.columns)
+        return data
+    
+
+for fanout in fanouts:
+    match fanout:
+        case 2: size = 3221225472
+        case 3: size = 2066242608
+        case 4: size = 3221225472
+
+    plt.figure()
+    # plt.title(f'Improvements for size {round(to_mib(size) / 1024, 2)} GiB (fanout {fanout})')
+    for m, impl in zip(markers, implementations):
+        data = derive_data_threads(df, fanout, impl, size)
+        xs = list(data.internal_threads)
+        ys = [to_sec(y) for y in data.time_mean]
+
+        plt.plot(xs, ys, marker=m)
+
+    pltlegend(plt, impl_legend, cols=2)
+    plt.xlabel('Number of threads')
+    plt.ylabel('Average time [s]')
+    plt.ylim(0, 140)
+    plt.xscale('log')
+    plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
+
+    plt.figure()
+    # plt.title(f'Improvements for size {round(to_mib(size) / 1024, 2)} GiB (fanout {fanout})')
+    for m, impl in zip(markers, implementations):
+        data = derive_data_threads(df, fanout, impl, size)
+        xs = list(data.internal_threads)
+        ys = [to_mib(size) / to_sec(y) for y in data.time_mean]
+
+        plt.plot(xs, ys, marker=m)
+
+    pltlegend(plt, impl_legend, cols=2)
+    plt.xlabel('Number of threads')
+    plt.ylabel('Average speed [MiB/s]')
+    plt.ylim(0, 250)
+    plt.xscale('log')
+    plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
