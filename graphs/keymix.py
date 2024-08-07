@@ -114,5 +114,5 @@ for fanout in fanouts:
     # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.xticks(ticks=xs)
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 500)
+    plt.ylim(0, 450)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
