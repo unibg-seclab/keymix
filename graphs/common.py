@@ -29,8 +29,11 @@ def pltlegend(plt, labels, cols=None):
 def df_filter(df, impl, fanout):
     return df[(df.implementation == impl) & (df.fanout == fanout)]
 
-def df_groupby(df, colname):
-    data = df.groupby(colname, as_index=False).agg({'time': ['mean', 'std']})
-    data.columns = [colname, 'time_mean', 'time_std']
+def df_groupby(df, cols):
+    data = df.groupby(cols, as_index=False).agg({'time': ['mean', 'std']})
+    if type(cols) == list:
+        data.columns = cols + ['time_mean', 'time_std']
+    else:
+        data.columns = [cols, 'time_mean', 'time_std']
     data.reindex(columns=data.columns)
     return data
