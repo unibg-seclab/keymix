@@ -10,9 +10,9 @@ FILE = 'data/out.csv'
 
 df = pd.read_csv(FILE)
 
-implementations = ['openssl', 'wolfssl']
-impl_legend= ['OpenSSL', 'wolfSSL']
-markers = ['*', 'o']
+implementations = sorted(df.implementation.unique())
+impl_legend= ['AES-NI', 'OpenSSL', 'wolfSSL']
+markers = ['o', '^', 's']
 linestyles = ['solid', 'dashed', 'dotted']
 fanouts = list(df.fanout.unique())
 
@@ -21,11 +21,11 @@ fanouts = list(df.fanout.unique())
 for fanout in fanouts:
     match fanout:
         case 2:
-            threads = [1, 2, 4]
+            threads = [1]
         case 3:
-            threads = [1, 3, 9]
+            threads = [1]
         case 4:
-            threads = [1, 4, 16]
+            threads = [1]
 
     legend = [f'{impl}' if thr == 1 else f'{impl} ({thr} threads)' for thr, impl in product(threads, impl_legend)]
 
@@ -88,12 +88,12 @@ for fanout in fanouts:
 
         plt.plot(xs, ys, marker=m)
 
-    pltlegend(plt, impl_legend, cols=2)
+    pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
     ax = plt.gca()
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.ylabel('Average time [s]')
-    plt.ylim(0, 140)
+    plt.ylim(0, 200)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
 
     plt.figure()
@@ -107,10 +107,10 @@ for fanout in fanouts:
 
         plt.plot(xs, ys, marker=m)
 
-    pltlegend(plt, impl_legend, cols=2)
+    pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
     ax = plt.gca()
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 250)
+    plt.ylim(0, 500)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
