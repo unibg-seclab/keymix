@@ -86,8 +86,6 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_sec(y) for y in data.time_mean]
 
-        xs, ys = xs[:3], ys[:3]
-
         plt.plot(xs, ys, marker=m)
 
     pltlegend(plt, impl_legend)
@@ -107,8 +105,6 @@ for fanout in fanouts:
         data = df_groupby(data, 'internal_threads')
         xs = list(data.internal_threads)
         ys = [to_mib(size) / to_sec(y) for y in data.time_mean]
-
-        xs, ys = xs[:3], ys[:3]
 
         plt.plot(xs, ys, marker=m)
 
