@@ -16,13 +16,6 @@ markers = ['*', 'o']
 linestyles = ['solid', 'dashed', 'dotted']
 fanouts = list(df.fanout.unique())
 
-def derive_data(df, impl, fanout, threads):
-    data = df[(df.implementation == impl) & (df.fanout == fanout) & (df.internal_threads == threads)]
-    data = data.groupby('key_size', as_index=False).agg({'time': ['mean', 'std']})
-    data.columns = ['key_size', 'time_mean', 'time_std']
-    data.reindex(columns=data.columns)
-    return data
-
 # ---------------------------------------------------------- Basic keymix graphs
 
 for fanout in fanouts:
@@ -43,7 +36,9 @@ for fanout in fanouts:
 
     for style, t in zip(linestyles, threads):
         for m, impl in zip(markers, implementations):
-            data = derive_data(df, impl, fanout, t)
+            data = df_filter(df, impl, fanout)
+            data = data[data.internal_threads == t]
+            data = df_groupby(data, 'key_size')
             xs = [to_mib(x) for x in data.key_size]
             ys = [to_sec(y) for y in data.time_mean]
             plt.loglog(xs, ys, marker=m, linestyle=style)
@@ -61,7 +56,9 @@ for fanout in fanouts:
 
     for style, t in zip(linestyles, threads):
         for m, impl in zip(markers, implementations):
-            data = derive_data(df, impl, fanout, t)
+            data = df_filter(df, impl, fanout)
+            data = data[data.internal_threads == t]
+            data = df_groupby(data, 'key_size')
             xs = [to_mib(x) for x in data.key_size]
             ys = [x / to_sec(y) for x, y in zip(xs, data.time_mean)]
             plt.loglog(xs, ys, marker=m, linestyle=style)
@@ -74,14 +71,6 @@ for fanout in fanouts:
 
 # ---------------------------------------------------------- Threading improvements
 
-def derive_data_threads(df, fanout, impl, size):
-        data = df[(df.fanout == fanout) & (df.implementation == impl) & (df.key_size == size)]
-        data = data.groupby('internal_threads', as_index=False).agg({'time': ['mean', 'std']})
-        data.columns = ['internal_threads', 'time_mean', 'time_std']
-        data.reindex(columns=data.columns)
-        return data
-    
-
 for fanout in fanouts:
     match fanout:
         case 2: size = 3221225472
@@ -91,7 +80,9 @@ for fanout in fanouts:
     plt.figure()
     # plt.title(f'Improvements for size {round(to_mib(size) / 1024, 2)} GiB (fanout {fanout})')
     for m, impl in zip(markers, implementations):
-        data = derive_data_threads(df, fanout, impl, size)
+        data = df_filter(df, impl, fanout)
+        data = data[data.key_size == size]
+        data = df_groupby(data, 'internal_threads')
         xs = list(data.internal_threads)
         ys = [to_sec(y) for y in data.time_mean]
 
@@ -108,7 +99,9 @@ for fanout in fanouts:
     plt.figure()
     # plt.title(f'Improvements for size {round(to_mib(size) / 1024, 2)} GiB (fanout {fanout})')
     for m, impl in zip(markers, implementations):
-        data = derive_data_threads(df, fanout, impl, size)
+        data = df_filter(df, impl, fanout)
+        data = data[data.key_size == size]
+        data = df_groupby(data, 'internal_threads')
         xs = list(data.internal_threads)
         ys = [to_mib(size) / to_sec(y) for y in data.time_mean]
 

@@ -25,3 +25,12 @@ def pltlegend(plt, labels, cols=None):
                ncol=columns,
                handlelength=1.5,
                loc="lower left")
+
+def df_filter(df, impl, fanout):
+    return df[(df.implementation == impl) & (df.fanout == fanout)]
+
+def df_groupby(df, colname):
+    data = df.groupby(colname, as_index=False).agg({'time': ['mean', 'std']})
+    data.columns = [colname, 'time_mean', 'time_std']
+    data.reindex(columns=data.columns)
+    return data
