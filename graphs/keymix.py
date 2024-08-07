@@ -6,7 +6,7 @@ from matplotlib.ticker import MaxNLocator
 
 from common import *
 
-FILE = 'data/out-preliminary.csv'
+FILE = 'data/out.csv'
 
 df = pd.read_csv(FILE)
 
@@ -23,9 +23,9 @@ for fanout in fanouts:
         case 2:
             threads = [1, 2, 4]
         case 3:
-            threads = [1, 3]
+            threads = [1, 3, 9]
         case 4:
-            threads = [1, 4]
+            threads = [1, 4, 16]
 
     legend = [f'{impl}' if thr == 1 else f'{impl} ({thr} threads)' for thr, impl in product(threads, impl_legend)]
 
