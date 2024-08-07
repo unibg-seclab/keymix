@@ -54,6 +54,9 @@ deps/wolfssl-ecb/*
 !deps/wolfssl-ecb/PKGBUILD
 !deps/wolfssl-ecb/install.sh
 
+packages/arch/*
+!packages/arch/PKGBUILD
+
 venv
 graphs/*.pdf
 graphs/__pycache__
