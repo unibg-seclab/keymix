@@ -84,6 +84,7 @@ clean:
 	@ rm -rf $(OBJECTS)
 	@ rm -rf *.o
 	@ rm -rf $(OUT) $(TEST) $(VERIFY) $(KEYMIXER)
+	@ rm -rf $(LIBRARY)
 
 clean_resources:
 	@ rm -f $(RESOURCE) $(SECRET) $(ENC_RESOURCE)
