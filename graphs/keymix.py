@@ -90,8 +90,9 @@ for fanout in fanouts:
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
-    ax = plt.gca()
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # ax = plt.gca()
+    # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.xticks(ticks=xs)
     plt.ylabel('Average time [s]')
     plt.ylim(0, 200)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
@@ -109,8 +110,9 @@ for fanout in fanouts:
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
-    ax = plt.gca()
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # ax = plt.gca()
+    # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.xticks(ticks=xs)
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 500)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
