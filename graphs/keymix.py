@@ -47,6 +47,7 @@ for fanout in fanouts:
     plt.ylabel('Average time [s]')
     plt.ylim(1e-2, 1e3)
     plt.savefig(f'graphs/keymix-f{fanout}-time.pdf', bbox_inches='tight')
+    plt.close()
 
     # --------------------------- speed
 
@@ -67,6 +68,7 @@ for fanout in fanouts:
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(1e1, 1e3)
     plt.savefig(f'graphs/keymix-f{fanout}-speed.pdf', bbox_inches='tight')
+    plt.close()
 
 # ---------------------------------------------------------- Threading improvements
 
@@ -93,6 +95,7 @@ for fanout in fanouts:
     plt.ylabel('Average time [s]')
     plt.ylim(0, 200)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
+    plt.close()
 
     plt.figure()
     # plt.title(f'Improvements for size {round(to_mib(size) / 1024, 2)} GiB (fanout {fanout})')
@@ -111,3 +114,4 @@ for fanout in fanouts:
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 500)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
+    plt.close()

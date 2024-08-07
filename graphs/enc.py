@@ -11,8 +11,8 @@ df['outsize_mib'] = to_mib(df.outsize)
 # Remove 5* MiB files
 df = df[(df.outsize_mib != 5) & (df.outsize_mib != 50) & (df.outsize_mib != 500) & (df.outsize_mib != 5120)]
 
-implementations = ['openssl', 'wolfssl', 'aesni']
-impl_legend= ['OpenSSL', 'wolfSSL', 'AES-NI']
+implementations = ['wolfssl']
+impl_legend= ['wolfSSL']
 fanouts = list(df.fanout.unique())
 
 # ----------------------------------------- "Traditional" encryption curves
@@ -34,11 +34,12 @@ for impl, name in zip(implementations, impl_legend):
             plt.plot(xs, ys, marker='o')
 
         plt.xscale('log')
-        plt.ylim(top=25)
-        plt.legend([f'{round(to_mib(k), 2)} MiB' for k in key_sizes])
+        plt.ylim(top=120)
+        pltlegend(plt, [f'{round(to_mib(k), 2)} MiB' for k in key_sizes])
         plt.xlabel('File size [MiB]')
         plt.ylabel('Average time [s]')
-        plt.savefig(f'graphs/enc-f{fanout}-{impl}-time.pdf')
+        plt.savefig(f'graphs/enc-f{fanout}-{impl}-time.pdf', bbox_inches='tight')
+        plt.close()
 
         plt.figure()
         # plt.title(f'Encryption speeds, {name} (fanout {fanout})')
@@ -55,12 +56,17 @@ for impl, name in zip(implementations, impl_legend):
             plt.plot(xs, ys, marker='o')
 
         plt.xscale('log')
-        plt.legend([f'{round(to_mib(k), 2)} MiB' for k in key_sizes])
+        plt.ylim(top=75)
+        pltlegend(plt, [f'{round(to_mib(k), 2)} MiB' for k in key_sizes])
         plt.xlabel('File size [MiB]')
         plt.ylabel('Average speed [MiB/s]')
-        plt.savefig(f'graphs/enc-f{fanout}-{impl}-speed.pdf')
+        plt.savefig(f'graphs/enc-f{fanout}-{impl}-speed.pdf', bbox_inches='tight')
+        plt.close()
 
 # ----------------------------------------- Multi-threading improvements
+
+implementations = ['aesni', 'openssl', 'wolfssl']
+impl_legend= ['AES-NI', 'OpenSSL', 'wolfSSL']
 
 for fanout in fanouts:
     match fanout:
@@ -83,4 +89,5 @@ for fanout in fanouts:
     plt.xlabel('Number of threads')
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 85)
-    plt.savefig(f'graphs/enc-f{fanout}-threading-speed.pdf')
+    plt.savefig(f'graphs/enc-f{fanout}-threading-speed.pdf', bbox_inches='tight')
+    plt.close()
