@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from itertools import product
-from matplotlib.ticker import MaxNLocator
 
 from common import *
 
@@ -90,8 +89,6 @@ for fanout in fanouts:
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
-    # ax = plt.gca()
-    # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.xticks(ticks=xs)
     plt.ylabel('Average time [s]')
     plt.ylim(0, 200)
@@ -110,8 +107,6 @@ for fanout in fanouts:
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
-    # ax = plt.gca()
-    # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.xticks(ticks=xs)
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 500)

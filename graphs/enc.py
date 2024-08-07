@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from itertools import product
-from matplotlib.ticker import MaxNLocator
-
 from common import *
 
 FILE = 'data/enc.csv'
