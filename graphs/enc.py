@@ -11,8 +11,8 @@ df['outsize_mib'] = to_mib(df.outsize)
 # Remove 5* MiB files
 df = df[(df.outsize_mib != 5) & (df.outsize_mib != 50) & (df.outsize_mib != 500) & (df.outsize_mib != 5120)]
 
-implementations = ['wolfssl']
-impl_legend= ['wolfSSL']
+implementations = ['aesni', 'openssl', 'wolfssl']
+impl_legend= ['AES-NI', 'OpenSSL', 'wolfSSL']
 fanouts = list(df.fanout.unique())
 
 # ----------------------------------------- "Traditional" encryption curves
@@ -65,18 +65,21 @@ for impl, name in zip(implementations, impl_legend):
 
 # ----------------------------------------- Multi-threading improvements
 
-implementations = ['aesni', 'openssl', 'wolfssl']
-impl_legend= ['AES-NI', 'OpenSSL', 'wolfSSL']
-
 for fanout in fanouts:
     match fanout:
-        case 2: size = 201326592
-        case 3: size = 229582512
-        case 4: size = 201326592
+        case 2:
+            outsize = 1073741824
+            size = 201326592
+        case 3:
+            outsize = 1073741824
+            size = 229582512
+        case 4:
+            outsize = 1073741824
+            size = 201326592
 
     plt.figure()
 
-    data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.key_size == size)]
+    data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.outsize == outsize) & (df.key_size == size)]
 
     for impl in implementations:
         grouped = df_groupby(data[data.implementation == impl], 'external_threads')
@@ -86,7 +89,7 @@ for fanout in fanouts:
 
     pltlegend(plt, impl_legend)
     plt.xticks(xs)
-    plt.xlabel('Number of threads')
+    plt.xlabel('Number of concurrent blocks')
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 85)
     plt.savefig(f'graphs/enc-f{fanout}-threading-speed.pdf', bbox_inches='tight')
