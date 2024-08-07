@@ -86,7 +86,9 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_sec(y) for y in data.time_mean]
 
-        plt.plot(xs[:3], ys[:3], marker=m)
+        xs, ys = xs[:3], ys[:3]
+
+        plt.plot(xs, ys, marker=m)
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
@@ -106,7 +108,9 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_mib(size) / to_sec(y) for y in data.time_mean]
 
-        plt.plot(xs[:3], ys[:3], marker=m)
+        xs, ys = xs[:3], ys[:3]
+
+        plt.plot(xs, ys, marker=m)
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
@@ -114,5 +118,5 @@ for fanout in fanouts:
     # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.xticks(ticks=xs)
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 450)
+    plt.ylim(0, 500)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
