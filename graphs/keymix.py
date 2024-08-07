@@ -86,7 +86,7 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_sec(y) for y in data.time_mean]
 
-        plt.plot(xs, ys, marker=m)
+        plt.plot(xs[:3], ys[:3], marker=m)
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
@@ -106,7 +106,7 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_mib(size) / to_sec(y) for y in data.time_mean]
 
-        plt.plot(xs, ys, marker=m)
+        plt.plot(xs[:3], ys[:3], marker=m)
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
