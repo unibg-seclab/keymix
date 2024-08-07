@@ -26,6 +26,7 @@ for impl, name in zip(implementations, impl_legend):
         data = data[data.implementation == impl]
 
         key_sizes = data.key_size.unique()
+        key_sizes_in_mib = [to_mib(k) for k in key_sizes]
 
         for size in key_sizes:
             grouped = df_groupby(data[data.key_size == size], 'outsize')
@@ -34,8 +35,9 @@ for impl, name in zip(implementations, impl_legend):
             plt.plot(xs, ys, marker='o')
 
         plt.xscale('log')
-        plt.ylim(top=120)
-        pltlegend(plt, [f'{round(to_mib(k), 2)} MiB' for k in key_sizes])
+        # plt.ylim(top=120)
+        
+        pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
         plt.xlabel('File size [MiB]')
         plt.ylabel('Average time [s]')
         plt.savefig(f'graphs/enc-f{fanout}-{impl}-time.pdf', bbox_inches='tight')
@@ -47,8 +49,6 @@ for impl, name in zip(implementations, impl_legend):
         data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.external_threads == 1)]
         data = data[data.implementation == impl]
 
-        key_sizes = data.key_size.unique()
-
         for size in key_sizes:
             grouped = df_groupby(data[data.key_size == size], 'outsize')
             xs = [to_mib(x) for x in grouped.outsize]
@@ -56,8 +56,8 @@ for impl, name in zip(implementations, impl_legend):
             plt.plot(xs, ys, marker='o')
 
         plt.xscale('log')
-        plt.ylim(top=75)
-        pltlegend(plt, [f'{round(to_mib(k), 2)} MiB' for k in key_sizes])
+        # plt.ylim(top=75)
+        pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
         plt.xlabel('File size [MiB]')
         plt.ylabel('Average speed [MiB/s]')
         plt.savefig(f'graphs/enc-f{fanout}-{impl}-speed.pdf', bbox_inches='tight')
