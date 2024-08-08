@@ -73,8 +73,9 @@ for fanout in fanouts:
 # ---------------------------------------------------------- Threading improvements
 
 for fanout in fanouts:
+    # Select key sizes closest to 1GiB for the given fanout
     match fanout:
-        case 2: size = 3221225472
+        case 2: size = 1610612736
         case 3: size = 2066242608
         case 4: size = 3221225472
 
@@ -93,7 +94,7 @@ for fanout in fanouts:
     plt.xlabel('Number of threads')
     plt.xticks(ticks=xs)
     plt.ylabel('Average time [s]')
-    plt.ylim(0, 200)
+    plt.ylim(0, 105)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
     plt.close()
 
