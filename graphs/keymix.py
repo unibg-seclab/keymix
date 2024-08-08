@@ -5,7 +5,7 @@ from itertools import product
 
 from common import *
 
-FILE = 'data/out.csv'
+FILE = 'data/out-aqua.csv'
 
 df = pd.read_csv(FILE)
 
@@ -94,7 +94,7 @@ for fanout in fanouts:
     plt.xlabel('Number of threads')
     plt.xticks(ticks=xs)
     plt.ylabel('Average time [s]')
-    plt.ylim(0, 10)
+    plt.ylim(0, 5.2)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
     plt.close()
 
@@ -120,6 +120,6 @@ for fanout in fanouts:
     plt.xlabel('Number of threads')
     plt.xticks(ticks=xs)
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 550)
+    plt.ylim(0, 1200)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight')
     plt.close()
