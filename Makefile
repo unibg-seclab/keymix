@@ -49,8 +49,8 @@ run: $(OUT)
 
 $(TEST): test.o $(OBJECTS)
 
-exp-test: CFLAGS += -DDO_KEYMIX_TESTS
-exp-test: clean | $(TEST)
+keymix-test: CFLAGS += -DDO_KEYMIX_TESTS
+keymix-test: clean | $(TEST)
 
 enc-test: CFLAGS += -DDO_ENCRYPTION_TESTS
 enc-test: clean | $(TEST)
@@ -60,7 +60,7 @@ all-test: CFLAGS += -DDO_ENCRYPTION_TESTS
 all-test: clean | $(TEST)
 
 run-test:
-	@ ./$(TEST) data/out.csv data/enc.csv 2> log & disown
+	@ ./$(TEST) 2> log & disown
 	@ echo "Started"
 
 # ------------ Verifying
