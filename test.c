@@ -171,8 +171,8 @@ void test_enc_stream(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_
                                 encrypt_ex(ctx, in, out, to_encrypt, external_threads,
                                            internal_threads, counter);
 
-                                if (remaining_size > buffer_size)
-                                        remaining_size -= buffer_size;
+                                if (remaining_size >= to_encrypt)
+                                        remaining_size -= to_encrypt;
                                 // Don't need to forward in/out
                                 counter += external_threads;
                         }
