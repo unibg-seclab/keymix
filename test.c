@@ -271,6 +271,12 @@ int main(int argc, char *argv[]) {
         // - AES-NI
         // - 3 internal threads
 
+        uint8_t fanouts_enc[] = {3};
+        fanouts_count         = 1;
+
+        uint8_t external_threads_enc[] = {1, 2, 3, 4, 5, 6, 7, 8};
+        external_threads_count         = 8;
+
         fout = fopen(out_enc, "w");
         _log(LOG_INFO, "Testing encryption\n");
 
@@ -280,18 +286,21 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        // FOR_EVERY(fanout_p, fanouts, fanouts_count) {
-        uint8_t fanout = 3;
-        uint8_t ithr   = 3;
+        FOR_EVERY(fanout_p, fanouts_enc, fanouts_count) {
+                uint8_t fanout = *fanout_p;
 
-        setup_keys(fanout, &key_sizes, &key_sizes_count);
+                setup_keys(fanout, &key_sizes, &key_sizes_count);
+                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
-        FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
-                size_t key_size = *key_size_p;
-                _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", key_size, MiB(key_size));
-                key = malloc(key_size);
+                FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
+                        size_t key_size = *key_size_p;
+                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", key_size,
+                             MiB(key_size));
+                        key = malloc(key_size);
 
-                for (uint8_t ethr = 1; ethr <= 8; ethr++) {
+                        // FOR_EVERY(ithr, internal_threads, internal_threads_count)
+                        uint8_t ithr = 3;
+                        FOR_EVERY(ethr, external_threads_enc, external_threads_count)
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
@@ -299,18 +308,18 @@ int main(int argc, char *argv[]) {
                                 if (size < 100 * SIZE_1GiB) {
                                         out = malloc(size);
                                         in  = out;
-                                        test_enc(&ctx, in, out, size, ithr, ethr);
+                                        test_enc(&ctx, in, out, size, ithr, *ethr);
                                         free(out);
                                 } else {
-                                        out = malloc(ethr * key_size);
+                                        out = malloc((*ethr) * key_size);
                                         in  = out;
-                                        test_enc_stream(&ctx, in, out, size, ithr, ethr);
+                                        test_enc_stream(&ctx, in, out, size, ithr, *ethr);
                                         free(out);
                                 }
                         }
-                }
 
-                free(key);
+                        free(key);
+                }
         }
 
         fclose(fout);
