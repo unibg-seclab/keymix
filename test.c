@@ -141,18 +141,7 @@ void test_keymix(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t internal_thr
 
 void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
               uint8_t external_threads) {
-        char *impl = "(unspecified)";
-        switch (ctx->mixctr) {
-        case MIXCTR_AESNI:
-                impl = "aesni";
-                break;
-        case MIXCTR_WOLFSSL:
-                impl = "wolfssl";
-                break;
-        case MIXCTR_OPENSSL:
-                impl = "openssl";
-                break;
-        }
+        char *impl = "aesni";
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
              external_threads, impl, ctx->fanout, CEILDIV(size, ctx->key_size));
 
@@ -165,28 +154,51 @@ void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t inter
         }
         _log(LOG_INFO, "\n");
 }
+void test_enc_stream(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
+                     uint8_t external_threads) {
+        char *impl = "aesni";
+        _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
+             external_threads, impl, ctx->fanout, CEILDIV(size, ctx->key_size));
+
+        for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
+                double time = MEASURE({
+                        uint128_t counter     = 0;
+                        size_t buffer_size    = external_threads * ctx->key_size;
+                        size_t remaining_size = size;
+
+                        while (remaining_size > 0) {
+                                size_t to_encrypt = MIN(remaining_size, buffer_size);
+                                encrypt_ex(ctx, in, out, to_encrypt, external_threads,
+                                           internal_threads, counter);
+
+                                if (remaining_size > buffer_size)
+                                        remaining_size -= buffer_size;
+                                // Don't need to forward in/out
+                                counter += external_threads;
+                        }
+                });
+                csv_line(ctx->key_size, size, internal_threads, external_threads, impl, ctx->fanout,
+                         time);
+                _log(LOG_INFO, ".");
+        }
+        _log(LOG_INFO, "\n");
+}
 
 // -------------------------------------------------- Main loops
 
 int main(int argc, char *argv[]) {
-        if (argc < 3) {
 #ifdef DO_KEYMIX_TESTS
-                _log(LOG_INFO, "Doing keymix\n");
+        _log(LOG_INFO, "Doing keymix\n");
 #endif
 #ifdef DO_ENCRYPTION_TESTS
-                _log(LOG_INFO, "Doing encryption\n");
+        _log(LOG_INFO, "Doing encryption\n");
 #endif
-                _log(LOG_INFO, "Usage:\n");
-                _log(LOG_INFO, "  test [KEYMIX  OUTPUT] [ENCRIPTION SAME FILE OUTPUT]\n");
-                return 1;
-        }
+
         OpenSSL_add_all_algorithms();
         ERR_load_crypto_strings();
 
-        char *out_keymix = argv[1];
-        char *out_enc    = argv[2];
-
-        assert(strcmp(out_keymix, out_enc) != 0);
+        char *out_keymix = "data/out.csv";
+        char *out_enc    = "data/enc.csv";
 
         // Gli unici per cui il nostro schema funzione e ha senso
         uint8_t fanouts[]     = {2, 3, 4};
@@ -254,53 +266,51 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef DO_ENCRYPTION_TESTS
+        // Here we limit to
+        // - fanout 3
+        // - AES-NI
+        // - 3 internal threads
+
         fout = fopen(out_enc, "w");
         _log(LOG_INFO, "Testing encryption\n");
 
-        size_t file_sizes[]     = {SIZE_1MiB,       5 * SIZE_1MiB, 10 * SIZE_1MiB, 50 * SIZE_1MiB,
-                                   100 * SIZE_1MiB, SIZE_1GiB,     5UL * SIZE_1GiB};
+        size_t file_sizes[]     = {SIZE_1MiB, 10 * SIZE_1MiB, 100 * SIZE_1MiB,
+                                   SIZE_1GiB, 10 * SIZE_1GiB, 100 * SIZE_1GiB};
         size_t file_sizes_count = sizeof(file_sizes) / sizeof(size_t);
 
         csv_header();
 
-        FOR_EVERY(fanout_p, fanouts, fanouts_count) {
-                uint8_t fanout = *fanout_p;
+        // FOR_EVERY(fanout_p, fanouts, fanouts_count) {
+        uint8_t fanout = 3;
+        uint8_t ithr   = 3;
 
-                setup_keys(fanout, &key_sizes, &key_sizes_count);
-                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
+        setup_keys(fanout, &key_sizes, &key_sizes_count);
 
-                FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
-                        size_t key_size = *key_size_p;
-                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", key_size,
-                             MiB(key_size));
-                        // SAFE_REALLOC(key, key_size);
-                        key = malloc(key_size);
+        FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
+                size_t key_size = *key_size_p;
+                _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", key_size, MiB(key_size));
+                key = malloc(key_size);
 
-                        FOR_EVERY(ithr, internal_threads, internal_threads_count)
-                        FOR_EVERY(ethr, external_threads, external_threads_count)
+                for (uint8_t ethr = 1; ethr <= 8; ethr++) {
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
-                                // SAFE_REALLOC(out, size);
-                                // SAFE_REALLOC(in, size);
-                                out = malloc(size);
-                                in  = malloc(size);
-
-                                ctx_encrypt_init(&ctx, MIXCTR_WOLFSSL, key, key_size, 0, fanout);
-                                test_enc(&ctx, in, out, size, *ithr, *ethr);
-
-                                ctx_encrypt_init(&ctx, MIXCTR_OPENSSL, key, key_size, 0, fanout);
-                                test_enc(&ctx, in, out, size, *ithr, *ethr);
-
                                 ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, 0, fanout);
-                                test_enc(&ctx, in, out, size, *ithr, *ethr);
-
-                                free(out);
-                                free(in);
+                                if (size < 100 * SIZE_1GiB) {
+                                        out = malloc(size);
+                                        in  = out;
+                                        test_enc(&ctx, in, out, size, ithr, ethr);
+                                        free(out);
+                                } else {
+                                        out = malloc(ethr * key_size);
+                                        in  = out;
+                                        test_enc_stream(&ctx, in, out, size, ithr, ethr);
+                                        free(out);
+                                }
                         }
-
-                        free(key);
                 }
+
+                free(key);
         }
 
         fclose(fout);
