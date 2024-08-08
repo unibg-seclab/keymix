@@ -98,6 +98,7 @@ for fanout in fanouts:
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight')
     plt.close()
 
+    print('-------------- Fanout', fanout)
     plt.figure()
     # plt.title(f'Improvements for size {round(to_mib(size) / 1024, 2)} GiB (fanout {fanout})')
     for m, impl in zip(markers, implementations):
@@ -106,6 +107,12 @@ for fanout in fanouts:
         data = df_groupby(data, 'internal_threads')
         xs = list(data.internal_threads)
         ys = [to_mib(size) / to_sec(y) for y in data.time_mean]
+
+        print('=== For impl', impl)
+        for thr, speed in zip(xs, ys):
+            print('Threads =', thr, end='\t')
+            print('Speed   =', speed, end='\t')
+            print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2)}%')
 
         plt.plot(xs, ys, marker=m)
 
