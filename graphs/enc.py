@@ -85,6 +85,24 @@ for fanout in fanouts:
     for i, impl in enumerate(implementations):
         grouped = df_groupby(data[data.implementation == impl], 'external_threads')
         xs = list(grouped.external_threads)
+        ys = [to_sec(y) for y in grouped.time_mean]
+        plt.plot(xs, ys, marker=markers[i])
+
+    pltlegend(plt, impl_legend)
+    plt.xticks(xs)
+    plt.xlabel('Number of concurrent blocks')
+    plt.ylabel('Average time [s]')
+    plt.ylim(0, 16)
+    plt.savefig(f'graphs/enc-f{fanout}-threading-time.pdf', bbox_inches='tight')
+    plt.close()
+
+    plt.figure()
+
+    data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.outsize == outsize) & (df.key_size == size)]
+
+    for i, impl in enumerate(implementations):
+        grouped = df_groupby(data[data.implementation == impl], 'external_threads')
+        xs = list(grouped.external_threads)
         ys = [to_mib(size) / to_sec(y) for y in grouped.time_mean]
         plt.plot(xs, ys, marker=markers[i])
 
