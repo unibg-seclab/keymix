@@ -69,47 +69,51 @@ for impl, name in zip(implementations, impl_legend):
 
 for fanout in fanouts:
     outsize = 1073741824 # 1GiB
-    # Select 1st key sizes >100MiB for the given fanout
+    # Select 1st three key sizes >100MiB for the given fanout
     match fanout:
         case 2:
-            size = 201326592 # 192MiB
+            sizes = [201326592, 402653184, 805306368]
         case 3:
-            size = 229582512 # 218.95MiB
+            sizes = [229582512, 688747536, 2066242608]
         case 4:
-            size = 201326592 # 192MiB
+            sizes = [201326592, 805306368, 3221225472]
 
     plt.figure()
 
-    data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.outsize == outsize) & (df.key_size == size)]
-
     for i, impl in enumerate(implementations):
-        grouped = df_groupby(data[data.implementation == impl], 'external_threads')
-        xs = list(grouped.external_threads)
-        ys = [to_sec(y) for y in grouped.time_mean]
-        plt.plot(xs, ys, marker=markers[i])
+        data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.outsize == outsize) & (df.implementation == impl)]
 
-    pltlegend(plt, impl_legend)
-    plt.xticks(xs)
-    plt.xlabel('Number of concurrent blocks')
-    plt.ylabel('Average time [s]')
-    plt.ylim(0, 16)
-    plt.savefig(f'graphs/enc-f{fanout}-threading-time.pdf', bbox_inches='tight')
-    plt.close()
+        for i, size in enumerate(sizes):
+            grouped = df_groupby(data[data.key_size == size], 'external_threads')
+            xs = list(grouped.external_threads)
+            ys = [to_sec(y) for y in grouped.time_mean]
+            plt.plot(xs, ys, marker=markers[i])
 
-    plt.figure()
+        key_sizes_in_mib = [to_mib(k) for k in sizes]
+        pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
+        plt.xticks(xs)
+        plt.xlabel('Number of concurrent blocks')
+        plt.ylabel('Average time [s]')
+        plt.ylim(0, 35)
+        plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-time.pdf', bbox_inches='tight')
+        plt.close()
 
-    data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.outsize == outsize) & (df.key_size == size)]
+        plt.figure()
 
-    for i, impl in enumerate(implementations):
-        grouped = df_groupby(data[data.implementation == impl], 'external_threads')
-        xs = list(grouped.external_threads)
-        ys = [to_mib(size) / to_sec(y) for y in grouped.time_mean]
-        plt.plot(xs, ys, marker=markers[i])
+        data = df[(df.fanout == fanout) & (df.internal_threads == 1) & (df.outsize == outsize) & (df.implementation == impl)]
 
-    pltlegend(plt, impl_legend)
-    plt.xticks(xs)
-    plt.xlabel('Number of concurrent blocks')
-    plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 85)
-    plt.savefig(f'graphs/enc-f{fanout}-threading-speed.pdf', bbox_inches='tight')
-    plt.close()
+        for i, size in enumerate(sizes):
+            grouped = df_groupby(data[data.key_size == size], 'external_threads')
+            print(grouped.time_mean)
+            xs = list(grouped.external_threads)
+            ys = [to_mib(outsize) / to_sec(y) for y in grouped.time_mean]
+            plt.plot(xs, ys, marker=markers[i])
+
+        key_sizes_in_mib = [to_mib(k) for k in sizes]
+        pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
+        plt.xticks(xs)
+        plt.xlabel('Number of concurrent blocks')
+        plt.ylabel('Average speed [MiB/s]')
+        plt.ylim(0, 320)
+        plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-speed.pdf', bbox_inches='tight')
+        plt.close()
