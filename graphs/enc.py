@@ -11,9 +11,9 @@ df['outsize_mib'] = to_mib(df.outsize)
 # Remove 5* MiB files
 df = df[(df.outsize_mib != 5) & (df.outsize_mib != 50) & (df.outsize_mib != 500) & (df.outsize_mib != 5120)]
 
-implementations = ['aesni', 'openssl', 'wolfssl']
-impl_legend= ['AES-NI', 'OpenSSL', 'wolfSSL']
-fanouts = list(df.fanout.unique())
+implementations = ['aesni']
+impl_legend= ['AES-NI']
+fanouts = [3]
 
 # ----------------------------------------- "Traditional" encryption curves
 
@@ -66,16 +66,15 @@ for impl, name in zip(implementations, impl_legend):
 # ----------------------------------------- Multi-threading improvements
 
 for fanout in fanouts:
+    outsize = 1073741824 # 1GiB
+    # Select 1st key sizes >100MiB for the given fanout
     match fanout:
         case 2:
-            outsize = 1073741824
-            size = 201326592
+            size = 201326592 # 192MiB
         case 3:
-            outsize = 1073741824
-            size = 229582512
+            size = 229582512 # 218.95MiB
         case 4:
-            outsize = 1073741824
-            size = 201326592
+            size = 201326592 # 192MiB
 
     plt.figure()
 
