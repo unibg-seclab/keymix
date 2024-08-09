@@ -3,7 +3,7 @@ import pandas as pd
 
 from common import *
 
-FILE = 'data/enc.csv'
+FILE = 'data/enc-aqua.csv'
 
 df = pd.read_csv(FILE)
 df['outsize_mib'] = to_mib(df.outsize)
@@ -65,8 +65,9 @@ plt.close()
 # # ----------------------------------------- Multi-threading improvements
 
 
-outsize = 1073741824 # 1GiB
+# outsize = 1073741824 # 1GiB
 # outsize = 10737418240 # 10GiB
+outsize = 107374182400 # 100GiB
 # Select 1st three key sizes >100MiB for the given fanout
 sizes = [229582512, 688747536, 2066242608]
 # match fanout:
