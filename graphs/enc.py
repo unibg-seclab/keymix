@@ -21,8 +21,6 @@ impl_legend = 'AES-NI'
 fanout = 3
 ithr = 3
 
-prop_cycle = plt.rcParams['axes.prop_cycle']
-colors = prop_cycle.by_key()['color']
 markers = ["o", "s", "^", "D", "*", "p", "h", "8", "v"]
 
 df = df[(df.fanout == fanout) & (df.internal_threads == ithr) & (df.implementation == impl)]
@@ -72,24 +70,17 @@ plt.close()
 # outsize = 10737418240 # 10GiB
 outsize = 107374182400 # 100GiB
 # Select 1st three key sizes >100MiB for the given fanout
-sizes = [229582512, 688747536, 2066242608]
-# match fanout:
-#     case 2:
-#         sizes = [201326592, 402653184, 805306368]
-#     case 3:
-#         sizes = [229582512, 688747536, 2066242608]
-#     case 4:
-#         sizes = [201326592, 805306368, 3221225472]
+# sizes = [229582512, 688747536, 2066242608]
 
-key_sizes_in_mib = [to_mib(k) for k in sizes]
+key_sizes_in_mib = [to_mib(k) for k in key_sizes]
 data = df[df.outsize == outsize]
 
 plt.figure()
-for i, size in enumerate(sizes, start=key_sizes.index(sizes[0])):
+for i, size in enumerate(key_sizes):
     grouped = df_groupby(data[data.key_size == size], 'external_threads')
     xs = list(grouped.external_threads)
     ys = [to_sec(y) for y in grouped.time_mean]
-    plt.plot(xs, ys, color=colors[i], marker=markers[i])
+    plt.plot(xs, ys, marker=markers[i])
 
 pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
 plt.xlabel('Number of concurrent blocks')
@@ -98,11 +89,11 @@ plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-time.pdf', bbox_inches='tigh
 plt.close()
 
 plt.figure()
-for i, size in enumerate(sizes, start=key_sizes.index(sizes[0])):
+for i, size in enumerate(key_sizes):
     grouped = df_groupby(data[data.key_size == size], 'external_threads')
     xs = list(grouped.external_threads)
     ys = [to_mib(outsize) / to_sec(y) for y in grouped.time_mean]
-    plt.plot(xs, ys, color=colors[i], marker=markers[i])
+    plt.plot(xs, ys, marker=markers[i])
 
 pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
 plt.xticks(xs)
