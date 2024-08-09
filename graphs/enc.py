@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from common import *
@@ -20,6 +21,8 @@ impl_legend = 'AES-NI'
 fanout = 3
 ithr = 3
 
+prop_cycle = plt.rcParams['axes.prop_cycle']
+colors = prop_cycle.by_key()['color']
 markers = ["o", "s", "^", "D", "*", "p", "h", "8", "v"]
 
 df = df[(df.fanout == fanout) & (df.internal_threads == ithr) & (df.implementation == impl)]
@@ -27,7 +30,7 @@ df = df[(df.fanout == fanout) & (df.internal_threads == ithr) & (df.implementati
 # ----------------------------------------- "Traditional" encryption curves
 
 data = df[df.external_threads == 1]
-key_sizes = data.key_size.unique()
+key_sizes = sorted(data.key_size.unique())
 key_sizes_in_mib = [to_mib(k) for k in key_sizes]
 
 plt.figure()
@@ -82,11 +85,11 @@ key_sizes_in_mib = [to_mib(k) for k in sizes]
 data = df[df.outsize == outsize]
 
 plt.figure()
-for i, size in enumerate(sizes):
+for i, size in enumerate(sizes, start=key_sizes.index(sizes[0])):
     grouped = df_groupby(data[data.key_size == size], 'external_threads')
     xs = list(grouped.external_threads)
     ys = [to_sec(y) for y in grouped.time_mean]
-    plt.plot(xs, ys, marker=markers[i])
+    plt.plot(xs, ys, color=colors[i], marker=markers[i])
 
 pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
 plt.xlabel('Number of concurrent blocks')
@@ -95,11 +98,11 @@ plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-time.pdf', bbox_inches='tigh
 plt.close()
 
 plt.figure()
-for i, size in enumerate(sizes):
+for i, size in enumerate(sizes, start=key_sizes.index(sizes[0])):
     grouped = df_groupby(data[data.key_size == size], 'external_threads')
     xs = list(grouped.external_threads)
     ys = [to_mib(outsize) / to_sec(y) for y in grouped.time_mean]
-    plt.plot(xs, ys, marker=markers[i])
+    plt.plot(xs, ys, color=colors[i], marker=markers[i])
 
 pltlegend(plt, [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib])
 plt.xticks(xs)
