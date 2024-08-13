@@ -40,7 +40,7 @@ for fanout in fanouts:
             data = df_groupby(data, 'key_size')
             xs = [to_mib(x) for x in data.key_size]
             ys = [to_sec(y) for y in data.time_mean]
-            plt.loglog(xs, ys, marker=m, linestyle=style)
+            plt.loglog(xs, ys, linestyle=style, marker=m, markersize=8)
 
     pltlegend(plt, legend)
     plt.xlabel('Key size [MiB]')
@@ -61,7 +61,7 @@ for fanout in fanouts:
             data = df_groupby(data, 'key_size')
             xs = [to_mib(x) for x in data.key_size]
             ys = [x / to_sec(y) for x, y in zip(xs, data.time_mean)]
-            plt.loglog(xs, ys, marker=m, linestyle=style)
+            plt.loglog(xs, ys, linestyle=style, marker=m, markersize=8)
 
     pltlegend(plt, legend)
     plt.xlabel('Key size [MiB]')
@@ -88,7 +88,7 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_sec(y) for y in data.time_mean]
 
-        plt.plot(xs, ys, marker=m)
+        plt.plot(xs, ys, marker=m, markersize=8)
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')
@@ -114,7 +114,7 @@ for fanout in fanouts:
             print('Speed   =', speed, end='\t')
             print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2)}%')
 
-        plt.plot(xs, ys, marker=m)
+        plt.plot(xs, ys, marker=m, markersize=8)
 
     pltlegend(plt, impl_legend)
     plt.xlabel('Number of threads')

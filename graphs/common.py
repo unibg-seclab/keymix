@@ -1,6 +1,6 @@
 import matplotlib
 
-matplotlib.rc('font', size=12)
+matplotlib.rc('font', size=15)
 matplotlib.rc('pdf', fonttype=42)
 
 def to_mib(bytes):
@@ -9,17 +9,18 @@ def to_mib(bytes):
 def to_sec(ms):
     return ms / 1000
 
-def pltlegend(plt, labels):
-    x0, y0 = 0, 1.02
-    width = 1
+def pltlegend(plt, labels, x0=0, width=1):
+    y0 = 1.02
     height = 0.2
-    plt.legend(labels,
-               frameon=False,
-               mode='expand',
-               bbox_to_anchor=(x0, y0, width, height),
-               ncol=3,
-               handlelength=1.5,
-               loc="lower left")
+    legend = plt.legend(labels,
+                        frameon=False,
+                        mode='expand',
+                        bbox_to_anchor=(x0, y0, width, height),
+                        ncol=3,
+                        handlelength=1.5,
+                        loc="lower left")
+    for handle in legend.legend_handles:
+        handle.set_markersize(8)
 
 def df_filter(df, impl, fanout):
     return df[(df.implementation == impl) & (df.fanout == fanout)]
