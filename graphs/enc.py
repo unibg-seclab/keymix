@@ -47,7 +47,7 @@ pltlegend(plt,
           width=1.17)
 plt.xlabel('File size [MiB]')
 plt.ylabel('Average time [s]')
-plt.savefig(f'graphs/enc-f{fanout}-{impl}-time.pdf', bbox_inches='tight')
+plt.savefig(f'graphs/enc-f{fanout}-{impl}-time.pdf', bbox_inches='tight', pad_inches=0)
 plt.close()
 
 plt.figure()
@@ -66,7 +66,7 @@ pltlegend(plt,
           width=1.17)
 plt.xlabel('File size [MiB]')
 plt.ylabel('Average speed [MiB/s]')
-plt.savefig(f'graphs/enc-f{fanout}-{impl}-speed.pdf', bbox_inches='tight')
+plt.savefig(f'graphs/enc-f{fanout}-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
 plt.close()
 
 # # ----------------------------------------- Multi-threading improvements
@@ -94,7 +94,7 @@ pltlegend(plt,
           width=1.17)
 plt.xlabel('Number of concurrent blocks')
 plt.ylabel('Average time [s]')
-plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-time.pdf', bbox_inches='tight')
+plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-time.pdf', bbox_inches='tight', pad_inches=0)
 plt.close()
 
 plt.figure()
@@ -111,5 +111,5 @@ pltlegend(plt,
 plt.xticks(xs)
 plt.xlabel('Number of concurrent blocks')
 plt.ylabel('Average speed [MiB/s]')
-plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-speed.pdf', bbox_inches='tight')
+plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-speed.pdf', bbox_inches='tight', pad_inches=0)
 plt.close()

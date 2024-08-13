@@ -1,6 +1,6 @@
 import matplotlib
 
-matplotlib.rc('font', size=15)
+matplotlib.rc('font', size=15, family=['NewComputerModern08', 'sans-serif'])
 matplotlib.rc('pdf', fonttype=42)
 
 def to_mib(bytes):
