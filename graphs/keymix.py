@@ -42,7 +42,7 @@ for fanout in fanouts:
             ys = [to_sec(y) for y in data.time_mean]
             plt.loglog(xs, ys, linestyle=style, marker=m, markersize=8)
 
-    pltlegend(plt, legend)
+    pltlegend(plt, legend, x0=-0.1, width=1.2)
     plt.xlabel('Key size [MiB]')
     plt.ylabel('Average time [s]')
     plt.ylim(1e-2, 1e3)
@@ -63,7 +63,7 @@ for fanout in fanouts:
             ys = [x / to_sec(y) for x, y in zip(xs, data.time_mean)]
             plt.loglog(xs, ys, linestyle=style, marker=m, markersize=8)
 
-    pltlegend(plt, legend)
+    pltlegend(plt, legend, x0=-0.1, width=1.2)
     plt.xlabel('Key size [MiB]')
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(1e1, 1e3)
@@ -90,7 +90,7 @@ for fanout in fanouts:
 
         plt.plot(xs, ys, marker=m, markersize=8)
 
-    pltlegend(plt, impl_legend)
+    pltlegend(plt, impl_legend, x0=-0.1, width=1.2)
     plt.xlabel('Number of threads')
     plt.xticks(ticks=xs)
     plt.ylabel('Average time [s]')
@@ -116,7 +116,7 @@ for fanout in fanouts:
 
         plt.plot(xs, ys, marker=m, markersize=8)
 
-    pltlegend(plt, impl_legend)
+    pltlegend(plt, impl_legend, x0=-0.1, width=1.2)
     plt.xlabel('Number of threads')
     plt.xticks(ticks=xs)
     plt.ylabel('Average speed [MiB/s]')

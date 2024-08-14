@@ -43,8 +43,8 @@ plt.xscale('log')
 plt.yscale('log')
 pltlegend(plt,
           [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib],
-          x0=-0.13,
-          width=1.17)
+          x0=-0.155,
+          width=1.3)
 plt.xlabel('File size [MiB]')
 plt.ylabel('Average time [s]')
 plt.savefig(f'graphs/enc-f{fanout}-{impl}-time.pdf', bbox_inches='tight', pad_inches=0)
@@ -62,8 +62,8 @@ plt.xscale('log')
 plt.yscale('log')
 pltlegend(plt,
           [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib],
-          x0=-0.13,
-          width=1.17)
+          x0=-0.155,
+          width=1.3)
 plt.xlabel('File size [MiB]')
 plt.ylabel('Average speed [MiB/s]')
 plt.savefig(f'graphs/enc-f{fanout}-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
@@ -90,8 +90,8 @@ for i, size in enumerate(key_sizes):
 
 pltlegend(plt,
           [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib],
-          x0=-0.13,
-          width=1.17)
+          x0=-0.155,
+          width=1.3)
 plt.xlabel('Number of concurrent blocks')
 plt.ylabel('Average time [s]')
 plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-time.pdf', bbox_inches='tight', pad_inches=0)
@@ -106,8 +106,8 @@ for i, size in enumerate(key_sizes):
 
 pltlegend(plt,
           [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib],
-          x0=-0.13,
-          width=1.17)
+          x0=-0.155,
+          width=1.3)
 plt.xticks(xs)
 plt.xlabel('Number of concurrent blocks')
 plt.ylabel('Average speed [MiB/s]')
