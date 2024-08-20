@@ -1,7 +1,8 @@
+import statistics
+from itertools import product
+
 import matplotlib.pyplot as plt
 import pandas as pd
-
-from itertools import product
 
 from common import *
 
@@ -72,6 +73,8 @@ for fanout in fanouts:
 
 # ---------------------------------------------------------- Threading improvements
 
+overall_thread_contributions = []
+
 for fanout in fanouts:
     # Select 1st key sizes >100MiB for the given fanout
     match fanout:
@@ -112,7 +115,11 @@ for fanout in fanouts:
         for thr, speed in zip(xs, ys):
             print('Threads =', thr, end='\t')
             print('Speed   =', speed, end='\t')
-            print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2)}%')
+            print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2)}%', end='\t')
+            thread_contribution = (speed - ys[0]) / ys[0] * 100 / max(1, thr - 1)
+            print(f'+{round(thread_contribution, 2)}%')
+            if thr > 1:
+                overall_thread_contributions.append(thread_contribution)
 
         plt.plot(xs, ys, marker=m, markersize=8)
 
@@ -123,3 +130,7 @@ for fanout in fanouts:
     plt.ylim(0, 1200)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
+
+print('-------------- Overall')
+print('Average additional thread improvement = ', statistics.mean(overall_thread_contributions))
+print('Mediant additional thread improvement = ', statistics.median(overall_thread_contributions))
