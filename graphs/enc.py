@@ -1,3 +1,5 @@
+import statistics
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -50,12 +52,15 @@ plt.ylabel('Average time [s]')
 plt.savefig(f'graphs/enc-f{fanout}-{impl}-time.pdf', bbox_inches='tight', pad_inches=0)
 plt.close()
 
+max_speed = 0
+
 plt.figure()
 # plt.title(f'Encryption speeds, {name} (fanout {fanout})')
 for i, size in enumerate(key_sizes):
     grouped = df_groupby(data[data.key_size == size], 'outsize')
     xs = [to_mib(x) for x in grouped.outsize]
     ys = [x / to_sec(y) for x, y in zip(xs, grouped.time_mean)]
+    max_speed = max([max_speed] + ys)
     plt.plot(xs, ys, marker=markers[i], markersize=8)
 
 plt.xscale('log')
@@ -68,6 +73,9 @@ plt.xlabel('File size [MiB]')
 plt.ylabel('Average speed [MiB/s]')
 plt.savefig(f'graphs/enc-f{fanout}-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
 plt.close()
+
+print('--- Single-core encryption speeds')
+print(f"Max speed = {max_speed} [MiB/s]")
 
 # # ----------------------------------------- Multi-threading improvements
 
@@ -97,12 +105,31 @@ plt.ylabel('Average time [s]')
 plt.savefig(f'graphs/enc-f{fanout}-{impl}-threading-time.pdf', bbox_inches='tight', pad_inches=0)
 plt.close()
 
+print('\n--- Multi-core encryption speeds')
+thread_contributions = [[] for i in range(len(xs))]
+
 plt.figure()
 for i, size in enumerate(key_sizes):
     grouped = df_groupby(data[data.key_size == size], 'external_threads')
     xs = list(grouped.external_threads)
     ys = [to_mib(outsize) / to_sec(y) for y in grouped.time_mean]
     plt.plot(xs, ys, marker=markers[i], markersize=8)
+
+    print('=== For size', to_mib(size))
+    for thr, speed in zip(xs, ys):
+            print('Threads =', thr, end='\t')
+            print('Speed   =', speed, end='\t')
+            print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2):>6.2f}%', end='\t')
+            thread_contribution = (speed - ys[0]) / ys[0] * 100 / max(1, thr - 1)
+            print(f'+{round(thread_contribution):>3}%')
+            thread_contributions[thr - 1].append(thread_contribution)
+    
+print('=== Overall')
+for thr, contribs in enumerate(thread_contributions):
+    print('Threads =', thr + 1, end='\t')
+    print(f'+{round(statistics.mean(contribs)):>3}% (avg)', end='\t')
+    print(f'+{round(statistics.median(contribs)):>3}% (median)')
+
 
 pltlegend(plt,
           [f'{int(k)} MiB' if k == int(k) else f'{round(k, 2)} MiB' for k in key_sizes_in_mib],

@@ -115,9 +115,9 @@ for fanout in fanouts:
         for thr, speed in zip(xs, ys):
             print('Threads =', thr, end='\t')
             print('Speed   =', speed, end='\t')
-            print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2)}%', end='\t')
+            print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2):>6.2f}%', end='\t')
             thread_contribution = (speed - ys[0]) / ys[0] * 100 / max(1, thr - 1)
-            print(f'+{round(thread_contribution, 2)}%')
+            print(f'+{round(thread_contribution, 2):>6.2f}%')
             if thr > 1:
                 overall_thread_contributions.append(thread_contribution)
 
@@ -132,5 +132,6 @@ for fanout in fanouts:
     plt.close()
 
 print('-------------- Overall')
-print('Average additional thread improvement = ', statistics.mean(overall_thread_contributions))
-print('Mediant additional thread improvement = ', statistics.median(overall_thread_contributions))
+print('Additional thread improvement', end='\t')
+print(f'+{statistics.mean(overall_thread_contributions):>6.2f} (avg)', end='\t')
+print(f'+{statistics.median(overall_thread_contributions):>6.2f} (median)')
