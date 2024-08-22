@@ -121,14 +121,16 @@ for i, size in enumerate(key_sizes):
             print('Speed   =', speed, end='\t')
             print(f'+{round(((speed - ys[0]) / ys[0]) * 100, 2):>6.2f}%', end='\t')
             thread_contribution = (speed - ys[0]) / ys[0] * 100 / max(1, thr - 1)
-            print(f'+{round(thread_contribution):>3}%')
+            print(f'+{round(thread_contribution, 2):>6.2f}%')
             thread_contributions[thr - 1].append(thread_contribution)
     
 print('=== Overall')
 for thr, contribs in enumerate(thread_contributions):
     print('Threads =', thr + 1, end='\t')
-    print(f'+{round(statistics.mean(contribs)):>3}% (avg)', end='\t')
-    print(f'+{round(statistics.median(contribs)):>3}% (median)')
+    print(f'+{round(statistics.mean(contribs), 2):>6.2f}% (avg)', end='\t')
+    print(f'+{min(contribs):>6.2f} (min)', end='\t')
+    print(f'+{statistics.median(contribs):>6.2f} (median)', end='\t')
+    print(f'+{max(contribs):>6.2f} (max)')
 
 
 pltlegend(plt,
