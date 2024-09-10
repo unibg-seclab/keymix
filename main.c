@@ -54,38 +54,36 @@ int main() {
         }
 
         mixctrpass_impl_t configs[] = {
-            get_mixctr_impl(MIXCTR_WOLFSSL),
-            get_mixctr_impl(MIXCTR_OPENSSL),
-            get_mixctr_impl(MIXCTR_AESNI),
+                get_mixctr_impl(MIXCTR_SHA3_512),
         };
-        char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
+        char *descr[] = {"sha3 (512)",};
 
         // Setup global OpenSSL cipher
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 
         // mixing_config mconf = {&wolfssl, 3};
-        uint8_t threads[] = {1, 3, 9, 27, 81};
-        for (uint8_t t = 0; t < sizeof(threads) / sizeof(uint8_t); t++) {
-                printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
-                int pe              = 0;
-                uint8_t nof_threads = threads[t];
-                double time =
-                    MEASURE({ pe = keymix(configs[0], key, out, key_size, 3, nof_threads); });
-                uint8_t precision    = 2;
-                double readable_size = (double)key_size / SIZE_1MiB;
-                printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
-                printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
-                printf("avg. speed [MiB/s]:\t%.*lf\n", precision, readable_size * 1000 / time);
-                printf("====\n");
+        // uint8_t threads[] = {1, 3, 9, 27, 81};
+        // for (uint8_t t = 0; t < sizeof(threads) / sizeof(uint8_t); t++) {
+        //         printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
+        //         int pe              = 0;
+        //         uint8_t nof_threads = threads[t];
+        //         double time =
+        //             MEASURE({ pe = keymix(configs[0], key, out, key_size, 3, nof_threads); });
+        //         uint8_t precision    = 2;
+        //         double readable_size = (double)key_size / SIZE_1MiB;
+        //         printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
+        //         printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
+        //         printf("avg. speed [MiB/s]:\t%.*lf\n", precision, readable_size * 1000 / time);
+        //         printf("====\n");
 
-                if (pe != 0) {
-                        printf("something went wrong %d\n", pe);
-                        exit(1);
-                }
-        }
+        //         if (pe != 0) {
+        //                 printf("something went wrong %d\n", pe);
+        //                 exit(1);
+        //         }
+        // }
 
         int err = 0;
-        for (uint8_t i = 0; i < 3; i++) {
+        for (uint8_t i = 0; i < 1; i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);

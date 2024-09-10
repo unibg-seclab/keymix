@@ -158,6 +158,26 @@ int aesni(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+// ------------------------------------------------------------ SHA3-512
+
+EVP_MD *algo;
+unsigned int digest_len;
+
+int sha3_512(byte *in, byte *out, size_t size) {
+        EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
+        EVP_DigestInit_ex(mdctx, algo, NULL);
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                EVP_DigestInit_ex(mdctx, NULL, NULL);
+                EVP_DigestUpdate(mdctx, in, digest_len);
+                EVP_DigestFinal_ex(mdctx, out, &digest_len);
+        }
+
+        EVP_MD_CTX_destroy(mdctx);
+        return 0;
+}
+
 // ------------------------------------------------------------ Generic mixctr code
 
 inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
@@ -168,6 +188,8 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &openssl;
         case MIXCTR_AESNI:
                 return &aesni;
+        case MIXCTR_SHA3_512:
+                return &sha3_512;
         default:
                 return NULL;
         }

@@ -16,10 +16,13 @@ typedef enum {
 } fanout_t;
 
 // An AES block size (128 bits)
-#define SIZE_BLOCK 16
+// #define SIZE_BLOCK 16
+// SHA3 block size (512 bit)
+#define SIZE_BLOCK 64
 
 // A macro of ours is composed by 3 AES blocks
 #define BLOCKS_PER_MACRO 3
-#define SIZE_MACRO 48
+// #define SIZE_MACRO 48
+#define SIZE_MACRO 64
 
 #endif

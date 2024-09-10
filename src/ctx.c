@@ -9,6 +9,8 @@
 // https://github.com/openssl/openssl/issues/17064
 // This is defined in mixctr.c
 extern EVP_CIPHER *openssl_aes256ecb;
+extern EVP_MD *algo;
+extern unsigned int digest_len;
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
                       fanout_t fanout) {
@@ -24,6 +26,8 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         ctx_enable_iv_counter(ctx, iv);
 
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
+        algo = EVP_sha3_512();
+        digest_len = EVP_MD_size(algo);
 }
 
 void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
@@ -39,6 +43,8 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
         ctx_disable_iv_counter(ctx);
 
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
+        algo = EVP_sha3_512();
+        digest_len = EVP_MD_size(algo);
 }
 
 inline void ctx_enable_encryption(keymix_ctx_t *ctx) { ctx->encrypt = true; }
