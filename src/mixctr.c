@@ -158,12 +158,15 @@ int aesni(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ SHA3-512
+// ------------------------------------------------------------ Hash functions
+
+// Look at https://github.com/marcotessarotto/openssl-sha3/blob/master/openssl-sha3-example.c
+// for an implementation that handles all potential errors
 
 EVP_MD *algo;
 unsigned int digest_len;
 
-int sha3_512(byte *in, byte *out, size_t size) {
+int hash(byte *in, byte *out, size_t size) {
         EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
         EVP_DigestInit_ex(mdctx, algo, NULL);
 
@@ -189,7 +192,8 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         case MIXCTR_AESNI:
                 return &aesni;
         case MIXCTR_SHA3_512:
-                return &sha3_512;
+        case MIXCTR_BLAKE2B_512:
+                return &hash;
         default:
                 return NULL;
         }

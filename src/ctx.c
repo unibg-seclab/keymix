@@ -26,7 +26,15 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         ctx_enable_iv_counter(ctx, iv);
 
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
-        algo = EVP_sha3_512();
+
+        switch (mixctr) {
+        case MIXCTR_SHA3_512:
+                algo = EVP_sha3_512();
+                break;
+        case MIXCTR_BLAKE2B_512:
+                algo = EVP_blake2b512();
+                break;
+        }
         digest_len = EVP_MD_size(algo);
 }
 
@@ -43,7 +51,15 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
         ctx_disable_iv_counter(ctx);
 
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
-        algo = EVP_sha3_512();
+
+        switch (mixctr) {
+        case MIXCTR_SHA3_512:
+                algo = EVP_sha3_512();
+                break;
+        case MIXCTR_BLAKE2B_512:
+                algo = EVP_blake2b512();
+                break;
+        }
         digest_len = EVP_MD_size(algo);
 }
 

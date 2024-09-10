@@ -15,6 +15,7 @@ typedef enum {
         MIXCTR_OPENSSL,
         MIXCTR_AESNI,
         MIXCTR_SHA3_512,
+        MIXCTR_BLAKE2B_512,
 } mixctr_t;
 
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.

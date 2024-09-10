@@ -16,6 +16,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#include "ctx.h"
 #include "keymix.h"
 #include "log.h"
 #include "mixctr.h"
@@ -53,10 +54,11 @@ int main() {
                 goto clean;
         }
 
-        mixctrpass_impl_t configs[] = {
-                get_mixctr_impl(MIXCTR_SHA3_512),
+        mixctr_t configs[] = {
+                MIXCTR_SHA3_512,
+                MIXCTR_BLAKE2B_512,
         };
-        char *descr[] = {"sha3 (512)",};
+        char *descr[] = {"sha3 (512)", "blake2b (512)",};
 
         // Setup global OpenSSL cipher
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
@@ -68,7 +70,7 @@ int main() {
         //         int pe              = 0;
         //         uint8_t nof_threads = threads[t];
         //         double time =
-        //             MEASURE({ pe = keymix(configs[0], key, out, key_size, 3, nof_threads); });
+        //             MEASURE({ pe = keymix(get_mixctr_impl(configs[0]), key, out, key_size, 3, nof_threads); });
         //         uint8_t precision    = 2;
         //         double readable_size = (double)key_size / SIZE_1MiB;
         //         printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
@@ -83,7 +85,7 @@ int main() {
         // }
 
         int err = 0;
-        for (uint8_t i = 0; i < 1; i++) {
+        for (uint8_t i = 0; i < 2; i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
@@ -99,7 +101,11 @@ int main() {
                 printf("%s mixing...\n", descr[i]);
                 printf("fanout:\t\t%d\n", 4);
 
-                double time = MEASURE({ err = keymix(configs[i], key, out, key_size, 4, 1); });
+                // Setup global cipher and hash functions
+                keymix_ctx_t ctx;
+                ctx_keymix_init(&ctx, configs[i], key, key_size, 4);
+
+                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 4, 1); });
 
                 explicit_bzero(out, key_size);
 
