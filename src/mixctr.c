@@ -191,6 +191,8 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &openssl;
         case MIXCTR_AESNI:
                 return &aesni;
+        case MIXCTR_SHA3_256:
+        case MIXCTR_BLAKE2S_256:
         case MIXCTR_SHA3_512:
         case MIXCTR_BLAKE2B_512:
                 return &hash;

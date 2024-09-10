@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -43,7 +44,7 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        size_t key_size = SIZE_MACRO * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4; // 256 MiB
+        size_t key_size = SIZE_MACRO * pow(2, 23); // 256 MiB
         printf("Key has size %zu MiB\n", key_size / 1024 / 1024);
         printf("====\n");
 
@@ -55,10 +56,10 @@ int main() {
         }
 
         mixctr_t configs[] = {
-                MIXCTR_SHA3_512,
-                MIXCTR_BLAKE2B_512,
+                MIXCTR_SHA3_256,
+                MIXCTR_BLAKE2S_256,
         };
-        char *descr[] = {"sha3 (512)", "blake2b (512)",};
+        char *descr[] = {"sha3 (256)", "blake2s (256)",};
 
         // Setup global OpenSSL cipher
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
@@ -95,17 +96,17 @@ int main() {
                         print_buffer_hex(out, key_size, "out");
                 }
                 uint64_t nof_macros = key_size / SIZE_MACRO;
-                uint8_t levels      = 1 + LOGBASE(nof_macros, 4);
+                uint8_t levels      = 1 + LOGBASE(nof_macros, 2);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
-                printf("fanout:\t\t%d\n", 4);
+                printf("fanout:\t\t\t%d\n", 2);
 
                 // Setup global cipher and hash functions
                 keymix_ctx_t ctx;
-                ctx_keymix_init(&ctx, configs[i], key, key_size, 4);
+                ctx_keymix_init(&ctx, configs[i], key, key_size, 2);
 
-                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 4, 1); });
+                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 2, 1); });
 
                 explicit_bzero(out, key_size);
 

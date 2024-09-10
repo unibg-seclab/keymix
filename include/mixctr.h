@@ -14,6 +14,8 @@ typedef enum {
         MIXCTR_WOLFSSL,
         MIXCTR_OPENSSL,
         MIXCTR_AESNI,
+        MIXCTR_SHA3_256,
+        MIXCTR_BLAKE2S_256,
         MIXCTR_SHA3_512,
         MIXCTR_BLAKE2B_512,
 } mixctr_t;

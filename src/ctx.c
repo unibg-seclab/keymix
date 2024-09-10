@@ -9,7 +9,7 @@
 // https://github.com/openssl/openssl/issues/17064
 // This is defined in mixctr.c
 extern EVP_CIPHER *openssl_aes256ecb;
-extern EVP_MD *algo;
+extern const EVP_MD *algo;
 extern unsigned int digest_len;
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
@@ -28,6 +28,12 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 
         switch (mixctr) {
+        case MIXCTR_SHA3_256:
+                algo = EVP_sha3_256();
+                break;
+        case MIXCTR_BLAKE2S_256:
+                algo = EVP_blake2s256();
+                break;
         case MIXCTR_SHA3_512:
                 algo = EVP_sha3_512();
                 break;
@@ -53,6 +59,12 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 
         switch (mixctr) {
+        case MIXCTR_SHA3_256:
+                algo = EVP_sha3_256();
+                break;
+        case MIXCTR_BLAKE2S_256:
+                algo = EVP_blake2s256();
+                break;
         case MIXCTR_SHA3_512:
                 algo = EVP_sha3_512();
                 break;
