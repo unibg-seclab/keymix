@@ -42,7 +42,7 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        size_t key_size = SIZE_MACRO * 3 * 3 * 3 * 3 * 3 * 3 * 3 * 3 * 3 * 3 * 3 * 3 * 3 * 3;
+        size_t key_size = SIZE_MACRO * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4 * 4; // 256 MiB
         printf("Key has size %zu MiB\n", key_size / 1024 / 1024);
         printf("====\n");
 
@@ -88,18 +88,18 @@ int main() {
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
 
-                if (key_size <= 48 * 3) {
+                if (key_size <= SIZE_MACRO * 4) {
                         print_buffer_hex(key, key_size, "key");
                         print_buffer_hex(out, key_size, "out");
                 }
-                uint64_t nof_macros = key_size / 48;
-                uint8_t levels      = 1 + LOGBASE(nof_macros, 3);
+                uint64_t nof_macros = key_size / SIZE_MACRO;
+                uint8_t levels      = 1 + LOGBASE(nof_macros, 4);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
-                printf("fanout:\t\t%d\n", 3);
+                printf("fanout:\t\t%d\n", 4);
 
-                double time = MEASURE({ err = keymix(configs[i], key, out, key_size, 3, 1); });
+                double time = MEASURE({ err = keymix(configs[i], key, out, key_size, 4, 1); });
 
                 explicit_bzero(out, key_size);
 
