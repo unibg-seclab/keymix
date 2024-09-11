@@ -44,7 +44,7 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        size_t key_size = SIZE_MACRO * pow(12, 6); // 546 MiB
+        size_t key_size = SIZE_MACRO * pow(4, 11); // 256 MiB
         printf("Key has size %zu MiB\n", key_size / 1024 / 1024);
         printf("====\n");
 
@@ -56,18 +56,18 @@ int main() {
         }
 
         mixctr_t configs[] = {
-                MIXCTR_OPENSSL_SHAKE128_1536,
-                MIXCTR_WOLFCRYPT_SHAKE128_1536,
-                MIXCTR_OPENSSL_SHAKE256_1536,
-                MIXCTR_WOLFCRYPT_SHAKE256_1536,
-                MIXCTR_XKCP_KANGAROOTWELVE_1536,
+                MIXCTR_OPENSSL_SHA3_512,
+                MIXCTR_WOLFCRYPT_SHA3_512,
+                MIXCTR_OPENSSL_BLAKE2B_512,
+                MIXCTR_WOLFCRYPT_BLAKE2B_512,
+                MIXCTR_XKCP_KANGAROOTWELVE_512,
         };
         char *descr[] = {
-                "openssl shake128 (1536)",
-                "wolfcrypt shake128 (1536)",
-                "openssl shake256 (1536)",
-                "wolfcrypt shake256 (1536)",
-                "xkcp kangarootwelve (1536)"
+                "openssl sha3 (512)",
+                "wolfcrypt sha3 (512)",
+                "openssl blake2b (512)",
+                "wolfcrypt blake2b (512)",
+                "xkcp kangarootwelve (512)"
         };
 
         // Setup global OpenSSL cipher
@@ -100,22 +100,22 @@ int main() {
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
 
-                if (key_size <= SIZE_MACRO * 12) {
+                if (key_size <= SIZE_MACRO * 4) {
                         print_buffer_hex(key, key_size, "key");
                         print_buffer_hex(out, key_size, "out");
                 }
                 uint64_t nof_macros = key_size / SIZE_MACRO;
-                uint8_t levels      = 1 + LOGBASE(nof_macros, 12);
+                uint8_t levels      = 1 + LOGBASE(nof_macros, 4);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
-                printf("fanout:\t\t\t%d\n", 12);
+                printf("fanout:\t\t\t%d\n", 4);
 
                 // Setup global cipher and hash functions
                 keymix_ctx_t ctx;
-                ctx_keymix_init(&ctx, configs[i], key, key_size, 12);
+                ctx_keymix_init(&ctx, configs[i], key, key_size, 4);
 
-                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 12, 1); });
+                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 4, 1); });
 
                 explicit_bzero(out, key_size);
 
