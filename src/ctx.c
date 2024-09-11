@@ -10,7 +10,6 @@
 // This is defined in mixctr.c
 extern EVP_CIPHER *openssl_aes256ecb;
 extern const EVP_MD *algo;
-extern unsigned int digest_len;
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
                       fanout_t fanout) {
@@ -40,8 +39,13 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         case MIXCTR_BLAKE2B_512:
                 algo = EVP_blake2b512();
                 break;
+        case MIXCTR_SHAKE128_1536:
+                algo = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+                break;
+        case MIXCTR_SHAKE256_1536:
+                algo = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
+                break;
         }
-        digest_len = EVP_MD_size(algo);
 }
 
 void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
@@ -71,8 +75,13 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
         case MIXCTR_BLAKE2B_512:
                 algo = EVP_blake2b512();
                 break;
+        case MIXCTR_SHAKE128_1536:
+                algo = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+                break;
+        case MIXCTR_SHAKE256_1536:
+                algo = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
+                break;
         }
-        digest_len = EVP_MD_size(algo);
 }
 
 inline void ctx_enable_encryption(keymix_ctx_t *ctx) { ctx->encrypt = true; }

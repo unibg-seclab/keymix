@@ -1,10 +1,12 @@
 #include "mixctr.h"
 
 #include "config.h"
+#include "log.h"
 #include "types.h"
 
 #include <assert.h>
 #include <openssl/evp.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <wmmintrin.h>
@@ -160,25 +162,46 @@ int aesni(byte *in, byte *out, size_t size) {
 
 // ------------------------------------------------------------ Hash functions
 
-// Look at https://github.com/marcotessarotto/openssl-sha3/blob/master/openssl-sha3-example.c
-// for an implementation that handles all potential errors
-
 EVP_MD *algo;
-unsigned int digest_len;
 
-int hash(byte *in, byte *out, size_t size) {
-        EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
-        EVP_DigestInit_ex(mdctx, algo, NULL);
+int generic_hash(byte *in, byte *out, size_t size, bool is_xof) {
+        EVP_MD_CTX *mdctx;
+        if ((mdctx = EVP_MD_CTX_create()) == NULL) {
+                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
+        }
+        if (!EVP_DigestInit_ex(mdctx, algo, NULL)) {
+                _log(LOG_ERROR, "EVP_DigestInit_ex error\n");
+        }
 
         byte *last = in + size;
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                EVP_DigestInit_ex(mdctx, NULL, NULL);
-                EVP_DigestUpdate(mdctx, in, digest_len);
-                EVP_DigestFinal_ex(mdctx, out, &digest_len);
+                if (!EVP_DigestInit_ex(mdctx, NULL, NULL)) {
+                       _log(LOG_ERROR, "EVP_DigestInit_ex error\n");
+                }
+                if (!EVP_DigestUpdate(mdctx, in, SIZE_MACRO)) {
+                        _log(LOG_ERROR, "EVP_DigestUpdate error\n");
+                }
+                if (is_xof) {
+                        if (!EVP_DigestFinalXOF(mdctx, out, SIZE_MACRO)) {
+                                _log(LOG_ERROR, "EVP_DigestFinalXOF error\n");
+                        }
+                } else {
+                        if (!EVP_DigestFinal_ex(mdctx, out, NULL)) {
+                                _log(LOG_ERROR, "EVP_DigestFinal_ex error\n");
+                        }
+                }
         }
 
         EVP_MD_CTX_destroy(mdctx);
         return 0;
+}
+
+int hash(byte *in, byte *out, size_t size) {
+        return generic_hash(in, out, size, false);
+}
+
+int xof_hash(byte *in, byte *out, size_t size) {
+        return generic_hash(in, out, size, true);
 }
 
 // ------------------------------------------------------------ Generic mixctr code
@@ -196,6 +219,9 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         case MIXCTR_SHA3_512:
         case MIXCTR_BLAKE2B_512:
                 return &hash;
+        case MIXCTR_SHAKE128_1536:
+        case MIXCTR_SHAKE256_1536:
+                return &xof_hash;
         default:
                 return NULL;
         }

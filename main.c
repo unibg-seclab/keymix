@@ -44,7 +44,7 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        size_t key_size = SIZE_MACRO * pow(2, 23); // 256 MiB
+        size_t key_size = SIZE_MACRO * pow(12, 6); // 546 MiB
         printf("Key has size %zu MiB\n", key_size / 1024 / 1024);
         printf("====\n");
 
@@ -56,10 +56,10 @@ int main() {
         }
 
         mixctr_t configs[] = {
-                MIXCTR_SHA3_256,
-                MIXCTR_BLAKE2S_256,
+                MIXCTR_SHAKE128_1536,
+                MIXCTR_SHAKE256_1536,
         };
-        char *descr[] = {"sha3 (256)", "blake2s (256)",};
+        char *descr[] = {"shake128 (1536)", "shake256 (1536)",};
 
         // Setup global OpenSSL cipher
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
@@ -91,22 +91,22 @@ int main() {
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
 
-                if (key_size <= SIZE_MACRO * 4) {
+                if (key_size <= SIZE_MACRO * 12) {
                         print_buffer_hex(key, key_size, "key");
                         print_buffer_hex(out, key_size, "out");
                 }
                 uint64_t nof_macros = key_size / SIZE_MACRO;
-                uint8_t levels      = 1 + LOGBASE(nof_macros, 2);
+                uint8_t levels      = 1 + LOGBASE(nof_macros, 12);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
-                printf("fanout:\t\t\t%d\n", 2);
+                printf("fanout:\t\t\t%d\n", 12);
 
                 // Setup global cipher and hash functions
                 keymix_ctx_t ctx;
-                ctx_keymix_init(&ctx, configs[i], key, key_size, 2);
+                ctx_keymix_init(&ctx, configs[i], key, key_size, 12);
 
-                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 2, 1); });
+                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 12, 1); });
 
                 explicit_bzero(out, key_size);
 
