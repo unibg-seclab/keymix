@@ -28,16 +28,16 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
 
         switch (mixctr) {
         case MIXCTR_SHA3_256:
-                algo = EVP_sha3_256();
+                algo = EVP_MD_fetch(NULL, "SHA3-256", NULL);                
                 break;
         case MIXCTR_BLAKE2S_256:
-                algo = EVP_blake2s256();
+                algo = EVP_MD_fetch(NULL, "BLAKE2S-256", NULL);
                 break;
         case MIXCTR_SHA3_512:
-                algo = EVP_sha3_512();
+                algo = EVP_MD_fetch(NULL, "SHA3-512", NULL);
                 break;
         case MIXCTR_BLAKE2B_512:
-                algo = EVP_blake2b512();
+                algo = EVP_MD_fetch(NULL, "BLAKE2B-512", NULL);
                 break;
         case MIXCTR_SHAKE128_1536:
                 algo = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
@@ -64,16 +64,16 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
 
         switch (mixctr) {
         case MIXCTR_SHA3_256:
-                algo = EVP_sha3_256();
+                algo = EVP_MD_fetch(NULL, "SHA3-256", NULL);                
                 break;
         case MIXCTR_BLAKE2S_256:
-                algo = EVP_blake2s256();
+                algo = EVP_MD_fetch(NULL, "BLAKE2S-256", NULL);
                 break;
         case MIXCTR_SHA3_512:
-                algo = EVP_sha3_512();
+                algo = EVP_MD_fetch(NULL, "SHA3-512", NULL);
                 break;
         case MIXCTR_BLAKE2B_512:
-                algo = EVP_blake2b512();
+                algo = EVP_MD_fetch(NULL, "BLAKE2B-512", NULL);
                 break;
         case MIXCTR_SHAKE128_1536:
                 algo = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
