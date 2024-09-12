@@ -26,6 +26,9 @@ typedef enum {
         MIXCTR_WOLFCRYPT_BLAKE2B_512,
         MIXCTR_WOLFCRYPT_SHAKE128_1536,
         MIXCTR_WOLFCRYPT_SHAKE256_1536,
+        MIXCTR_XKCP_KANGAROOTWELVE_256,
+        MIXCTR_XKCP_KANGAROOTWELVE_512,
+        MIXCTR_XKCP_KANGAROOTWELVE_1536,
 } mixctr_t;
 
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.

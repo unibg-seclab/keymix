@@ -20,7 +20,7 @@ SECRET = secret
 
 CC = gcc
 CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -Isrc
-LDLIBS = -lcrypto -lm -lwolfssl -pthread
+LDLIBS = -lcrypto -lXKCP -lm -lwolfssl -pthread
 
 # ------------ Generic building
 
@@ -38,6 +38,17 @@ ifeq ($(shell which makepkg &> /dev/null && echo "yes" || echo "no"), "yes")
 else
 	@ cd deps/wolfssl-ecb && ./install.sh
 endif
+
+XKCP_TARGET = AVX2
+
+xkcp:
+	@ echo "[*] Look into https://github.com/XKCP/XKCP for the best compilation target for your cpu architecture (default: AVX2)"
+	@ cd deps/XKCP && git submodule update --init && make $(XKCP_TARGET)/libXKCP.so
+	@ echo "[*] Installing XKCP library in /usr/local/lib ..."
+	sudo cp -r deps/XKCP/bin/$(XKCP_TARGET)/libXKCP.so.headers /usr/local/include/libXKCP
+	sudo cp deps/XKCP/bin/$(XKCP_TARGET)/libXKCP.so /usr/local/lib/libXKCP.so
+	@ echo "[*] Updating shared library cache ..."
+	sudo ldconfig
 
 # ------------ main.c for quick tests
 

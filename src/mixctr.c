@@ -5,11 +5,13 @@
 #include "types.h"
 
 #include <assert.h>
-#include <openssl/evp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <wmmintrin.h>
+
+#include <libXKCP/KangarooTwelve.h>
+#include <openssl/evp.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/hash.h>
@@ -300,6 +302,18 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+// ------------------------------------------------------------ KangarooTwelve hash function
+
+int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size) {
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                int result = KangarooTwelve(in, SIZE_MACRO, out, SIZE_MACRO, NULL, 0);
+                if (result) {
+                        _log(LOG_ERROR, "KangarooTwelve error %d\n", result);
+                }
+        }
+        return 0;
+}
 
 // ------------------------------------------------------------ Generic mixctr code
 
@@ -330,6 +344,10 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &wolfcrypt_shake128_hash;
         case MIXCTR_WOLFCRYPT_SHAKE256_1536:
                 return &wolfcrypt_shake256_hash;
+        case MIXCTR_XKCP_KANGAROOTWELVE_256:
+        case MIXCTR_XKCP_KANGAROOTWELVE_512:
+        case MIXCTR_XKCP_KANGAROOTWELVE_1536:
+                return &xkcp_kangarootwelve_hash;
         default:
                 return NULL;
         }
