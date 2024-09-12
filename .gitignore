@@ -53,6 +53,8 @@ perf.*
 deps/wolfssl-ecb/*
 !deps/wolfssl-ecb/PKGBUILD
 !deps/wolfssl-ecb/install.sh
+deps/xkcp/*
+!deps/xkcp/PKGBUILD
 
 packages/arch/*
 !packages/arch/PKGBUILD

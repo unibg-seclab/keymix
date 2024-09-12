@@ -33,7 +33,7 @@ $(LIBRARY): $(OBJECTS)
 	@ gcc -shared -o $(LIBRARY) $(OBJECTS)
 
 wolfssl:
-ifeq ($(shell which makepkg &> /dev/null && echo "yes" || echo "no"), "yes")
+ifeq ($(shell which makepkg &> /dev/null && echo Y || echo N), Y)
 	@ cd deps/wolfssl-ecb && makepkg -sfi
 else
 	@ cd deps/wolfssl-ecb && ./install.sh
@@ -42,6 +42,9 @@ endif
 XKCP_TARGET = AVX2
 
 xkcp:
+ifeq ($(shell which makepkg &> /dev/null && echo Y || echo N), Y)
+	@ cd deps/xkcp && makepkg -sfi
+else
 	@ echo "[*] Look into https://github.com/XKCP/XKCP for the best compilation target for your cpu architecture (default: AVX2)"
 	@ cd deps/XKCP && git submodule update --init && make $(XKCP_TARGET)/libXKCP.so
 	@ echo "[*] Installing XKCP library in /usr/local/lib ..."
@@ -49,6 +52,7 @@ xkcp:
 	sudo cp deps/XKCP/bin/$(XKCP_TARGET)/libXKCP.so /usr/local/lib/libXKCP.so
 	@ echo "[*] Updating shared library cache ..."
 	sudo ldconfig
+endif
 
 # ------------ main.c for quick tests
 
