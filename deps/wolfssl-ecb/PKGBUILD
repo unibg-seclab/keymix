@@ -24,7 +24,7 @@ validpgpkeys=(
 build() {
   cd "$srcdir/${_pkgname}-$pkgver-stable"
   ./autogen.sh
-  ./configure --enable-aesni --enable-intelasm --enable-aesctr --enable-aescbc CFLAGS="-DHAVE_AES_ECB"
+  ./configure --enable-aesni --enable-intelasm --enable-aesctr --enable-aescbc --enable-blake2 --enable-blake2s --enable-sha3 --enable-shake128 --enable-shake256
   make
 }
 
