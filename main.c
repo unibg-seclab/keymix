@@ -56,10 +56,12 @@ int main() {
         }
 
         mixctr_t configs[] = {
-                MIXCTR_SHAKE128_1536,
-                MIXCTR_SHAKE256_1536,
+                MIXCTR_OPENSSL_SHAKE128_1536,
+                MIXCTR_WOLFCRYPT_SHAKE128_1536,
+                MIXCTR_OPENSSL_SHAKE256_1536,
+                MIXCTR_WOLFCRYPT_SHAKE256_1536,
         };
-        char *descr[] = {"shake128 (1536)", "shake256 (1536)",};
+        char *descr[] = {"openssl shake128 (1536)", "wolfcrypt shake128 (1536)", "openssl shake256 (1536)", "wolfcrypt shake256 (1536)",};
 
         // Setup global OpenSSL cipher
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
@@ -86,7 +88,7 @@ int main() {
         // }
 
         int err = 0;
-        for (uint8_t i = 0; i < 2; i++) {
+        for (uint8_t i = 0; i < 4; i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);

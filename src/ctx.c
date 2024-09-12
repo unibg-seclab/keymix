@@ -3,13 +3,16 @@
 #include <assert.h>
 
 #include <openssl/evp.h>
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 // This is a little hack, because OpenSSL is *painfully* slow when used in
 // multi-threaded environments.
 // https://github.com/openssl/openssl/issues/17064
 // This is defined in mixctr.c
 extern EVP_CIPHER *openssl_aes256ecb;
-extern const EVP_MD *algo;
+extern const EVP_MD *openssl_hash_algorithm;
+extern enum wc_HashType wolfcrypt_hash_algorithm;
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
                       fanout_t fanout) {
@@ -27,23 +30,35 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 
         switch (mixctr) {
-        case MIXCTR_SHA3_256:
-                algo = EVP_MD_fetch(NULL, "SHA3-256", NULL);                
+        case MIXCTR_OPENSSL_SHA3_256:
+        case MIXCTR_WOLFCRYPT_SHA3_256:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHA3-256", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHA3_256;
                 break;
-        case MIXCTR_BLAKE2S_256:
-                algo = EVP_MD_fetch(NULL, "BLAKE2S-256", NULL);
+        case MIXCTR_OPENSSL_BLAKE2S_256:
+        case MIXCTR_WOLFCRYPT_BLAKE2S_256:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "BLAKE2S-256", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_BLAKE2S;
                 break;
-        case MIXCTR_SHA3_512:
-                algo = EVP_MD_fetch(NULL, "SHA3-512", NULL);
+        case MIXCTR_OPENSSL_SHA3_512:
+        case MIXCTR_WOLFCRYPT_SHA3_512:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHA3-512", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHA3_512;
                 break;
-        case MIXCTR_BLAKE2B_512:
-                algo = EVP_MD_fetch(NULL, "BLAKE2B-512", NULL);
+        case MIXCTR_OPENSSL_BLAKE2B_512:
+        case MIXCTR_WOLFCRYPT_BLAKE2B_512:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "BLAKE2B-512", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_BLAKE2B;
                 break;
-        case MIXCTR_SHAKE128_1536:
-                algo = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+        case MIXCTR_OPENSSL_SHAKE128_1536:
+        case MIXCTR_WOLFCRYPT_SHAKE128_1536:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE128;
                 break;
-        case MIXCTR_SHAKE256_1536:
-                algo = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
+        case MIXCTR_OPENSSL_SHAKE256_1536:
+        case MIXCTR_WOLFCRYPT_SHAKE256_1536:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE256;
                 break;
         }
 }
@@ -63,23 +78,35 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
         openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 
         switch (mixctr) {
-        case MIXCTR_SHA3_256:
-                algo = EVP_MD_fetch(NULL, "SHA3-256", NULL);                
+        case MIXCTR_OPENSSL_SHA3_256:
+        case MIXCTR_WOLFCRYPT_SHA3_256:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHA3-256", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHA3_256;
                 break;
-        case MIXCTR_BLAKE2S_256:
-                algo = EVP_MD_fetch(NULL, "BLAKE2S-256", NULL);
+        case MIXCTR_OPENSSL_BLAKE2S_256:
+        case MIXCTR_WOLFCRYPT_BLAKE2S_256:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "BLAKE2S-256", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_BLAKE2S;
                 break;
-        case MIXCTR_SHA3_512:
-                algo = EVP_MD_fetch(NULL, "SHA3-512", NULL);
+        case MIXCTR_OPENSSL_SHA3_512:
+        case MIXCTR_WOLFCRYPT_SHA3_512:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHA3-512", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHA3_512;
                 break;
-        case MIXCTR_BLAKE2B_512:
-                algo = EVP_MD_fetch(NULL, "BLAKE2B-512", NULL);
+        case MIXCTR_OPENSSL_BLAKE2B_512:
+        case MIXCTR_WOLFCRYPT_BLAKE2B_512:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "BLAKE2B-512", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_BLAKE2B;
                 break;
-        case MIXCTR_SHAKE128_1536:
-                algo = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+        case MIXCTR_OPENSSL_SHAKE128_1536:
+        case MIXCTR_WOLFCRYPT_SHAKE128_1536:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE128;
                 break;
-        case MIXCTR_SHAKE256_1536:
-                algo = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
+        case MIXCTR_OPENSSL_SHAKE256_1536:
+        case MIXCTR_WOLFCRYPT_SHAKE256_1536:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE256;
                 break;
         }
 }

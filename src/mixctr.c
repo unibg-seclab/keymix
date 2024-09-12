@@ -12,6 +12,7 @@
 #include <wmmintrin.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 // ------------------------------------------------------------ WolfSSL
 
@@ -160,16 +161,16 @@ int aesni(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ Hash functions
+// ------------------------------------------------------------ OpenSSL hash functions
 
-EVP_MD *algo;
+EVP_MD *openssl_hash_algorithm;
 
-int generic_hash(byte *in, byte *out, size_t size, bool is_xof) {
+int generic_openssl_hash(byte *in, byte *out, size_t size, bool is_xof) {
         EVP_MD_CTX *mdctx;
         if ((mdctx = EVP_MD_CTX_create()) == NULL) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
-        if (!EVP_DigestInit_ex(mdctx, algo, NULL)) {
+        if (!EVP_DigestInit_ex(mdctx, openssl_hash_algorithm, NULL)) {
                 _log(LOG_ERROR, "EVP_DigestInit_ex error\n");
         }
 
@@ -196,13 +197,69 @@ int generic_hash(byte *in, byte *out, size_t size, bool is_xof) {
         return 0;
 }
 
-int hash(byte *in, byte *out, size_t size) {
-        return generic_hash(in, out, size, false);
+int openssl_hash(byte *in, byte *out, size_t size) {
+        return generic_openssl_hash(in, out, size, false);
 }
 
-int xof_hash(byte *in, byte *out, size_t size) {
-        return generic_hash(in, out, size, true);
+int openssl_xof_hash(byte *in, byte *out, size_t size) {
+        return generic_openssl_hash(in, out, size, true);
 }
+
+// ------------------------------------------------------------ wolfCrypt hash functions
+
+enum wc_HashType wolfcrypt_hash_algorithm;
+
+int wolfcrypt_hash(byte *in, byte *out, size_t size) {
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                int error = wc_Hash(wolfcrypt_hash_algorithm, in, SIZE_MACRO, out, SIZE_MACRO);
+                if (error) {
+                        _log(LOG_ERROR, "wc_Hash error %d\n", error);
+                }
+        }
+        return 0;
+}
+
+int wolfcrypt_shake128_hash(byte *in, byte *out, size_t size) {
+        wc_Shake shake[1];
+        int ret = wc_InitShake128(shake, NULL, INVALID_DEVID);
+        if (ret) {
+                _log(LOG_ERROR, "wc_InitShake128 error %d\n", ret);
+        }
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                int ret = wc_Shake128_Update(shake, in, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Shake128_Update error %d\n", ret);
+                }
+                wc_Shake128_Final(shake, out, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Shake128_Final error %d\n", ret);
+                }
+        }
+        return 0;
+}
+
+int wolfcrypt_shake256_hash(byte *in, byte *out, size_t size) {
+        wc_Shake shake[1];
+        int ret = wc_InitShake256(shake, NULL, INVALID_DEVID);
+        if (ret) {
+                _log(LOG_ERROR, "wc_InitShake256 error %d\n", ret);
+        }
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                int ret = wc_Shake256_Update(shake, in, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Shake256_Update error %d\n", ret);
+                }
+                wc_Shake256_Final(shake, out, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Shake256_Final error %d\n", ret);
+                }
+        }
+        return 0;
+}
+
 
 // ------------------------------------------------------------ Generic mixctr code
 
@@ -214,14 +271,23 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &openssl;
         case MIXCTR_AESNI:
                 return &aesni;
-        case MIXCTR_SHA3_256:
-        case MIXCTR_BLAKE2S_256:
-        case MIXCTR_SHA3_512:
-        case MIXCTR_BLAKE2B_512:
-                return &hash;
-        case MIXCTR_SHAKE128_1536:
-        case MIXCTR_SHAKE256_1536:
-                return &xof_hash;
+        case MIXCTR_OPENSSL_SHA3_256:
+        case MIXCTR_OPENSSL_BLAKE2S_256:
+        case MIXCTR_OPENSSL_SHA3_512:
+        case MIXCTR_OPENSSL_BLAKE2B_512:
+                return &openssl_hash;
+        case MIXCTR_OPENSSL_SHAKE128_1536:
+        case MIXCTR_OPENSSL_SHAKE256_1536:
+                return &openssl_xof_hash;
+        case MIXCTR_WOLFCRYPT_SHA3_256:
+        case MIXCTR_WOLFCRYPT_BLAKE2S_256:
+        case MIXCTR_WOLFCRYPT_SHA3_512:
+        case MIXCTR_WOLFCRYPT_BLAKE2B_512:
+                return &wolfcrypt_hash;
+        case MIXCTR_WOLFCRYPT_SHAKE128_1536:
+                return &wolfcrypt_shake128_hash;
+        case MIXCTR_WOLFCRYPT_SHAKE256_1536:
+                return &wolfcrypt_shake256_hash;
         default:
                 return NULL;
         }
