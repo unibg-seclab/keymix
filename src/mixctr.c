@@ -260,6 +260,46 @@ int wolfcrypt_shake256_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+int wolfcrypt_blake2s_hash(byte *in, byte *out, size_t size) {
+        Blake2s b2s[1];
+        int ret = wc_InitBlake2s(b2s, SIZE_MACRO);
+        if (ret) {
+                _log(LOG_ERROR, "wc_InitBlake2s error %d\n", ret);
+        }
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                int ret = wc_Blake2sUpdate(b2s, in, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Blake2sUpdate error %d\n", ret);
+                }
+                wc_Blake2sFinal(b2s, out, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Blake2sFinal error %d\n", ret);
+                }
+        }
+        return 0;
+}
+
+int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
+        Blake2b b2b[1];
+        int ret = wc_InitBlake2b(b2b, SIZE_MACRO);
+        if (ret) {
+                _log(LOG_ERROR, "wc_InitBlake2b error %d\n", ret);
+        }
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                int ret = wc_Blake2bUpdate(b2b, in, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Blake2bUpdate error %d\n", ret);
+                }
+                wc_Blake2bFinal(b2b, out, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_Blake2bFinal error %d\n", ret);
+                }
+        }
+        return 0;
+}
+
 
 // ------------------------------------------------------------ Generic mixctr code
 
@@ -280,10 +320,12 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         case MIXCTR_OPENSSL_SHAKE256_1536:
                 return &openssl_xof_hash;
         case MIXCTR_WOLFCRYPT_SHA3_256:
-        case MIXCTR_WOLFCRYPT_BLAKE2S_256:
         case MIXCTR_WOLFCRYPT_SHA3_512:
-        case MIXCTR_WOLFCRYPT_BLAKE2B_512:
                 return &wolfcrypt_hash;
+        case MIXCTR_WOLFCRYPT_BLAKE2S_256:
+                return &wolfcrypt_blake2s_hash;
+        case MIXCTR_WOLFCRYPT_BLAKE2B_512:
+                return &wolfcrypt_blake2b_hash;
         case MIXCTR_WOLFCRYPT_SHAKE128_1536:
                 return &wolfcrypt_shake128_hash;
         case MIXCTR_WOLFCRYPT_SHAKE256_1536:
