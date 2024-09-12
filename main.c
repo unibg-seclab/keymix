@@ -60,6 +60,8 @@ int main() {
                 MIXCTR_WOLFCRYPT_SHA3_512,
                 MIXCTR_OPENSSL_BLAKE2B_512,
                 MIXCTR_WOLFCRYPT_BLAKE2B_512,
+                MIXCTR_XKCP_TURBOSHAKE_128_512,
+                MIXCTR_XKCP_TURBOSHAKE_256_512,
                 MIXCTR_XKCP_KANGAROOTWELVE_512,
         };
         char *descr[] = {
@@ -67,6 +69,8 @@ int main() {
                 "wolfcrypt sha3 (512)",
                 "openssl blake2b (512)",
                 "wolfcrypt blake2b (512)",
+                "xkcp turboshake128 (512)",
+                "xkcp turboshake256 (512)",
                 "xkcp kangarootwelve (512)"
         };
 
@@ -95,7 +99,7 @@ int main() {
         // }
 
         int err = 0;
-        for (uint8_t i = 0; i < 5; i++) {
+        for (uint8_t i = 0; i < 7; i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);

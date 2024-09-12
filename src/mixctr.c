@@ -302,7 +302,29 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ KangarooTwelve hash function
+// ------------------------------------------------------------ XKCP hash functions
+
+int xkcp_generic_turboshake_hash(uint32_t capacity, byte *in, byte *out, size_t size) {
+        // choose a domain separation in the range `[0x01, 0x02, .. , 0x7F]`
+        byte domain = 0x1F;
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                int result = TurboSHAKE(capacity, in, SIZE_MACRO, domain, out, SIZE_MACRO);
+                if (result) {
+                        _log(LOG_ERROR, "TurboSHAKE error %d\n", result);
+                }
+        }
+        return 0;
+}
+
+int xkcp_turboshake128_hash(byte *in, byte *out, size_t size) {
+        return xkcp_generic_turboshake_hash(128, in, out, size);
+}
+
+int xkcp_turboshake256_hash(byte *in, byte *out, size_t size) {
+        return xkcp_generic_turboshake_hash(256, in, out, size);
+}
 
 int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size) {
         byte *last = in + size;
@@ -344,6 +366,14 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &wolfcrypt_shake128_hash;
         case MIXCTR_WOLFCRYPT_SHAKE256_1536:
                 return &wolfcrypt_shake256_hash;
+        case MIXCTR_XKCP_TURBOSHAKE_128_256:
+        case MIXCTR_XKCP_TURBOSHAKE_128_512:
+        case MIXCTR_XKCP_TURBOSHAKE_128_1536:
+                return &xkcp_turboshake128_hash;
+        case MIXCTR_XKCP_TURBOSHAKE_256_256:
+        case MIXCTR_XKCP_TURBOSHAKE_256_512:
+        case MIXCTR_XKCP_TURBOSHAKE_256_1536:
+                return &xkcp_turboshake256_hash;
         case MIXCTR_XKCP_KANGAROOTWELVE_256:
         case MIXCTR_XKCP_KANGAROOTWELVE_512:
         case MIXCTR_XKCP_KANGAROOTWELVE_1536:
