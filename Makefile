@@ -33,7 +33,7 @@ $(LIBRARY): $(OBJECTS)
 	@ gcc -shared -o $(LIBRARY) $(OBJECTS)
 
 wolfssl:
-ifeq ($(shell which makepkg &> /dev/null && echo "yes" || echo "no"), yes)
+ifeq ($(shell which makepkg &> /dev/null && echo "yes" || echo "no"), "yes")
 	@ cd deps/wolfssl-ecb && makepkg -sfi
 else
 	@ cd deps/wolfssl-ecb && ./install.sh

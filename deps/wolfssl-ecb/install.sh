@@ -19,5 +19,5 @@ fi
 build
 check
 
-cd "$srcdir/$pkgname-$pkgver-stable"
+cd "$srcdir/$_pkgname-$pkgver-stable"
 sudo make install
