@@ -24,7 +24,6 @@ LDLIBS = -lcrypto -lXKCP -lm -lwolfssl -pthread
 
 # ------------ Generic building
 
-build: CFLAGS += $(if $(SIZE_BLOCK),-DSIZE_BLOCK=$(SIZE_BLOCK),)
 build: CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 build: $(OBJECTS)
 
@@ -58,10 +57,8 @@ endif
 
 # ------------ main.c for quick tests
 
-$(OUT): CFLAGS += $(if $(SIZE_BLOCK),-DSIZE_BLOCK=$(SIZE_BLOCK),)
 $(OUT): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(OUT): main.o $(OBJECTS)
-run: CFLAGS += $(if $(SIZE_BLOCK),-DSIZE_BLOCK=$(SIZE_BLOCK),)
 run: CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 run: $(OUT)
 	@ ./$(OUT)

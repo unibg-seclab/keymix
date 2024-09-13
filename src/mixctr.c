@@ -16,6 +16,14 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
+// AES block size (128 bit)
+#define AES_BLOCK_SIZE 16
+
+// Number of AES execution in the MixCTR implementations
+// NOTE: When using MixCTR the size of the MixCTR block should be
+// SIZE_MACRO = BLOCKS_PER_MACRO * AES_BLOCK_SIZE
+#define BLOCKS_PER_MACRO 3
+
 // ------------------------------------------------------------ WolfSSL
 
 int wolfssl(byte *in, byte *out, size_t size) {
@@ -25,15 +33,15 @@ int wolfssl(byte *in, byte *out, size_t size) {
         byte *last = in + size;
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
                 byte *key      = in;
-                uint128_t data = *(uint128_t *)(in + 2 * SIZE_BLOCK);
+                uint128_t data = *(uint128_t *)(in + 2 * AES_BLOCK_SIZE);
                 uint128_t in[] = {data, data + 1, data + 2};
                 if (DEBUG)
                         assert(sizeof(in) == SIZE_MACRO);
 
-                wc_AesSetKey(&aes, key, 2 * SIZE_BLOCK, NULL, AES_ENCRYPTION);
+                wc_AesSetKey(&aes, key, 2 * AES_BLOCK_SIZE, NULL, AES_ENCRYPTION);
 
                 for (uint8_t b = 0; b < BLOCKS_PER_MACRO; b++)
-                        wc_AesEncryptDirect(&aes, out + b * SIZE_BLOCK, (byte *)(in + b));
+                        wc_AesEncryptDirect(&aes, out + b * AES_BLOCK_SIZE, (byte *)(in + b));
         }
 
         wc_AesFree(&aes);
@@ -53,7 +61,7 @@ int openssl(byte *in, byte *out, size_t size) {
         byte *last = in + size;
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
                 byte *key      = in;
-                uint128_t data = *(uint128_t *)(in + 2 * SIZE_BLOCK);
+                uint128_t data = *(uint128_t *)(in + 2 * AES_BLOCK_SIZE);
 
                 uint128_t in[] = {data, data + 1, data + 2};
                 if (DEBUG)
@@ -152,12 +160,12 @@ int aesni(byte *in, byte *out, size_t size) {
 
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
                 byte *key         = in;
-                uint128_t iv      = *(uint128_t *)(in + 2 * SIZE_BLOCK);
+                uint128_t iv      = *(uint128_t *)(in + 2 * AES_BLOCK_SIZE);
                 uint128_t data[3] = {iv, iv + 1, iv + 2};
 
                 aes_256_key_expansion(key, key_schedule);
                 for (int b = 0; b < BLOCKS_PER_MACRO; b++) {
-                        aes256_enc(key_schedule, (byte *)(data + b), out + b * SIZE_BLOCK);
+                        aes256_enc(key_schedule, (byte *)(data + b), out + b * AES_BLOCK_SIZE);
                 }
         }
         return 0;

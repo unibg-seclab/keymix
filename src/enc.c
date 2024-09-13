@@ -34,7 +34,7 @@ typedef struct {
 // just switch to these.
 inline void _reverse128bits(uint128_t *x) {
         byte *data  = (byte *)x;
-        size_t size = SIZE_BLOCK;
+        size_t size = sizeof(uint128_t);
         for (size_t i = 0; i < size / 2; i++) {
                 byte temp          = data[i];
                 data[i]            = data[size - 1 - i];
