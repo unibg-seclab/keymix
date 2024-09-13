@@ -341,42 +341,42 @@ int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size) {
 
 inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         switch (name) {
+#if SIZE_MACRO == 32
+        case MIXCTR_OPENSSL_SHA3_256:
+        case MIXCTR_OPENSSL_BLAKE2S:
+                return &openssl_hash;
+        case MIXCTR_WOLFCRYPT_SHA3_256:
+                return &wolfcrypt_hash;
+        case MIXCTR_WOLFCRYPT_BLAKE2S:
+                return &wolfcrypt_blake2s_hash;
+#elif SIZE_MACRO == 48
         case MIXCTR_WOLFSSL:
                 return &wolfssl;
         case MIXCTR_OPENSSL:
                 return &openssl;
         case MIXCTR_AESNI:
                 return &aesni;
-        case MIXCTR_OPENSSL_SHA3_256:
-        case MIXCTR_OPENSSL_BLAKE2S_256:
+#elif SIZE_MACRO == 64
         case MIXCTR_OPENSSL_SHA3_512:
-        case MIXCTR_OPENSSL_BLAKE2B_512:
+        case MIXCTR_OPENSSL_BLAKE2B:
                 return &openssl_hash;
-        case MIXCTR_OPENSSL_SHAKE128_1536:
-        case MIXCTR_OPENSSL_SHAKE256_1536:
-                return &openssl_xof_hash;
-        case MIXCTR_WOLFCRYPT_SHA3_256:
         case MIXCTR_WOLFCRYPT_SHA3_512:
                 return &wolfcrypt_hash;
-        case MIXCTR_WOLFCRYPT_BLAKE2S_256:
-                return &wolfcrypt_blake2s_hash;
-        case MIXCTR_WOLFCRYPT_BLAKE2B_512:
+        case MIXCTR_WOLFCRYPT_BLAKE2B:
                 return &wolfcrypt_blake2b_hash;
-        case MIXCTR_WOLFCRYPT_SHAKE128_1536:
+#endif
+        case MIXCTR_OPENSSL_SHAKE128:
+        case MIXCTR_OPENSSL_SHAKE256:
+                return &openssl_xof_hash;
+        case MIXCTR_WOLFCRYPT_SHAKE128:
                 return &wolfcrypt_shake128_hash;
-        case MIXCTR_WOLFCRYPT_SHAKE256_1536:
+        case MIXCTR_WOLFCRYPT_SHAKE256:
                 return &wolfcrypt_shake256_hash;
-        case MIXCTR_XKCP_TURBOSHAKE_128_256:
-        case MIXCTR_XKCP_TURBOSHAKE_128_512:
-        case MIXCTR_XKCP_TURBOSHAKE_128_1536:
+        case MIXCTR_XKCP_TURBOSHAKE_128:
                 return &xkcp_turboshake128_hash;
-        case MIXCTR_XKCP_TURBOSHAKE_256_256:
-        case MIXCTR_XKCP_TURBOSHAKE_256_512:
-        case MIXCTR_XKCP_TURBOSHAKE_256_1536:
+        case MIXCTR_XKCP_TURBOSHAKE_256:
                 return &xkcp_turboshake256_hash;
-        case MIXCTR_XKCP_KANGAROOTWELVE_256:
-        case MIXCTR_XKCP_KANGAROOTWELVE_512:
-        case MIXCTR_XKCP_KANGAROOTWELVE_1536:
+        case MIXCTR_XKCP_KANGAROOTWELVE:
                 return &xkcp_kangarootwelve_hash;
         default:
                 return NULL;

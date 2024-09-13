@@ -44,8 +44,12 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        size_t key_size = SIZE_MACRO * pow(12, 6); // 546 MiB
-        printf("Key has size %zu MiB\n", key_size / 1024 / 1024);
+        uint8_t fanout = SIZE_MACRO / 16;
+        size_t key_size = SIZE_MACRO;
+        while (key_size < 256 * SIZE_1MiB) {
+                key_size *= fanout;
+        }
+        printf("Key has size %zu MiB\n", key_size / SIZE_1MiB);
         printf("====\n");
 
         byte *key = malloc(key_size);
@@ -56,26 +60,62 @@ int main() {
         }
 
         mixctr_t configs[] = {
-                MIXCTR_OPENSSL_SHAKE128_1536,
-                MIXCTR_WOLFCRYPT_SHAKE128_1536,
-                MIXCTR_OPENSSL_SHAKE256_1536,
-                MIXCTR_WOLFCRYPT_SHAKE256_1536,
-                MIXCTR_XKCP_TURBOSHAKE_128_1536,
-                MIXCTR_XKCP_TURBOSHAKE_256_1536,
-                MIXCTR_XKCP_KANGAROOTWELVE_1536,
+#if SIZE_MACRO == 32
+                // 256-bit block size
+                MIXCTR_OPENSSL_SHA3_256,
+                MIXCTR_OPENSSL_BLAKE2S,
+                MIXCTR_WOLFCRYPT_SHA3_256,
+                MIXCTR_WOLFCRYPT_BLAKE2S,
+#elif SIZE_MACRO == 48
+                // 384-bit block size
+                MIXCTR_AESNI,
+                MIXCTR_OPENSSL,
+                MIXCTR_WOLFSSL,
+#elif SIZE_MACRO == 64
+                // 512-bit block size
+                MIXCTR_OPENSSL_SHA3_512,
+                MIXCTR_OPENSSL_BLAKE2B,
+                MIXCTR_WOLFCRYPT_SHA3_512,
+                MIXCTR_WOLFCRYPT_BLAKE2B,
+#endif
+                MIXCTR_OPENSSL_SHAKE128,
+                MIXCTR_WOLFCRYPT_SHAKE128,
+                MIXCTR_XKCP_TURBOSHAKE_128,
+                MIXCTR_XKCP_KANGAROOTWELVE,
+                MIXCTR_OPENSSL_SHAKE256,
+                MIXCTR_WOLFCRYPT_SHAKE256,
+                MIXCTR_XKCP_TURBOSHAKE_256,
         };
         char *descr[] = {
-                "openssl shake128 (1536)",
-                "wolfcrypt shake128 (1536)",
-                "openssl shake256 (1536)",
-                "wolfcrypt shake256 (1536)",
-                "xkcp turboshake128 (1536)",
-                "xkcp turboshake256 (1536)",
-                "xkcp kangarootwelve (1536)"
+#if SIZE_MACRO == 32
+                // 256-bit block size
+                "openssl sha3 (256)",
+                "openssl blake2s (256)",
+                "wolfcrypt sha3 (256)",
+                "wolfcrypt blake2s (256)",
+#elif SIZE_MACRO == 48
+                // 384-bit block size
+                "aes-ni mixctr (384)",
+                "openssl mixctr (384)",
+                "wolfcrypt mixctr (384)",
+#elif SIZE_MACRO == 64
+                // 512-bit block size
+                "openssl sha3 (512)",
+                "openssl blake2b (512)",
+                "wolfcrypt sha3 (512)",
+                "wolfcrypt blake2b (512)",
+#endif
+                "openssl shake128",
+                "wolfcrypt shake128",
+                "xkcp turboshake128",
+                "xkcp kangarootwelve",
+                "openssl shake256",
+                "wolfcrypt shake256",
+                "xkcp turboshake256",
         };
 
-        // Setup global OpenSSL cipher
-        openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
+        // // Setup global OpenSSL cipher
+        // openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 
         // mixing_config mconf = {&wolfssl, 3};
         // uint8_t threads[] = {1, 3, 9, 27, 81};
@@ -99,27 +139,27 @@ int main() {
         // }
 
         int err = 0;
-        for (uint8_t i = 0; i < 7; i++) {
+        for (uint8_t i = 0; i < sizeof(configs) / sizeof(mixctr_t); i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
 
-                if (key_size <= SIZE_MACRO * 12) {
+                if (key_size <= SIZE_MACRO * fanout) {
                         print_buffer_hex(key, key_size, "key");
                         print_buffer_hex(out, key_size, "out");
                 }
                 uint64_t nof_macros = key_size / SIZE_MACRO;
-                uint8_t levels      = 1 + LOGBASE(nof_macros, 12);
+                uint8_t levels      = 1 + LOGBASE(nof_macros, fanout);
 
                 printf("levels:\t\t\t%d\n", levels);
                 printf("%s mixing...\n", descr[i]);
-                printf("fanout:\t\t\t%d\n", 12);
+                printf("fanout:\t\t\t%d\n", fanout);
 
                 // Setup global cipher and hash functions
                 keymix_ctx_t ctx;
-                ctx_keymix_init(&ctx, configs[i], key, key_size, 12);
+                ctx_keymix_init(&ctx, configs[i], key, key_size, fanout);
 
-                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, 12, 1); });
+                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, fanout, 1); });
 
                 explicit_bzero(out, key_size);
 
