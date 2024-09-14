@@ -78,6 +78,10 @@ int main() {
                 MIXCTR_WOLFCRYPT_SHA3_512,
                 MIXCTR_WOLFCRYPT_BLAKE2B,
 #endif
+#if SIZE_MACRO <= 48 /* 384-bit internal state */
+                MIXCTR_XKCP_XOODYAK,
+#endif
+#if SIZE_MACRO <= 192 /* 1600-bit internal state */
                 MIXCTR_OPENSSL_SHAKE128,
                 MIXCTR_WOLFCRYPT_SHAKE128,
                 MIXCTR_XKCP_TURBOSHAKE_128,
@@ -85,6 +89,7 @@ int main() {
                 MIXCTR_OPENSSL_SHAKE256,
                 MIXCTR_WOLFCRYPT_SHAKE256,
                 MIXCTR_XKCP_TURBOSHAKE_256,
+#endif
         };
         char *descr[] = {
 #if SIZE_MACRO == 32
@@ -105,6 +110,10 @@ int main() {
                 "wolfcrypt sha3 (512)",
                 "wolfcrypt blake2b (512)",
 #endif
+#if SIZE_MACRO <= 48 /* 384-bit internal state */
+                "xkcp xoodyak",
+#endif
+#if SIZE_MACRO <= 192 /* 1600-bit internal state */
                 "openssl shake128",
                 "wolfcrypt shake128",
                 "xkcp turboshake128",
@@ -112,6 +121,7 @@ int main() {
                 "openssl shake256",
                 "wolfcrypt shake256",
                 "xkcp turboshake256",
+#endif
         };
 
         // // Setup global OpenSSL cipher

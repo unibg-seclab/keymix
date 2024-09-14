@@ -11,6 +11,7 @@
 #include <wmmintrin.h>
 
 #include <libXKCP/KangarooTwelve.h>
+#include <libXKCP/Xoodyak.h>
 #include <openssl/evp.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
@@ -312,6 +313,8 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
 
 // ------------------------------------------------------------ XKCP hash functions
 
+// Keccak-p[1600, 12]: Keccak 1600-bit permutations and 12 rounds
+
 int xkcp_generic_turboshake_hash(uint32_t capacity, byte *in, byte *out, size_t size) {
         // choose a domain separation in the range `[0x01, 0x02, .. , 0x7F]`
         byte domain = 0x1F;
@@ -345,6 +348,19 @@ int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+// Xoodoo[12]: Xoodoo 384-bit permutations and 12 rounds
+int xkcp_xoodyak_hash(byte *in, byte *out, size_t size) {
+        Xoodyak_Instance instance;
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                Xoodyak_Initialize(&instance, NULL, 0, NULL, 0, NULL, 0);
+                Xoodyak_Absorb(&instance, in, SIZE_MACRO);
+                Xoodyak_Squeeze(&instance, out, SIZE_MACRO);
+        }
+        return 0;
+}
+
 // ------------------------------------------------------------ Generic mixctr code
 
 inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
@@ -373,6 +389,11 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         case MIXCTR_WOLFCRYPT_BLAKE2B:
                 return &wolfcrypt_blake2b_hash;
 #endif
+#if SIZE_MACRO <= 48 /* 384-bit internal state */
+        case MIXCTR_XKCP_XOODYAK:
+                return &xkcp_xoodyak_hash;
+#endif
+#if SIZE_MACRO <= 192 /* 1600-bit internal state */
         case MIXCTR_OPENSSL_SHAKE128:
         case MIXCTR_OPENSSL_SHAKE256:
                 return &openssl_xof_hash;
@@ -386,6 +407,7 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &xkcp_turboshake256_hash;
         case MIXCTR_XKCP_KANGAROOTWELVE:
                 return &xkcp_kangarootwelve_hash;
+#endif
         default:
                 return NULL;
         }

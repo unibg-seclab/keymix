@@ -11,6 +11,7 @@ typedef int (*mixctrpass_impl_t)(byte *in, byte *out, size_t size);
 
 // Accepted AES implementations for MixCTR.
 typedef enum {
+        // Fixed-output functions
 #if SIZE_MACRO == 32
         // 256-bit block size
         MIXCTR_OPENSSL_SHA3_256,
@@ -30,6 +31,10 @@ typedef enum {
         MIXCTR_WOLFCRYPT_BLAKE2B,
 #endif
         // Extendable-output functions (XOFs)
+#if SIZE_MACRO <= 48 /* 384-bit internal state */
+        MIXCTR_XKCP_XOODYAK
+#endif
+#if SIZE_MACRO <= 192 /* 1600-bit internal state */
         // To ensure the maximum security strength of 128 bits, the block
         // size should be at least of 32 bytes.
         MIXCTR_OPENSSL_SHAKE128,
@@ -41,6 +46,7 @@ typedef enum {
         MIXCTR_OPENSSL_SHAKE256,
         MIXCTR_WOLFCRYPT_SHAKE256,
         MIXCTR_XKCP_TURBOSHAKE_256,
+#endif
 } mixctr_t;
 
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.
