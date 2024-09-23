@@ -1,4 +1,3 @@
-#include "enc.h"
 #include "file.h"
 #include "types.h"
 #include "utils.h"
@@ -32,6 +31,7 @@ typedef struct {
         fanout_t fanout;
         mixctr_t mixctr;
         uint8_t threads;
+        uint8_t blocks;
         bool verbose;
 } cli_args_t;
 
@@ -60,7 +60,9 @@ static struct argp_option options[] = {
      "16-Byte initialization vector in hexadecimal format (default 0)"},
     {"fanout", ARG_KEY_FANOUT, "UINT", 0, "2, 3 (default), or 4"},
     {"library", ARG_KEY_LIBRARY, "STRING", 0, "wolfssl (default), openssl or aesni"},
-    {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default 1)"},
+    {"threads", ARG_KEY_THREADS, "UINT[xUINT]", 0,
+     "Number of threads per keymix (default 1x1), times the number of derived keys done in "
+     "parallel"},
     {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
 };
@@ -125,6 +127,28 @@ mixctr_t parse_mixctr(char *name) {
         return -1;
 }
 
+inline int parse_threads(uint8_t *threads, uint8_t *blocks, char *str) {
+        *threads = 1;
+        *blocks  = 1;
+
+        int count = 0;
+        for (char *p = strtok(str, "x"); p != NULL; p = strtok(NULL, "x")) {
+                switch (count++) {
+                case 0:
+                        *threads = (uint8_t)atoi(p);
+                        break;
+                case 1:
+                        *blocks = (uint8_t)atoi(p);
+                        break;
+                }
+        }
+
+        if (count > 2)
+                return 1;
+
+        return 0;
+}
+
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
         cli_args_t *arguments = state->input;
         switch (key) {
@@ -151,9 +175,8 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         argp_error(state, "library must be one of wolfssl, openssl, aesni");
                 break;
         case ARG_KEY_THREADS:
-                arguments->threads = strtoul(arg, NULL, 10);
-                if (arguments->threads == 0)
-                        argp_error(state, "threads must be a positive number");
+                if (parse_threads(&arguments->threads, &arguments->blocks, arg))
+                        argp_error(state, "invalid threads, use UINTxUINT or UINT");
                 break;
         case ARGP_KEY_ARG:
                 // We accept only 2 input argument, the key and (possibly) the file
@@ -201,11 +224,17 @@ int main(int argc, char **argv) {
         args.fanout  = 3;
         args.mixctr  = MIXCTR_WOLFSSL;
         args.threads = 1;
+        args.blocks  = 1;
         args.verbose = false;
 
         // Start parsing
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
                 return EXIT_FAILURE;
+
+        if (!ISPOWEROF(args.threads, args.fanout)) {
+                errmsg("invalid number of threads, must be a power of fanout (%d)", args.fanout);
+                return EXIT_FAILURE;
+        }
 
         if (args.verbose) {
                 printf("===============\n");
@@ -229,8 +258,9 @@ int main(int argc, char **argv) {
                         break;
                 }
                 printf("fanout:   %d\n", args.fanout);
-                printf("threads:  %d\n", args.threads);
+                printf("threads:  %dx%d\n", args.threads, args.blocks);
                 printf("===============\n");
+                return 0;
         }
 
         // Setup variables here, before the gotos start
@@ -279,7 +309,7 @@ int main(int argc, char **argv) {
         // Do the encryption
         keymix_ctx_t ctx;
         ctx_encrypt_init(&ctx, args.mixctr, key, key_size, args.iv, args.fanout);
-        if (stream_encrypt(fout, fin, &ctx, args.threads))
+        if (stream_encrypt(fout, fin, &ctx, args.threads, args.blocks))
                 err = ERR_ENC;
 
         // ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
