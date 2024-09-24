@@ -1,10 +1,5 @@
 #include "mixctr.h"
 
-#include "config.h"
-#include "log.h"
-#include "types.h"
-#include "utils.h"
-
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -13,13 +8,18 @@
 
 #include <blake3/blake3.h>
 #include <xkcp/KangarooTwelve.h>
-#include <xkcp/Kravatte.h>
-#include <xkcp/KravatteModes.h>
 #include <xkcp/Xoodyak.h>
 #include <openssl/evp.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/hash.h>
+
+#include "config.h"
+#include "kravette-wbc.h"
+#include "log.h"
+#include "types.h"
+#include "utils.h"
+#include "xoofff-wbc.h"
 
 // AES block size (128 bit)
 #define AES_BLOCK_SIZE 16
@@ -676,6 +676,8 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
         // 384-bit internal state
         case MIXCTR_XKCP_XOODYAK:
                 return &xkcp_xoodyak_hash;
+        case MIXCTR_XKCP_XOOFFF_WBC:
+                return &xkcp_xoofff_wbc_ecb;
 #endif
 #if SIZE_MACRO <= 128
         // 1600-bit internal state: r=1088, c=512
