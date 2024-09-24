@@ -13,6 +13,8 @@
 
 #include <blake3/blake3.h>
 #include <xkcp/KangarooTwelve.h>
+#include <xkcp/Kravatte.h>
+#include <xkcp/KravatteModes.h>
 #include <xkcp/Xoodyak.h>
 #include <openssl/evp.h>
 #include <wolfssl/options.h>
@@ -569,7 +571,7 @@ int openssl_aes_ecb(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, openssl_aes128ecb, key, NULL)) {
+        if (!EVP_EncryptInit(ctx, openssl_cipher, key, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 
