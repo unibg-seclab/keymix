@@ -56,9 +56,9 @@ int main() {
         }
 
         keymix_ctx_t configs[3];
-        ctx_keymix_init(&configs[0], MIXCTR_AESNI, key, key_size, 3);
+        ctx_keymix_init(&configs[0], MIXCTR_WOLFSSL, key, key_size, 3);
         ctx_keymix_init(&configs[1], MIXCTR_OPENSSL, key, key_size, 3);
-        ctx_keymix_init(&configs[2], MIXCTR_WOLFSSL, key, key_size, 3);
+        ctx_keymix_init(&configs[2], MIXCTR_AESNI, key, key_size, 3);
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
         // Setup global OpenSSL cipher
