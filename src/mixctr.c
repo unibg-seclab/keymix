@@ -8,6 +8,8 @@
 
 #include <blake3/blake3.h>
 #include <xkcp/KangarooTwelve.h>
+#include <xkcp/Kravatte.h>
+#include <xkcp/KravatteModes.h>
 #include <xkcp/Xoodyak.h>
 #include <openssl/evp.h>
 #include <wolfssl/options.h>
@@ -702,6 +704,11 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
         case MIXCTR_XKCP_KANGAROOTWELVE:
                 return &xkcp_kangarootwelve_hash;
 #endif
+#if SIZE_MACRO <= 192
+        // 1600-bit internal state
+        case MIXCTR_XKCP_KRAVETTE_WBC:
+                return &xkcp_kravette_wbc_ecb;
+#endif
         default:
                 return NULL;
         }
@@ -750,6 +757,10 @@ char *MIX_NAMES[] = {
         "wolfcrypt-shake128",
         "xkcp-turboshake128",
         "xkcp-kangarootwelve",
+#endif
+#if SIZE_MACRO <= 192
+                // 1600-bit internal state
+                "xkcp kravette-wbc",
 #endif
 };
 

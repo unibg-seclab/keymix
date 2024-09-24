@@ -65,6 +65,12 @@ typedef enum {
         MIXCTR_XKCP_TURBOSHAKE_128,
         MIXCTR_XKCP_KANGAROOTWELVE,
 #endif
+#if SIZE_MACRO <= 192
+        // 1600-bit internal state
+        // NOTE: To ensure the maximum security strength of 256 bits, the block
+        // size should be at least of 64 bytes.
+        MIXCTR_XKCP_KRAVETTE_WBC,
+#endif
 } mixctr_t;
 
 const static mixctr_t MIX_TYPES[] = {
@@ -111,6 +117,10 @@ const static mixctr_t MIX_TYPES[] = {
         MIXCTR_WOLFCRYPT_SHAKE128,
         MIXCTR_XKCP_TURBOSHAKE_128,
         MIXCTR_XKCP_KANGAROOTWELVE,
+#endif
+#if SIZE_MACRO <= 192
+        // 1600-bit internal state
+        MIXCTR_XKCP_KRAVETTE_WBC,
 #endif
 };
 

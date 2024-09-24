@@ -34,6 +34,12 @@ typedef __uint128_t uint128_t;
 // 256 bit. So, assuming chunks of 128 bit, we cannot go past a block
 // size of 10 * 128 = 1280 bit
 #define SIZE_MACRO 160
+
+// // Kravatte is a wide block cipher with an internal state of 1600 bit.
+// // The farfalle construction does not impose limits on the rate and capacity.
+// // So, assuming chunks of 128 bit, we cannot go past a block size of
+// // 12 * 128 = 1536 bit
+// #define SIZE_MACRO 192
 #endif /* SIZE_MACRO */
 
 #endif
