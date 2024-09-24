@@ -42,10 +42,9 @@ typedef enum {
 #if SIZE_MACRO <= 48
         // 384-bit internal state
         MIXCTR_XKCP_XOODYAK,
-        // Xoofff in wide block cipher mode
-        // To ensure a security strength of 128 bits, the block size should be
-        // at least of 64 bytes. So, in our setup we can only reach 96 bit of
-        // security (see https://eprint.iacr.org/2016/1188.pdf).
+        // NOTE: To ensure a security strength of 128 bits, the block size
+        // should be at least of 64 bytes. So, in our setup we can only reach
+        // 96 bit of security (see https://eprint.iacr.org/2016/1188.pdf).
         MIXCTR_XKCP_XOOFFF_WBC,
 #endif
 #if SIZE_MACRO <= 128
@@ -104,6 +103,7 @@ const static mixctr_t MIX_TYPES[] = {
 #if SIZE_MACRO <= 48
         // 384-bit internal state
         MIXCTR_XKCP_XOODYAK,
+        MIXCTR_XKCP_XOOFFF_WBC,
 #endif
 #if SIZE_MACRO <= 128
         // 1600-bit internal state: r=1088, c=512
