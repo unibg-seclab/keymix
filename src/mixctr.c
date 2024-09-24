@@ -764,6 +764,10 @@ char *MIX_NAMES[] = {
         // 1600-bit internal state
         "xkcp-kravette-wbc",
 #endif
+#if SIZE_MACRO <= 192
+                // 1600-bit internal state
+                "xkcp kravette-wbc",
+#endif
 };
 
 char *get_mix_name(mixctr_t mix_type) {
