@@ -5,6 +5,11 @@
 #include "types.h"
 #include <stdbool.h>
 
+typedef enum {
+        CTX_ERR_NOMIXCTR = 1,
+        CTX_ERR_KEYSIZE  = 2,
+} ctx_err_t;
+
 // The context for keymix operations. It houses all shared information that
 // won't be modified by the algorithm.
 typedef struct {
@@ -32,16 +37,20 @@ typedef struct {
         // and increasing counters to the following ones.
         // Otherwise, this step is skipped.
         bool do_iv_counter;
+
+        // The size of the input to the MixCTR.
+        // Useful when using different techniques, for now it is always 48 B.
+        size_t size_macro;
 } keymix_ctx_t;
 
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
-void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
-                      fanout_t fanout);
+int ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
+                     fanout_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout);
+int ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout);
 
 // Updates the context `ctx` to enable the XOR operation after doing the keymix.
 void ctx_enable_encryption(keymix_ctx_t *ctx);

@@ -16,6 +16,8 @@ typedef enum {
 } mixctr_t;
 
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.
-mixctr_impl_t get_mixctr_impl(mixctr_t name);
+// Also gets the correct macro size (for now, always 48 B).
+// Returns 0 on success, 1 if the given implementation does not exists.
+int get_mixctr_impl(mixctr_t name, mixctr_impl_t *impl, size_t *size_macro);
 
 #endif

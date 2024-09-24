@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "ctx.h"
 #include "enc.h"
 #include "keymix.h"
 #include "log.h"
@@ -14,6 +15,8 @@
 
 #define MIN_LEVEL 1
 #define MAX_LEVEL 9
+
+#define SIZE_MACRO 48
 
 #define COMPARE(a, b, size, ...)                                                                   \
         ({                                                                                         \
@@ -69,6 +72,7 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fan
                 arg->thread_levels   = 1 + thread_levels;
                 arg->total_levels    = 1 + level;
                 arg->level           = level;
+                arg->size_macro      = SIZE_MACRO;
 
                 pthread_create(&threads[t], NULL, _run_thr, arg);
         }
@@ -101,7 +105,7 @@ int verify_shuffles(size_t fanout, uint8_t level) {
                 memcpy(out_spread, in, size);
                 memcpy(out_spread_chunks, in, size);
 
-                spread(out_spread, size, l, fanout);
+                spread(out_spread, size, l, fanout, SIZE_MACRO);
 
                 if (is_shuffle_chunks_level) {
                         emulate_spread_chunks(out_spread_chunks, size, l, fanout, nof_threads);
@@ -146,7 +150,7 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
         memcpy(out3, in, size);
         // Note, we are not testing spread_chunks with one thread because it is meant to be
         // used only with multiple threads
-        spread(out1, size, level, fanout);
+        spread(out1, size, level, fanout, SIZE_MACRO);
         emulate_spread_chunks(out2, size, level, fanout, fanout);
         emulate_spread_chunks(out3, size, level, fanout, fanout * fanout);
 
@@ -181,9 +185,13 @@ int verify_keymix(size_t fanout, uint8_t level) {
         byte *out_openssl = setup(size, false);
         byte *out_aesni   = setup(size, false);
 
-        keymix(get_mixctr_impl(MIXCTR_WOLFSSL), in, out_wolfssl, size, fanout, 1);
-        keymix(get_mixctr_impl(MIXCTR_OPENSSL), in, out_openssl, size, fanout, 1);
-        keymix(get_mixctr_impl(MIXCTR_AESNI), in, out_aesni, size, fanout, 1);
+        keymix_ctx_t ctx;
+        ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, in, size, fanout);
+        keymix(&ctx, in, out_wolfssl, size, 1);
+        ctx_keymix_init(&ctx, MIXCTR_OPENSSL, in, size, fanout);
+        keymix(&ctx, in, out_openssl, size, 1);
+        ctx_keymix_init(&ctx, MIXCTR_AESNI, in, size, fanout);
+        keymix(&ctx, in, out_aesni, size, 1);
 
         int err = 0;
         err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
@@ -216,12 +224,12 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         size_t thrff  = fanout * fanout;
         size_t thrfff = fanout * fanout * fanout;
 
-        mixctr_impl_t aesni = get_mixctr_impl(MIXCTR_AESNI);
-
-        keymix(aesni, in, out1, size, fanout, thr1);
-        keymix(aesni, in, outf, size, fanout, thrf);
-        keymix(aesni, in, outff, size, fanout, thrff);
-        keymix(aesni, in, outfff, size, fanout, thrfff);
+        keymix_ctx_t ctx;
+        ctx_keymix_init(&ctx, MIXCTR_AESNI, in, size, fanout);
+        keymix(&ctx, in, out1, size, thr1);
+        keymix(&ctx, in, outf, size, thrf);
+        keymix(&ctx, in, outff, size, thrff);
+        keymix(&ctx, in, outfff, size, thrfff);
 
         // Comparisons
         int err = 0;
@@ -262,7 +270,7 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         keymix_ctx_t ctx;
         ctx_keymix_init(&ctx, MIXCTR_AESNI, in, size, fanout);
 
-        keymix(get_mixctr_impl(MIXCTR_AESNI), in, out_simple, size, fanout, 1);
+        keymix(&ctx, in, out_simple, size, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
 
         keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);

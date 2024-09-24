@@ -36,7 +36,7 @@ int openssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
         int outl;
 
         EVP_EncryptInit(ctx, NULL, key, NULL);
-        EVP_EncryptUpdate(ctx, out, &outl, (byte *)data, SIZE_MACRO);
+        EVP_EncryptUpdate(ctx, out, &outl, (byte *)data, blocks_per_macro * SIZE_BLOCK);
 
         EVP_CIPHER_CTX_cleanup(ctx);
         EVP_CIPHER_CTX_free(ctx);
@@ -135,15 +135,22 @@ int aesni(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
 
 // ------------------------------------------------------------ Generic mixctr code
 
-inline mixctr_impl_t get_mixctr_impl(mixctr_t name) {
+inline int get_mixctr_impl(mixctr_t name, mixctr_impl_t *impl, size_t *size_macro) {
+        *size_macro = 48;
+
         switch (name) {
         case MIXCTR_WOLFSSL:
-                return &wolfssl;
+                *impl = &wolfssl;
+                return 0;
         case MIXCTR_OPENSSL:
-                return &openssl;
+                *impl = &openssl;
+                return 0;
         case MIXCTR_AESNI:
-                return &aesni;
+                *impl = &aesni;
+                return 0;
         default:
-                return NULL;
+                *impl       = NULL;
+                *size_macro = 0;
+                return 1;
         }
 }

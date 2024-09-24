@@ -16,6 +16,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#include "ctx.h"
 #include "keymix.h"
 #include "log.h"
 #include "mixctr.h"
@@ -23,6 +24,7 @@
 #include "utils.h"
 
 #define SIZE_1MiB (1024 * 1024)
+#define SIZE_MACRO 48
 
 // This is a little hack, because OpenSSL is *painfully* slow when used in
 // multi-threaded environments.
@@ -53,11 +55,10 @@ int main() {
                 goto clean;
         }
 
-        mixctr_impl_t configs[] = {
-            get_mixctr_impl(MIXCTR_WOLFSSL),
-            get_mixctr_impl(MIXCTR_OPENSSL),
-            get_mixctr_impl(MIXCTR_AESNI),
-        };
+        keymix_ctx_t configs[3];
+        ctx_keymix_init(&configs[0], MIXCTR_AESNI, key, key_size, 3);
+        ctx_keymix_init(&configs[1], MIXCTR_OPENSSL, key, key_size, 3);
+        ctx_keymix_init(&configs[2], MIXCTR_WOLFSSL, key, key_size, 3);
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
         // Setup global OpenSSL cipher
@@ -70,7 +71,7 @@ int main() {
                 int pe              = 0;
                 uint8_t nof_threads = threads[t];
                 double time =
-                    MEASURE({ pe = keymix(configs[0], key, out, key_size, 3, nof_threads); });
+                    MEASURE({ pe = keymix(&configs[0], key, out, key_size, nof_threads); });
                 uint8_t precision    = 2;
                 double readable_size = (double)key_size / SIZE_1MiB;
                 printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
@@ -101,7 +102,7 @@ int main() {
                 printf("%s mixing...\n", descr[i]);
                 printf("fanout:\t\t%d\n", 3);
 
-                double time = MEASURE({ err = keymix(configs[i], key, out, key_size, 3, 1); });
+                double time = MEASURE({ err = keymix(&configs[i], key, out, key_size, 1); });
 
                 explicit_bzero(out, key_size);
 

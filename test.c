@@ -31,6 +31,8 @@
                 goto cleanup;                                                                      \
         }
 
+#define SIZE_MACRO 48
+
 // -------------------------------------------------- Utility functions
 
 inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
@@ -113,20 +115,8 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
 
 // -------------------------------------------------- Actual test functions
 
-void test_keymix(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
+void test_keymix(keymix_ctx_t *ctx, char *impl, byte *out, size_t size, uint8_t internal_threads,
                  uint8_t external_threads) {
-        char *impl = "(unspecified)";
-        switch (ctx->mixctr) {
-        case MIXCTR_AESNI:
-                impl = "aesni";
-                break;
-        case MIXCTR_WOLFSSL:
-                impl = "wolfssl";
-                break;
-        case MIXCTR_OPENSSL:
-                impl = "openssl";
-                break;
-        }
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
              external_threads, impl, ctx->fanout, size / ctx->key_size);
 
@@ -246,13 +236,13 @@ int main(int argc, char *argv[]) {
                                 out = malloc(size);
 
                                 ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, 1);
+                                test_keymix(&ctx, "wolfssl", out, size, *ithr, 1);
 
                                 ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, 1);
+                                test_keymix(&ctx, "openssl", out, size, *ithr, 1);
 
                                 ctx_keymix_init(&ctx, MIXCTR_AESNI, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, 1);
+                                test_keymix(&ctx, "aesni", out, size, *ithr, 1);
 
                                 free(out);
                         }

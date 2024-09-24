@@ -1,3 +1,4 @@
+#include "ctx.h"
 #include "file.h"
 #include "types.h"
 #include "utils.h"
@@ -11,6 +12,7 @@
 #define ERR_ENC 100
 #define ERR_KEY_SIZE 101
 #define ERR_KEY_READ 102
+#define ERR_NOMIXCTR 103
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -288,19 +290,6 @@ int main(int argc, char **argv) {
         key_size = get_file_size(fkey);
         key      = checked_malloc(key_size);
 
-        if (key_size % SIZE_MACRO != 0) {
-                errmsg("key must be a multiple of %d B", SIZE_MACRO);
-                err = ERR_KEY_SIZE;
-                goto cleanup;
-        }
-
-        size_t num_macros = key_size / SIZE_MACRO;
-        if (!ISPOWEROF(num_macros, args.fanout)) {
-                errmsg("key's number of 48-B blocks is not a power of fanout (%d)", args.fanout);
-                err = ERR_KEY_SIZE;
-                goto cleanup;
-        }
-
         if (fread(key, 1, key_size, fkey) != key_size) {
                 err = ERR_KEY_READ;
                 goto cleanup;
@@ -308,7 +297,17 @@ int main(int argc, char **argv) {
 
         // Do the encryption
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, args.mixctr, key, key_size, args.iv, args.fanout);
+        switch (ctx_encrypt_init(&ctx, args.mixctr, key, key_size, args.iv, args.fanout)) {
+        case CTX_ERR_NOMIXCTR:
+                errmsg("no MixCTR implementation found");
+                err = ERR_NOMIXCTR;
+                goto cleanup;
+        case CTX_ERR_KEYSIZE:
+                errmsg("key's number of inputs to the MixCTR is not a power of fanout (%d)",
+                       args.fanout);
+                err = ERR_KEY_SIZE;
+                goto cleanup;
+        }
         if (stream_encrypt(fout, fin, &ctx, args.threads, args.blocks))
                 err = ERR_ENC;
 

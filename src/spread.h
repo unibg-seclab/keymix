@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 // Implements the spread algorithm in-place.
-void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout);
+void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout, size_t size_macro);
 
 // Data needed by the in-place `spread` algorithm.
 typedef struct {
@@ -34,6 +34,9 @@ typedef struct {
 
         // The current level at which to apply the spread.
         uint8_t level;
+
+        // The macro size
+        size_t size_macro;
 } spread_chunks_args_t;
 
 // Implements the spread algorithm in-place and can be called by a single

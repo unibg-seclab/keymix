@@ -18,7 +18,4 @@ typedef enum {
 // An AES block size (128 bits)
 #define SIZE_BLOCK 16
 
-// A macro of ours is composed by 3 AES blocks
-#define SIZE_MACRO 48
-
 #endif
