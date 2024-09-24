@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
 #include "enc.h"
 #include "keymix.h"
 #include "log.h"
@@ -217,7 +216,7 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         size_t thrff  = fanout * fanout;
         size_t thrfff = fanout * fanout * fanout;
 
-        mixctrpass_impl_t aesni = get_mixctr_impl(MIXCTR_AESNI);
+        mixctr_impl_t aesni = get_mixctr_impl(MIXCTR_AESNI);
 
         keymix(aesni, in, out1, size, fanout, thr1);
         keymix(aesni, in, outf, size, fanout, thrf);

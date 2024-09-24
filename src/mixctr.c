@@ -1,6 +1,5 @@
 #include "mixctr.h"
 
-#include "config.h"
 #include "types.h"
 
 #include <assert.h>
@@ -13,23 +12,14 @@
 
 // ------------------------------------------------------------ WolfSSL
 
-int wolfssl(byte *in, byte *out, size_t size) {
+int wolfssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
         Aes aes;
         wc_AesInit(&aes, NULL, INVALID_DEVID);
 
-        byte *last = in + size;
-        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key      = in;
-                uint128_t data = *(uint128_t *)(in + 2 * SIZE_BLOCK);
-                uint128_t in[] = {data, data + 1, data + 2};
-                if (DEBUG)
-                        assert(sizeof(in) == SIZE_MACRO);
+        wc_AesSetKey(&aes, key, 2 * SIZE_BLOCK, NULL, AES_ENCRYPTION);
 
-                wc_AesSetKey(&aes, key, 2 * SIZE_BLOCK, NULL, AES_ENCRYPTION);
-
-                for (uint8_t b = 0; b < BLOCKS_PER_MACRO; b++)
-                        wc_AesEncryptDirect(&aes, out + b * SIZE_BLOCK, (byte *)(in + b));
-        }
+        for (uint8_t b = 0; b < blocks_per_macro; b++)
+                wc_AesEncryptDirect(&aes, out + b * SIZE_BLOCK, (byte *)(data + b));
 
         wc_AesFree(&aes);
         return 0;
@@ -39,23 +29,14 @@ int wolfssl(byte *in, byte *out, size_t size) {
 
 EVP_CIPHER *openssl_aes256ecb;
 
-int openssl(byte *in, byte *out, size_t size) {
+int openssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
         EVP_EncryptInit(ctx, openssl_aes256ecb, NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
 
-        byte *last = in + size;
-        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key      = in;
-                uint128_t data = *(uint128_t *)(in + 2 * SIZE_BLOCK);
-
-                uint128_t in[] = {data, data + 1, data + 2};
-                if (DEBUG)
-                        assert(sizeof(in) == SIZE_MACRO);
-                EVP_EncryptInit(ctx, NULL, key, NULL);
-                EVP_EncryptUpdate(ctx, out, &outl, (byte *)in, SIZE_MACRO);
-        }
+        EVP_EncryptInit(ctx, NULL, key, NULL);
+        EVP_EncryptUpdate(ctx, out, &outl, (byte *)data, SIZE_MACRO);
 
         EVP_CIPHER_CTX_cleanup(ctx);
         EVP_CIPHER_CTX_free(ctx);
@@ -141,26 +122,20 @@ void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         _mm_storeu_si128((__m128i *)out, m);
 }
 
-int aesni(byte *in, byte *out, size_t size) {
-        byte *last = in + size;
+int aesni(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
         __m128i key_schedule[15];
 
-        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                byte *key         = in;
-                uint128_t iv      = *(uint128_t *)(in + 2 * SIZE_BLOCK);
-                uint128_t data[3] = {iv, iv + 1, iv + 2};
-
-                aes_256_key_expansion(key, key_schedule);
-                for (int b = 0; b < BLOCKS_PER_MACRO; b++) {
-                        aes256_enc(key_schedule, (byte *)(data + b), out + b * SIZE_BLOCK);
-                }
+        aes_256_key_expansion(key, key_schedule);
+        for (int b = 0; b < blocks_per_macro; b++) {
+                aes256_enc(key_schedule, (byte *)(data + b), out + b * SIZE_BLOCK);
         }
+
         return 0;
 }
 
 // ------------------------------------------------------------ Generic mixctr code
 
-inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
+inline mixctr_impl_t get_mixctr_impl(mixctr_t name) {
         switch (name) {
         case MIXCTR_WOLFSSL:
                 return &wolfssl;

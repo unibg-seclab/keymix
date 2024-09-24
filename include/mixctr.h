@@ -5,9 +5,8 @@
 
 #include <stdlib.h>
 
-// A function that implements MixCTR on a series of 48-B blocks.
-// Here `size` must be a multiple of `SIZE_MACRO` (48).
-typedef int (*mixctrpass_impl_t)(byte *in, byte *out, size_t size);
+// A function that implements MixCTR on a 48-B block.
+typedef int (*mixctr_impl_t)(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out);
 
 // Accepted AES implementations for MixCTR.
 typedef enum {
@@ -17,6 +16,6 @@ typedef enum {
 } mixctr_t;
 
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.
-mixctrpass_impl_t get_mixctr_impl(mixctr_t name);
+mixctr_impl_t get_mixctr_impl(mixctr_t name);
 
 #endif

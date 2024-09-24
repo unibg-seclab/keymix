@@ -1,6 +1,5 @@
 #include "keymix.h"
 
-#include "config.h"
 #include "log.h"
 #include "spread.h"
 #include "types.h"
@@ -27,7 +26,7 @@ typedef struct {
         size_t chunk_size;
         uint8_t thread_levels;
         uint8_t total_levels;
-        mixctrpass_impl_t mixctrpass;
+        mixctr_impl_t mixctr;
         uint8_t fanout;
         thr_barrier_t *barrier;
 } thr_keymix_t;
@@ -110,12 +109,23 @@ inline uint8_t total_levels(size_t size, uint8_t fanout) {
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
-void keymix_inner(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8_t fanout,
+inline void mixctrpass(mixctr_impl_t mixctr, byte *in, byte *out, size_t size) {
+        byte *last = in + size;
+
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                byte *key         = in;
+                uint128_t iv      = *(uint128_t *)(in + 2 * SIZE_BLOCK);
+                uint128_t data[3] = {iv, iv + 1, iv + 2};
+                (*mixctr)(key, data, 3, out);
+        }
+}
+
+void keymix_inner(mixctr_impl_t mixctr, byte *in, byte *out, size_t size, uint8_t fanout,
                   uint8_t levels) {
-        (*mixctrpass)(in, out, size);
+        mixctrpass(mixctr, in, out, size);
         for (uint8_t l = 1; l < levels; l++) {
                 spread(out, size, l, fanout);
-                (*mixctrpass)(out, out, size);
+                mixctrpass(mixctr, out, out, size);
         }
 }
 
@@ -126,7 +136,7 @@ void *w_thread_keymix(void *a) {
         int8_t nof_threads = args->total_size / args->chunk_size;
 
         // No need to sync among other threads here
-        keymix_inner(args->mixctrpass, args->in, args->out, args->chunk_size, args->fanout,
+        keymix_inner(args->mixctr, args->in, args->out, args->chunk_size, args->fanout,
                      args->thread_levels);
 
         _log(LOG_DEBUG, "thread %d finished the layers without coordination\n", args->id);
@@ -163,18 +173,19 @@ void *w_thread_keymix(void *a) {
                 }
 
                 _log(LOG_DEBUG, "thread %d: sychronized encryption (level %d)\n", args->id, l);
-                err = (*(args->mixctrpass))(args->out, args->out, args->chunk_size);
-                if (err) {
-                        _log(LOG_ERROR, "thread %d: mixfunc error %d\n", args->id, err);
-                        goto thread_exit;
-                }
+                mixctrpass(args->mixctr, args->out, args->out, args->chunk_size);
+                // err = (*(args->mixctrpass))(args->out, args->out, args->chunk_size);
+                // if (err) {
+                //         _log(LOG_ERROR, "thread %d: mixfunc error %d\n", args->id, err);
+                //         goto thread_exit;
+                // }
         }
 
 thread_exit:
         return NULL;
 }
 
-int keymix(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8_t fanout,
+int keymix(mixctr_impl_t mixctr, byte *in, byte *out, size_t size, uint8_t fanout,
            uint8_t nof_threads) {
         if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
@@ -192,7 +203,7 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
-                keymix_inner(mixctrpass, in, out, size, fanout, levels);
+                keymix_inner(mixctr, in, out, size, fanout, levels);
                 return 0;
         }
 
@@ -226,7 +237,7 @@ int keymix(mixctrpass_impl_t mixctrpass, byte *in, byte *out, size_t size, uint8
                 a->chunk_size    = thread_chunk_size;
                 a->thread_levels = thread_levels;
                 a->total_levels  = levels;
-                a->mixctrpass    = mixctrpass;
+                a->mixctr        = mixctr;
                 a->fanout        = fanout;
 
                 pthread_create(&threads[t], NULL, w_thread_keymix, a);

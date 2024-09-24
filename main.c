@@ -53,7 +53,7 @@ int main() {
                 goto clean;
         }
 
-        mixctrpass_impl_t configs[] = {
+        mixctr_impl_t configs[] = {
             get_mixctr_impl(MIXCTR_WOLFSSL),
             get_mixctr_impl(MIXCTR_OPENSSL),
             get_mixctr_impl(MIXCTR_AESNI),

@@ -18,7 +18,7 @@ typedef struct {
         mixctr_t mixctr;
 
         // The MixCTR implementation.
-        mixctrpass_impl_t mixctrpass;
+        mixctr_impl_t mixctr_impl;
 
         // The fanout for the shuffle/spread part, can only be 2, 3, or 4
         fanout_t fanout;
