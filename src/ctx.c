@@ -12,17 +12,9 @@ extern EVP_CIPHER *openssl_aes256ecb;
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
                       fanout_t fanout) {
-        size_t num_macros = size / SIZE_MACRO;
-        assert(size % SIZE_MACRO == 0 && ISPOWEROF(num_macros, fanout) &&
-               "Number of 48-B blocks in the key should be a power of fanout");
-        ctx->key         = key;
-        ctx->key_size    = size;
-        ctx->mixctr_impl = get_mixctr_impl(mixctr);
-        ctx->fanout      = fanout;
+        ctx_keymix_init(ctx, mixctr, key, size, fanout);
         ctx_enable_encryption(ctx);
         ctx_enable_iv_counter(ctx, iv);
-
-        openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 }
 
 void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
