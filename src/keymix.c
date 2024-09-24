@@ -4,6 +4,8 @@
 #include "spread.h"
 #include "types.h"
 #include "utils.h"
+
+#include <openssl/evp.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -111,14 +113,35 @@ inline uint8_t total_levels(size_t size, size_t size_macro, uint8_t fanout) {
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
+// This is a little hack, because OpenSSL is *painfully* slow when used in
+// multi-threaded environments.
+// https://github.com/openssl/openssl/issues/17064
+// This is defined in mixctr.c
+// extern EVP_CIPHER *openssl_aes256ecb;
+extern EVP_CIPHER_CTX *openssl_ctx;
+EVP_CIPHER *openssl_aes256ecb;
+
+int openssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out);
+
 inline void mixctrpass(keymix_ctx_t *ctx, byte *in, byte *out, size_t size) {
         byte *last = in + size;
+
+        if (ctx->mixctr_impl == &openssl) {
+                openssl_ctx = EVP_CIPHER_CTX_new();
+                EVP_EncryptInit(openssl_ctx, openssl_aes256ecb, NULL, NULL);
+                EVP_CIPHER_CTX_set_padding(openssl_ctx, 0);
+        }
 
         for (; in < last; in += ctx->size_macro, out += ctx->size_macro) {
                 byte *key         = in;
                 uint128_t iv      = *(uint128_t *)(in + 2 * SIZE_BLOCK);
                 uint128_t data[3] = {iv, iv + 1, iv + 2};
                 (*(ctx->mixctr_impl))(key, data, 3, out);
+        }
+
+        if (ctx->mixctr_impl == &openssl) {
+                EVP_CIPHER_CTX_cleanup(openssl_ctx);
+                EVP_CIPHER_CTX_free(openssl_ctx);
         }
 }
 

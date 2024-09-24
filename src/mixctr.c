@@ -27,20 +27,12 @@ int wolfssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
 
 // ------------------------------------------------------------ OpenSSL
 
-EVP_CIPHER *openssl_aes256ecb;
+EVP_CIPHER_CTX *openssl_ctx;
 
 int openssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
-        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        EVP_EncryptInit(ctx, openssl_aes256ecb, NULL, NULL);
-        EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
-
-        EVP_EncryptInit(ctx, NULL, key, NULL);
-        EVP_EncryptUpdate(ctx, out, &outl, (byte *)data, blocks_per_macro * SIZE_BLOCK);
-
-        EVP_CIPHER_CTX_cleanup(ctx);
-        EVP_CIPHER_CTX_free(ctx);
-
+        EVP_EncryptInit(openssl_ctx, NULL, key, NULL);
+        EVP_EncryptUpdate(openssl_ctx, out, &outl, (byte *)data, blocks_per_macro * SIZE_BLOCK);
         return 0;
 }
 

@@ -26,12 +26,6 @@
 #define SIZE_1MiB (1024 * 1024)
 #define SIZE_MACRO 48
 
-// This is a little hack, because OpenSSL is *painfully* slow when used in
-// multi-threaded environments.
-// https://github.com/openssl/openssl/issues/17064
-// This is defined in mixctr.c
-extern EVP_CIPHER *openssl_aes256ecb;
-
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);
         for (size_t i = 0; i < size; i++) {
@@ -61,10 +55,6 @@ int main() {
         ctx_keymix_init(&configs[2], MIXCTR_AESNI, key, key_size, 3);
         char *descr[] = {"wolfssl (128)", "openssl (128)", "aesni (128)"};
 
-        // Setup global OpenSSL cipher
-        openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
-
-        // mixing_config mconf = {&wolfssl, 3};
         uint8_t threads[] = {1, 3, 9, 27, 81};
         for (uint8_t t = 0; t < sizeof(threads) / sizeof(uint8_t); t++) {
                 printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
