@@ -8,8 +8,6 @@
 
 #include <blake3/blake3.h>
 #include <xkcp/KangarooTwelve.h>
-#include <xkcp/Kravatte.h>
-#include <xkcp/KravatteModes.h>
 #include <xkcp/Xoodyak.h>
 #include <openssl/evp.h>
 #include <wolfssl/options.h>
