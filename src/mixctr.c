@@ -244,7 +244,7 @@ int wolfcrypt_shake128_hash(byte *in, byte *out, size_t size) {
                 if (ret) {
                         _log(LOG_ERROR, "wc_Shake128_Update error %d\n", ret);
                 }
-                wc_Shake128_Final(shake, out, SIZE_MACRO);
+                ret = wc_Shake128_Final(shake, out, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Shake128_Final error %d\n", ret);
                 }
@@ -264,7 +264,7 @@ int wolfcrypt_shake256_hash(byte *in, byte *out, size_t size) {
                 if (ret) {
                         _log(LOG_ERROR, "wc_Shake256_Update error %d\n", ret);
                 }
-                wc_Shake256_Final(shake, out, SIZE_MACRO);
+                ret = wc_Shake256_Final(shake, out, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Shake256_Final error %d\n", ret);
                 }
@@ -284,7 +284,7 @@ int wolfcrypt_blake2s_hash(byte *in, byte *out, size_t size) {
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2sUpdate error %d\n", ret);
                 }
-                wc_Blake2sFinal(b2s, out, SIZE_MACRO);
+                ret = wc_Blake2sFinal(b2s, out, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2sFinal error %d\n", ret);
                 }
@@ -304,7 +304,7 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2bUpdate error %d\n", ret);
                 }
-                wc_Blake2bFinal(b2b, out, SIZE_MACRO);
+                ret = wc_Blake2bFinal(b2b, out, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2bFinal error %d\n", ret);
                 }
