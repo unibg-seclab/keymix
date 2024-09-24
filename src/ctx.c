@@ -17,7 +17,6 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
                "Number of 48-B blocks in the key should be a power of fanout");
         ctx->key         = key;
         ctx->key_size    = size;
-        ctx->mixctr      = mixctr;
         ctx->mixctr_impl = get_mixctr_impl(mixctr);
         ctx->fanout      = fanout;
         ctx_enable_encryption(ctx);
@@ -32,7 +31,6 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
                "Number of 48-B blocks in the key should be a power of fanout");
         ctx->key         = key;
         ctx->key_size    = size;
-        ctx->mixctr      = mixctr;
         ctx->mixctr_impl = get_mixctr_impl(mixctr);
         ctx->fanout      = fanout;
         ctx_disable_encryption(ctx);

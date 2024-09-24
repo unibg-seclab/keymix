@@ -14,9 +14,6 @@ typedef struct {
         // The key's size, its number of 48-B blocks must be a power of fanout.
         size_t key_size;
 
-        // The AES implementation to consider.
-        mixctr_t mixctr;
-
         // The MixCTR implementation.
         mixctr_impl_t mixctr_impl;
 
