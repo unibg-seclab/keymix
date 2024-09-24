@@ -29,7 +29,7 @@ package() {
   # mv "$srcdir/${_pkgname}-$pkgver/bin/${_xkcptarget}/libXKCP.so.headers" "$pkgdir/usr/include/libXKCP"
   # install -Dd "$srcdir/$pkgname-$pkgver/bin/${_xkcptarget}/libXKCP.so.headers" "$pkgdir/usr/include"
   for include in $srcdir/$pkgname-$pkgver/bin/${_xkcptarget}/libXKCP.so.headers/*; do
-  	install -D "$include" "$pkgdir/usr/include/libXKCP/$(basename $include)"
+  	install -D "$include" "$pkgdir/usr/include/xkcp/$(basename $include)"
   done
   install -D "$srcdir/$pkgname-$pkgver/bin/${_xkcptarget}/libXKCP.so" "$pkgdir/usr/lib/libXKCP.so"
 }

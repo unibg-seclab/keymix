@@ -20,7 +20,7 @@ SECRET = secret
 
 CC = gcc
 CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -Isrc
-LDLIBS = -lcrypto -lXKCP -lm -lwolfssl -pthread
+LDLIBS = -lblake3 -lcrypto -lXKCP -lm -lwolfssl -pthread
 
 # ------------ Generic building
 
@@ -32,6 +32,20 @@ all: $(OUT) $(TEST) $(VERIFY) $(KEYMIXER)
 $(LIBRARY): CFLAGS += -fPIC
 $(LIBRARY): $(OBJECTS)
 	@ gcc -shared -o $(LIBRARY) $(OBJECTS)
+
+blake3:
+	@ echo "[*] Look into https://github.com/BLAKE3-team/BLAKE3/tree/master/c for the best compilation for your cpu architecture"
+	@ cd deps/BLAKE3/c && \
+	  gcc -shared -O3 -o libblake3.so blake3.c blake3_dispatch.c blake3_portable.c \
+      	  blake3_sse2_x86-64_unix.S blake3_sse41_x86-64_unix.S blake3_avx2_x86-64_unix.S \
+      	  blake3_avx512_x86-64_unix.S
+	@ echo "[*] Installing BLAKE3 library in /usr/local/lib ..."
+	sudo mkdir -p /usr/local/include/blake3
+	sudo cp -r deps/BLAKE3/c/blake3.h /usr/local/include/blake3/blake3.h
+	sudo chown root:root deps/BLAKE3/c/libblake3.so
+	sudo mv deps/BLAKE3/c/libblake3.so /usr/local/lib/libblake3.so
+	@ echo "[*] Updating shared library cache ..."
+	sudo ldconfig
 
 wolfssl:
 ifneq ($(shell which makepkg &> /dev/null),)
@@ -49,7 +63,8 @@ else
 	@ echo "[*] Look into https://github.com/XKCP/XKCP for the best compilation target for your cpu architecture (default: AVX2)"
 	@ cd deps/XKCP && git submodule update --init && make $(XKCP_TARGET)/libXKCP.so
 	@ echo "[*] Installing XKCP library in /usr/local/lib ..."
-	sudo cp -r deps/XKCP/bin/$(XKCP_TARGET)/libXKCP.so.headers /usr/local/include/libXKCP
+	sudo mkdir -p /usr/local/include/xkcp
+	sudo cp -r deps/XKCP/bin/$(XKCP_TARGET)/libXKCP.so.headers/* /usr/local/include/xkcp
 	sudo cp deps/XKCP/bin/$(XKCP_TARGET)/libXKCP.so /usr/local/lib/libXKCP.so
 	@ echo "[*] Updating shared library cache ..."
 	sudo ldconfig

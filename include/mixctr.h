@@ -18,6 +18,7 @@ typedef enum {
         MIXCTR_OPENSSL_BLAKE2S,
         MIXCTR_WOLFCRYPT_SHA3_256,
         MIXCTR_WOLFCRYPT_BLAKE2S,
+        MIXCTR_BLAKE3_BLAKE3,
 #elif SIZE_MACRO == 48
         // 384-bit block size
         MIXCTR_WOLFSSL,
@@ -32,7 +33,7 @@ typedef enum {
 #endif
         // Extendable-output functions (XOFs)
 #if SIZE_MACRO <= 48 /* 384-bit internal state */
-        MIXCTR_XKCP_XOODYAK
+        MIXCTR_XKCP_XOODYAK,
 #endif
 #if SIZE_MACRO <= 192 /* 1600-bit internal state */
         // To ensure the maximum security strength of 128 bits, the block

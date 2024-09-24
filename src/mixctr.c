@@ -10,8 +10,9 @@
 #include <string.h>
 #include <wmmintrin.h>
 
-#include <libXKCP/KangarooTwelve.h>
-#include <libXKCP/Xoodyak.h>
+#include <blake3/blake3.h>
+#include <xkcp/KangarooTwelve.h>
+#include <xkcp/Xoodyak.h>
 #include <openssl/evp.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/aes.h>
@@ -361,6 +362,21 @@ int xkcp_xoodyak_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+// ------------------------------------------------------------ BLAKE3 hash function
+
+int blake3_blake3_hash(byte *in, byte *out, size_t size) {
+        blake3_hasher hasher;
+        blake3_hasher_init(&hasher);
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                blake3_hasher_update(&hasher, in, SIZE_MACRO);
+                blake3_hasher_finalize(&hasher, out, SIZE_MACRO);
+                blake3_hasher_reset(&hasher);
+        }
+        return 0;
+}
+
 // ------------------------------------------------------------ Generic mixctr code
 
 inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
@@ -373,6 +389,8 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &wolfcrypt_hash;
         case MIXCTR_WOLFCRYPT_BLAKE2S:
                 return &wolfcrypt_blake2s_hash;
+        case MIXCTR_BLAKE3_BLAKE3:
+                return &blake3_blake3_hash;
 #elif SIZE_MACRO == 48
         case MIXCTR_WOLFSSL:
                 return &wolfssl;

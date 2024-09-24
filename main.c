@@ -66,6 +66,7 @@ int main() {
                 MIXCTR_OPENSSL_BLAKE2S,
                 MIXCTR_WOLFCRYPT_SHA3_256,
                 MIXCTR_WOLFCRYPT_BLAKE2S,
+                MIXCTR_BLAKE3_BLAKE3,
 #elif SIZE_MACRO == 48
                 // 384-bit block size
                 MIXCTR_AESNI,
@@ -98,6 +99,7 @@ int main() {
                 "openssl blake2s (256)",
                 "wolfcrypt sha3 (256)",
                 "wolfcrypt blake2s (256)",
+                "blake3 blake3 (256)",
 #elif SIZE_MACRO == 48
                 // 384-bit block size
                 "aes-ni mixctr (384)",
