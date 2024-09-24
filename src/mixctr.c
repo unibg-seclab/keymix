@@ -8,8 +8,6 @@
 
 #include <blake3/blake3.h>
 #include <xkcp/KangarooTwelve.h>
-#include <xkcp/Kravatte.h>
-#include <xkcp/KravatteModes.h>
 #include <xkcp/Xoodyak.h>
 #include <openssl/evp.h>
 #include <wolfssl/options.h>
@@ -765,8 +763,8 @@ char *MIX_NAMES[] = {
         "xkcp-kravette-wbc",
 #endif
 #if SIZE_MACRO <= 192
-                // 1600-bit internal state
-                "xkcp kravette-wbc",
+        // 1600-bit internal state
+        "xkcp kravette-wbc",
 #endif
 };
 
