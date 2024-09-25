@@ -34,6 +34,9 @@ $(LIBRARY): $(OBJECTS)
 	@ gcc -shared -o $(LIBRARY) $(OBJECTS)
 
 blake3:
+ifneq ($(shell which makepkg 2> /dev/null),)
+	@ cd deps/blake3 && makepkg -sfi
+else
 	@ echo "[*] Look into https://github.com/BLAKE3-team/BLAKE3/tree/master/c for the best compilation for your cpu architecture"
 	@ cd deps/BLAKE3/c && \
 	  gcc -shared -O3 -o libblake3.so blake3.c blake3_dispatch.c blake3_portable.c \
@@ -46,9 +49,10 @@ blake3:
 	sudo mv deps/BLAKE3/c/libblake3.so /usr/local/lib/libblake3.so
 	@ echo "[*] Updating shared library cache ..."
 	sudo ldconfig
+endif
 
 wolfssl:
-ifneq ($(shell which makepkg &> /dev/null),)
+ifneq ($(shell which makepkg 2> /dev/null),)
 	@ cd deps/wolfssl-ecb && makepkg -sfi
 else
 	@ cd deps/wolfssl-ecb && ./install.sh
@@ -57,7 +61,7 @@ endif
 XKCP_TARGET = AVX2
 
 xkcp:
-ifneq ($(shell which makepkg &> /dev/null),)
+ifneq ($(shell which makepkg 2> /dev/null),)
 	@ cd deps/xkcp && makepkg -sfi
 else
 	@ echo "[*] Look into https://github.com/XKCP/XKCP for the best compilation target for your cpu architecture (default: AVX2)"

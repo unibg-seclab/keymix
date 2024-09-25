@@ -55,6 +55,8 @@ deps/wolfssl-ecb/*
 !deps/wolfssl-ecb/install.sh
 deps/xkcp/*
 !deps/xkcp/PKGBUILD
+deps/blake3/*
+!deps/blake3/PKGBUILD
 
 packages/arch/*
 !packages/arch/PKGBUILD
