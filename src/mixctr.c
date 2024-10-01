@@ -61,7 +61,9 @@ EVP_MD* fetch_openssl_digest(const char* digest_name) {
         return openssl_digest;
 }
 
-// ------------------------------------------------------------ WolfSSL
+// *** MIXCTR FUNCTIONS ***
+
+// --- WolfSSL ---
 
 int wolfssl(byte *in, byte *out, size_t size) {
         Aes aes;
@@ -85,7 +87,7 @@ int wolfssl(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ OpenSSL
+// --- OpenSSL ---
 
 int openssl(byte *in, byte *out, size_t size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -111,7 +113,7 @@ int openssl(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ AES-NI as implemented by Intel
+// --- AES-NI as implemented by Intel ---
 
 // Implemented following the Intel white paper here
 // https://www.intel.com/content/dam/doc/white-paper/advanced-encryption-standard-new-instructions-set-paper.pdf
@@ -206,7 +208,9 @@ int aesni(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ OpenSSL hash functions
+// *** HASH FUNCTIONS ***
+
+// --- OpenSSL hash functions ---
 
 int generic_openssl_hash(byte *in, byte *out, size_t size, bool is_xof) {
         EVP_MD_CTX *mdctx;
@@ -318,7 +322,7 @@ int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ wolfCrypt hash functions
+// --- wolfCrypt hash functions ---
 
 int generic_wolfcrypt_hash(enum wc_HashType hash_type, byte *in, byte *out, size_t size) {
         byte *last = in + size;
@@ -487,7 +491,7 @@ int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ XKCP hash functions
+// --- XKCP hash functions ---
 
 // Keccak-p[1600, 12]: Keccak 1600-bit permutations and 12 rounds
 
@@ -525,6 +529,7 @@ int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size) {
 }
 
 // Xoodoo[12]: Xoodoo 384-bit permutations and 12 rounds
+
 int xkcp_xoodyak_hash(byte *in, byte *out, size_t size) {
         Xoodyak_Instance instance;
 
@@ -537,7 +542,7 @@ int xkcp_xoodyak_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ BLAKE3 hash function
+// --- BLAKE3 hash function ---
 
 int blake3_blake3_hash(byte *in, byte *out, size_t size) {
         blake3_hasher hasher;
@@ -552,17 +557,82 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-// ------------------------------------------------------------ Generic mixctr code
+// *** SYMMETRIC CIPHER FUNCTIONS ***
+
+// --- OpenSSL AES in ECB mode ---
+int openssl_aes_ecb(byte *in, byte *out, size_t size) {
+        const unsigned char *key = "super-secure-key";
+        int outl;
+
+        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
+        }
+
+        if (!EVP_EncryptInit(ctx, openssl_aes128ecb, key, NULL)) {
+                _log(LOG_ERROR, "EVP_EncryptInit error\n");
+        }
+
+        EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
+
+        if (!EVP_EncryptUpdate(ctx, out, &outl, in, size)) {
+                _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
+        }
+
+        // if (!EVP_EncryptFinal(ctx, out, &outl)) {
+        //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
+        // }
+
+        EVP_CIPHER_CTX_free(ctx);
+        return 0;
+}
+
+// --- wolfCrypt AES in ECB mode ---
+int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size) {
+        int ret;
+        Aes aes;
+        const byte *key = "super-secure-key";
+
+        ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+        if (ret) {
+                _log(LOG_ERROR, "wc_AesInit error\n");
+        }
+
+        ret = wc_AesSetKey(&aes, key, AES_BLOCK_SIZE, NULL, AES_ENCRYPTION);
+        if (ret) {
+                _log(LOG_ERROR, "wc_AesSetKey error\n");
+        }
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                ret = wc_AesEncryptDirect(&aes, out, in);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
+                }
+        }
+
+        wc_AesFree(&aes);
+        return 0;
+}
+
+// NOTE: Conflicting enum naming force us to implement Kravatte-WBC and
+// Xoofff-WBC in separate files
+
+// *** GET IMPLEMENTATION BY NAME ***
 
 inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
         switch (mix_type) {
 #if SIZE_MACRO == 16
+        case MIXCTR_OPENSSL_AES_128:
+                return &openssl_aes_ecb;
         case MIXCTR_OPENSSL_DAVIES_MEYER_128:
                 fetch_openssl_cipher("AES-128-ECB");
                 return &openssl_davies_meyer;
         case MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128:
                 fetch_openssl_cipher("AES-128-ECB");
                 return &openssl_matyas_meyer_oseas;
+        case MIXCTR_WOLFCRYPT_AES_128:
+                return &wolfcrypt_aes_ecb;
         case MIXCTR_WOLFCRYPT_DAVIES_MEYER_128:
                 return &wolfcrypt_davies_meyer;
         case MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128:
