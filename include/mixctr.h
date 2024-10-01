@@ -70,9 +70,11 @@ typedef enum {
 const static mixctr_t MIX_TYPES[] = {
 #if SIZE_MACRO == 16
         // 128-bit block size
+        MIXCTR_OPENSSL_AES_128,
         MIXCTR_OPENSSL_DAVIES_MEYER_128,
-        MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
         MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128,
+        MIXCTR_WOLFCRYPT_AES_128,
+        MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
         MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
 #elif SIZE_MACRO == 32
         // 256-bit block size

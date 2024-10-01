@@ -626,6 +626,7 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
         switch (mix_type) {
 #if SIZE_MACRO == 16
         case MIXCTR_OPENSSL_AES_128:
+                fetch_openssl_cipher("AES-128-ECB");
                 return &openssl_aes_ecb;
         case MIXCTR_OPENSSL_DAVIES_MEYER_128:
                 fetch_openssl_cipher("AES-128-ECB");
