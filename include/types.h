@@ -17,6 +17,9 @@ typedef enum {
 } fanout_t;
 
 #ifndef SIZE_MACRO
+// // AES block size (128 bit)
+// #define SIZE_MACRO 16
+
 // // SHA3-256 and BLAKE2s block size (256 bit)
 // #define SIZE_MACRO 32
 

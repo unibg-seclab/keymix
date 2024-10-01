@@ -217,6 +217,41 @@ int openssl_xof_hash(byte *in, byte *out, size_t size) {
         return generic_openssl_hash(in, out, size, true);
 }
 
+EVP_CIPHER *openssl_aes128ecb;
+
+int openssl_davies_meyer(byte *in, byte *out, size_t size) {
+        const unsigned char *iv = "curr-hadcoded-iv";
+        int outl;
+
+        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
+        }
+
+        if (!EVP_EncryptInit(ctx, openssl_aes128ecb, NULL, NULL)) {
+                _log(LOG_ERROR, "EVP_EncryptInit error\n");
+        }
+
+        EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                if (!EVP_EncryptInit(ctx, NULL, in, NULL)) {
+                        _log(LOG_ERROR, "EVP_EncryptInit error\n");
+                }
+                if (!EVP_EncryptUpdate(ctx, out, &outl, iv, SIZE_MACRO)) {
+                        _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
+                }
+        }
+
+        // if (!EVP_EncryptFinal(ctx, out, &outl)) {
+        //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
+        // }
+
+        EVP_CIPHER_CTX_free(ctx);
+        return 0;
+}
+
 // ------------------------------------------------------------ wolfCrypt hash functions
 
 enum wc_HashType wolfcrypt_hash_algorithm;
@@ -312,6 +347,32 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
+        int ret;
+        Aes aes;
+        const byte *iv = "curr-hadcoded-iv";
+
+        ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+        if (ret) {
+                _log(LOG_ERROR, "wc_AesInit error\n");
+        }
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                ret = wc_AesSetKey(&aes, in, AES_BLOCK_SIZE, NULL, AES_ENCRYPTION);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_AesSetKey error\n");
+                }
+                ret = wc_AesEncryptDirect(&aes, out, iv);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
+                }
+        }
+
+        wc_AesFree(&aes);
+        return 0;
+}
+
 // ------------------------------------------------------------ XKCP hash functions
 
 // Keccak-p[1600, 12]: Keccak 1600-bit permutations and 12 rounds
@@ -381,7 +442,12 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
 
 inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         switch (name) {
-#if SIZE_MACRO == 32
+#if SIZE_MACRO == 16
+        case MIXCTR_OPENSSL_DAVIES_MEYER_128:
+                return &openssl_davies_meyer;
+        case MIXCTR_WOLFCRYPT_DAVIES_MEYER_128:
+                return &wolfcrypt_davies_meyer;
+#elif SIZE_MACRO == 32
         case MIXCTR_OPENSSL_SHA3_256:
         case MIXCTR_OPENSSL_BLAKE2S:
                 return &openssl_hash;

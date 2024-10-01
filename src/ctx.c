@@ -10,6 +10,7 @@
 // multi-threaded environments.
 // https://github.com/openssl/openssl/issues/17064
 // This is defined in mixctr.c
+extern EVP_CIPHER *openssl_aes128ecb;
 extern EVP_CIPHER *openssl_aes256ecb;
 extern const EVP_MD *openssl_hash_algorithm;
 extern enum wc_HashType wolfcrypt_hash_algorithm;
@@ -28,7 +29,10 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         ctx_enable_iv_counter(ctx, iv);
 
         switch (mixctr) {
-#if SIZE_MACRO == 32
+#if SIZE_MACRO == 16
+        case MIXCTR_OPENSSL_DAVIES_MEYER_128:
+                openssl_aes128ecb = EVP_CIPHER_fetch(NULL, "AES-128-ECB", NULL);
+#elif SIZE_MACRO == 32
         case MIXCTR_OPENSSL_SHA3_256:
         case MIXCTR_WOLFCRYPT_SHA3_256:
                 openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHA3-256", NULL);
@@ -82,7 +86,10 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
         ctx_disable_iv_counter(ctx);
 
         switch (mixctr) {
-#if SIZE_MACRO == 32
+#if SIZE_MACRO == 16
+        case MIXCTR_OPENSSL_DAVIES_MEYER_128:
+                openssl_aes128ecb = EVP_CIPHER_fetch(NULL, "AES-128-ECB", NULL);
+#elif SIZE_MACRO == 32
         case MIXCTR_OPENSSL_SHA3_256:
         case MIXCTR_WOLFCRYPT_SHA3_256:
                 openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHA3-256", NULL);

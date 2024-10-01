@@ -24,13 +24,19 @@
 #include "types.h"
 #include "utils.h"
 
+#if SIZE_MACRO == 16
+#define CHUNK_SIZE 8
+#else
+#define CHUNK_SIZE 16
+#endif
+
 #define SIZE_1MiB (1024 * 1024)
 
-// This is a little hack, because OpenSSL is *painfully* slow when used in
-// multi-threaded environments.
-// https://github.com/openssl/openssl/issues/17064
-// This is defined in mixctr.c
-extern EVP_CIPHER *openssl_aes256ecb;
+// // This is a little hack, because OpenSSL is *painfully* slow when used in
+// // multi-threaded environments.
+// // https://github.com/openssl/openssl/issues/17064
+// // This is defined in mixctr.c
+// extern EVP_CIPHER *openssl_aes256ecb;
 
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);
@@ -44,7 +50,7 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        uint8_t fanout = SIZE_MACRO / 16;
+        uint8_t fanout = SIZE_MACRO / CHUNK_SIZE;
         size_t key_size = SIZE_MACRO;
         while (key_size < 256 * SIZE_1MiB) {
                 key_size *= fanout;
@@ -60,7 +66,11 @@ int main() {
         }
 
         mixctr_t configs[] = {
-#if SIZE_MACRO == 32
+#if SIZE_MACRO == 16
+                // 128-bit block size
+                MIXCTR_OPENSSL_DAVIES_MEYER_128,
+                MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
+#elif SIZE_MACRO == 32
                 // 256-bit block size
                 MIXCTR_OPENSSL_SHA3_256,
                 MIXCTR_OPENSSL_BLAKE2S,
@@ -93,7 +103,11 @@ int main() {
 #endif
         };
         char *descr[] = {
-#if SIZE_MACRO == 32
+#if SIZE_MACRO == 16
+                // 128-bit block size
+                "openssl davies-meyer (128)",
+                "wolfcrypt davies-meyer (128)",
+#elif SIZE_MACRO == 32
                 // 256-bit block size
                 "openssl sha3 (256)",
                 "openssl blake2s (256)",
@@ -171,7 +185,8 @@ int main() {
                 keymix_ctx_t ctx;
                 ctx_keymix_init(&ctx, configs[i], key, key_size, fanout);
 
-                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, fanout, 1); });
+                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, fanout, 1); }); // all layers
+                // double time = MEASURE({ err = (*get_mixctr_impl(configs[i]))(key, out, key_size); }); // single layer
 
                 explicit_bzero(out, key_size);
 
