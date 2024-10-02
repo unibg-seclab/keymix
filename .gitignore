@@ -50,6 +50,8 @@ perf.*
 # flamegraphdir
 .FlameGraphDir
 
+deps/blake3/*
+!deps/blake3/PKGBUILD
 deps/wolfssl-ecb/*
 !deps/wolfssl-ecb/PKGBUILD
 !deps/wolfssl-ecb/install.sh

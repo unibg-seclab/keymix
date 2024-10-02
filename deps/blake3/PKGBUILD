@@ -1,5 +1,4 @@
-pkgname=blake3-git
-_pkgname=BLAKE3
+pkgname=blake3
 pkgver=1.5.4
 pkgrel=1
 pkgdesc="Official Rust and C implementations of the BLAKE3 cryptographic hash function "
