@@ -68,7 +68,7 @@ uint8_t first_x_that_surpasses(double bar, uint8_t fanout) {
         size_t size;
         do {
                 x++;
-                size = SIZE_MACRO * pow(fanout, x);
+                size = BLOCK_SIZE * pow(fanout, x);
         } while (size < bar);
 
         return x;
@@ -82,7 +82,7 @@ void setup_keys(uint8_t fanout, size_t **key_sizes, uint8_t *key_sizes_count) {
         *key_sizes       = realloc(*key_sizes, *key_sizes_count * sizeof(size_t));
 
         for (uint8_t x = min_x; x <= max_x; x++) {
-                (*key_sizes)[x - min_x] = SIZE_MACRO * pow(fanout, x);
+                (*key_sizes)[x - min_x] = BLOCK_SIZE * pow(fanout, x);
         }
 }
 

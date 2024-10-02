@@ -19,7 +19,7 @@ SECRET = secret
 # ------------ Compiler flags
 
 CC = gcc
-CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -Isrc $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
+CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -Isrc $(if $(BLOCK_SIZE),-DBLOCK_SIZE=$(BLOCK_SIZE),)
 LDLIBS = -lblake3 -lcrypto -lXKCP -lm -lwolfssl -pthread
 
 # ------------ Generic building

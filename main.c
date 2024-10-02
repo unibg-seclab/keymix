@@ -38,8 +38,8 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        uint8_t fanout = SIZE_MACRO / CHUNK_SIZE;
-        size_t key_size = SIZE_MACRO;
+        uint8_t fanout = BLOCK_SIZE / CHUNK_SIZE;
+        size_t key_size = BLOCK_SIZE;
         while (key_size < 256 * SIZE_1MiB) {
                 key_size *= fanout;
         }
@@ -82,11 +82,11 @@ int main() {
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
 
-                if (key_size <= SIZE_MACRO * fanout) {
+                if (key_size <= BLOCK_SIZE * fanout) {
                         print_buffer_hex(key, key_size, "key");
                         print_buffer_hex(out, key_size, "out");
                 }
-                uint64_t nof_macros = key_size / SIZE_MACRO;
+                uint64_t nof_macros = key_size / BLOCK_SIZE;
                 uint8_t levels      = 1 + LOGBASE(nof_macros, fanout);
 
                 printf("levels:\t\t\t%d\n", levels);

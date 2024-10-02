@@ -5,8 +5,8 @@
 #include <openssl/evp.h>
 
 void ctx_init(keymix_ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout) {
-        size_t num_macros = size / SIZE_MACRO;
-        assert(size % SIZE_MACRO == 0 && ISPOWEROF(num_macros, fanout) &&
+        size_t num_macros = size / BLOCK_SIZE;
+        assert(size % BLOCK_SIZE == 0 && ISPOWEROF(num_macros, fanout) &&
                "Number of blocks in the key MUST be a power of the fanout");
         ctx->key      = key;
         ctx->key_size = size;

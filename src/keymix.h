@@ -7,7 +7,7 @@
 
 // Size of the smallest chunk supported
 // It helps with the identification of safe fanout values
-#if SIZE_MACRO == 16
+#if BLOCK_SIZE == 16
 #define CHUNK_SIZE 8
 #else
 #define CHUNK_SIZE 16
@@ -20,7 +20,7 @@ int get_available_fanouts(uint8_t n, uint8_t *fanouts);
 // The Keymix primitive.
 // Applies mix as defined by `mixpass` to `in`, putting the result in `out`.
 // Here `size` is the size of both input and output, and must be a multiple
-// of `SIZE_MACRO`.
+// of `BLOCK_SIZE`.
 // Accepts a positive number of threads, which must be a power of `fanout`.
 int keymix(mixpass_impl_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
            uint8_t nof_threads);

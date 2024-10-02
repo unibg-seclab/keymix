@@ -107,8 +107,8 @@ int barrier_destroy(thr_barrier_t *state) {
 
 int get_available_fanouts(uint8_t n, uint8_t *fanouts) {
         uint8_t count = 0;
-        for (uint8_t fanout = SIZE_MACRO / CHUNK_SIZE; fanout >= 2; fanout--) {
-                if (SIZE_MACRO % fanout)
+        for (uint8_t fanout = BLOCK_SIZE / CHUNK_SIZE; fanout >= 2; fanout--) {
+                if (BLOCK_SIZE % fanout)
                         continue;
 
                 fanouts[count++] = fanout;
@@ -121,7 +121,7 @@ int get_available_fanouts(uint8_t n, uint8_t *fanouts) {
 }
 
 inline uint8_t total_levels(size_t size, uint8_t fanout) {
-        uint64_t nof_macros = size / SIZE_MACRO;
+        uint64_t nof_macros = size / BLOCK_SIZE;
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
@@ -198,7 +198,7 @@ int keymix(mixpass_impl_t mixpass, byte *in, byte *out, size_t size, uint8_t fan
 
         // We can't assign more than 1 thread to a single macro, so we will
         // never spawn more than nof_macros threads
-        uint64_t nof_macros = size / SIZE_MACRO;
+        uint64_t nof_macros = size / BLOCK_SIZE;
         nof_threads         = MIN(nof_threads, nof_macros);
         uint8_t levels      = total_levels(size, fanout);
 

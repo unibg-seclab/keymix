@@ -45,7 +45,7 @@ void *_run_thr(void *arg) {
 
 void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fanout,
                            uint8_t nof_threads) {
-        if (nof_threads > (size / SIZE_MACRO))
+        if (nof_threads > (size / BLOCK_SIZE))
                 nof_threads = fanout;
 
         uint8_t thread_levels = level - LOGBASE(nof_threads, fanout); // only accurate when the
@@ -58,7 +58,7 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fan
         size_t thread_chunk_size = size / nof_threads;
 
         assert(size % nof_threads == 0);
-        assert(thread_chunk_size % SIZE_MACRO == 0);
+        assert(thread_chunk_size % BLOCK_SIZE == 0);
 
         for (uint8_t t = 0; t < nof_threads; t++) {
                 spread_chunks_args_t *arg = thread_args + t;
@@ -86,7 +86,7 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, uint8_t fan
 // Note, since shuffle and spread use two different mixing schemas these do
 // not produce the same results, hence we do not compare them.
 int verify_shuffles(size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t size = (size_t)pow(fanout, level) * BLOCK_SIZE;
 
         _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
              MiB(size));
@@ -132,7 +132,7 @@ int verify_shuffles(size_t fanout, uint8_t level) {
 // Note, since shuffle and spread use two different mixing schemas these do
 // not produce the same results, hence we do not compare them.
 int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t size = (size_t)pow(fanout, level) * BLOCK_SIZE;
 
         _log(LOG_INFO, "> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n",
              level, MiB(size));
@@ -175,7 +175,7 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
 // Verify the equivalence of the results when using different encryption and
 // hash libraries
 int verify_keymix(size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t size = (size_t)pow(fanout, level) * BLOCK_SIZE;
 
         _log(LOG_INFO, "> Verifying keymix mix-independence for size %.2f MiB\n", MiB(size));
 
@@ -183,28 +183,28 @@ int verify_keymix(size_t fanout, uint8_t level) {
         byte *out[2] = { setup(size, false), setup(size, false) };
 
         mix_t groups[][2] = {
-#if SIZE_MACRO == 16
+#if BLOCK_SIZE == 16
                 // 128-bit block size
                 { OPENSSL_DAVIES_MEYER_128, WOLFCRYPT_DAVIES_MEYER_128 },
                 { OPENSSL_MATYAS_MEYER_OSEAS_128, WOLFCRYPT_MATYAS_MEYER_OSEAS_128 },
-#elif SIZE_MACRO == 32
+#elif BLOCK_SIZE == 32
                 // 256-bit block size
                 { OPENSSL_SHA3_256, WOLFCRYPT_SHA3_256 },
                 { OPENSSL_BLAKE2S, WOLFCRYPT_BLAKE2S },
-#elif SIZE_MACRO == 48
+#elif BLOCK_SIZE == 48
                 // 384-bit block size
                 { AESNI_MIXCTR, OPENSSL_MIXCTR },
                 { OPENSSL_MIXCTR, WOLFSSL_MIXCTR },
-#elif SIZE_MACRO == 64
+#elif BLOCK_SIZE == 64
                 // 512-bit block size
                 { OPENSSL_SHA3_512, WOLFCRYPT_SHA3_512 },
                 { OPENSSL_BLAKE2B, WOLFCRYPT_BLAKE2B },
 #endif
-#if SIZE_MACRO <= 128
+#if BLOCK_SIZE <= 128
                 // 1600-bit internal state: r=1088, c=512
                 { OPENSSL_SHAKE256, WOLFCRYPT_SHAKE256 },
 #endif
-#if SIZE_MACRO <= 160
+#if BLOCK_SIZE <= 160
                 // 1600-bit internal state: r=1344, c=256
                 { OPENSSL_SHAKE128, WOLFCRYPT_SHAKE128 },
 #endif
@@ -230,7 +230,7 @@ int verify_keymix(size_t fanout, uint8_t level) {
 // Verify the equivalence of the results when using single-threaded and
 // multi-threaded encryption with a varying number of threads
 int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t size = (size_t)pow(fanout, level) * BLOCK_SIZE;
 
         _log(LOG_INFO, "> Verifying keymix threading-independence for size %.2f MiB\n", MiB(size));
 
@@ -265,7 +265,7 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
 }
 
 int verify_keymix_t(size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t size = (size_t)pow(fanout, level) * BLOCK_SIZE;
 
         _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
 
@@ -308,7 +308,7 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
 }
 
 int verify_enc(size_t fanout, uint8_t level) {
-        size_t key_size      = (size_t)pow(fanout, level) * SIZE_MACRO;
+        size_t key_size      = (size_t)pow(fanout, level) * BLOCK_SIZE;
         size_t resource_size = (rand() % 5) * key_size + (rand() % key_size);
 
         _log(LOG_INFO, "> Verifying encryption for key size %.2f MiB\n", MiB(key_size));
@@ -363,11 +363,11 @@ int verify_enc(size_t fanout, uint8_t level) {
 }
 
 int custom_checks() {
-        byte key[SIZE_MACRO] = {0};
+        byte key[BLOCK_SIZE] = {0};
 
         uint128_t iv     = 0;
         uint128_t fanout = 2;
-        size_t size      = (rand() & 10) * SIZE_MACRO + (rand() % SIZE_MACRO);
+        size_t size      = (rand() & 10) * BLOCK_SIZE + (rand() % BLOCK_SIZE);
 
         byte in[size];
         for (size_t i = 0; i < size; i++)
@@ -377,7 +377,7 @@ int custom_checks() {
         byte dec[size];
 
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, XKCP_TURBOSHAKE_128, key, SIZE_MACRO, iv, fanout);
+        ctx_encrypt_init(&ctx, XKCP_TURBOSHAKE_128, key, BLOCK_SIZE, iv, fanout);
         encrypt(&ctx, in, enc, size);
         encrypt(&ctx, enc, dec, size);
 
@@ -395,8 +395,8 @@ int custom_checks() {
 // Pick 1st fanouts available for the selected block size
 void setup_fanouts(uint8_t n, uint8_t *fanouts) {
         uint8_t count = 0;
-        for (uint8_t fanout = 2; fanout <= SIZE_MACRO; fanout++) {
-                if (SIZE_MACRO % fanout)
+        for (uint8_t fanout = 2; fanout <= BLOCK_SIZE; fanout++) {
+                if (BLOCK_SIZE % fanout)
                         continue;
 
                 fanouts[count++] = fanout;

@@ -13,12 +13,12 @@ void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout) {
         byte *in  = buffer;
         byte *out = buffer;
 
-        size_t mini_size = SIZE_MACRO / fanout;
+        size_t mini_size = BLOCK_SIZE / fanout;
 
         uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
         uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size             = macros_in_slab * SIZE_MACRO;
+        size_t prev_slab_size        = prev_macros_in_slab * BLOCK_SIZE;
+        size_t slab_size             = macros_in_slab * BLOCK_SIZE;
 
         byte *last = out + size;
         uint64_t in_mini_offset, out_macro_offset, out_mini_offset;
@@ -41,7 +41,7 @@ void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout) {
                                         in_mini_offset += mini_size;
                                         out_mini_offset += prev_slab_size;
                                 }
-                                out_macro_offset += SIZE_MACRO;
+                                out_macro_offset += BLOCK_SIZE;
                         }
                 }
                 in += slab_size;
@@ -60,12 +60,12 @@ void spread_chunks(spread_chunks_args_t *args) {
         if (DEBUG)
                 assert(args->level >= args->thread_levels);
 
-        size_t mini_size = SIZE_MACRO / args->fanout;
+        size_t mini_size = BLOCK_SIZE / args->fanout;
 
         uint64_t prev_macros_in_slab = intpow(args->fanout, args->level - 1);
         uint64_t macros_in_slab      = args->fanout * prev_macros_in_slab;
-        size_t prev_slab_size        = prev_macros_in_slab * SIZE_MACRO;
-        size_t slab_size             = macros_in_slab * SIZE_MACRO;
+        size_t prev_slab_size        = prev_macros_in_slab * BLOCK_SIZE;
+        size_t slab_size             = macros_in_slab * BLOCK_SIZE;
 
         uint8_t nof_threads = intpow(args->fanout, args->total_levels - args->thread_levels);
         uint64_t nof_slabs  = args->buffer_abs_size / slab_size;
@@ -98,7 +98,7 @@ void spread_chunks(spread_chunks_args_t *args) {
         byte *in  = args->buffer;
         byte *out = args->buffer_abs + out_slab_offset + out_inside_slab_offset + out_mini_offset;
 
-        uint64_t nof_macros = args->buffer_size / SIZE_MACRO;
+        uint64_t nof_macros = args->buffer_size / BLOCK_SIZE;
 
         uint64_t in_mini_offset   = 0;
         uint64_t out_macro_offset = 0;
@@ -115,6 +115,6 @@ void spread_chunks(spread_chunks_args_t *args) {
                         in_mini_offset += mini_size;
                         out_mini_offset += prev_slab_size;
                 }
-                out_macro_offset += SIZE_MACRO;
+                out_macro_offset += BLOCK_SIZE;
         }
 }

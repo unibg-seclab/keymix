@@ -32,7 +32,7 @@ typedef struct {
         const char *key;
         uint128_t iv;
         uint8_t fanout;
-        mix_t mixctr;
+        mix_t mix;
         uint8_t threads;
         bool verbose;
 } cli_args_t;
@@ -220,13 +220,13 @@ int main(int argc, char **argv) {
         key_size = get_file_size(fkey);
         key      = checked_malloc(key_size);
 
-        if (key_size % SIZE_MACRO != 0) {
-                errmsg("key must be a multiple of %d B", SIZE_MACRO);
+        if (key_size % BLOCK_SIZE != 0) {
+                errmsg("key must be a multiple of %d B", BLOCK_SIZE);
                 err = ERR_KEY_SIZE;
                 goto cleanup;
         }
 
-        size_t num_macros = key_size / SIZE_MACRO;
+        size_t num_macros = key_size / BLOCK_SIZE;
         if (!ISPOWEROF(num_macros, args.fanout)) {
                 errmsg("key's number of blocks is not a power of fanout (%d)", args.fanout);
                 err = ERR_KEY_SIZE;
