@@ -24,7 +24,7 @@ typedef struct {
         // uint128_t iv;
         uint128_t counter;
 
-        // mixpass_impl_t mixpass;
+        // mix_func_t mixpass;
         // uint8_t fanout;
         uint8_t internal_threads;
 } worker_args_t;

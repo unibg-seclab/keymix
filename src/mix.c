@@ -622,7 +622,7 @@ int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size) {
 
 // *** GET IMPLEMENTATION BY NAME ***
 
-inline mixpass_impl_t get_mix_impl(mix_t mix_type) {
+inline mix_func_t get_mix_func(mix_t mix_type) {
         switch (mix_type) {
 #if BLOCK_SIZE == 16
         case OPENSSL_AES_128:

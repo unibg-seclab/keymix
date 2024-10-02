@@ -213,8 +213,8 @@ int verify_keymix(size_t fanout, uint8_t level) {
         int err = 0;
         int nof_groups = sizeof(groups) / sizeof(*groups);
         for (int g = 0; g < nof_groups; g++) {
-                keymix(get_mix_impl(groups[g][0]), in, out[0], size, fanout, 1);
-                keymix(get_mix_impl(groups[g][1]), in, out[1], size, fanout, 1);
+                keymix(get_mix_func(groups[g][0]), in, out[0], size, fanout, 1);
+                keymix(get_mix_func(groups[g][1]), in, out[1], size, fanout, 1);
                 char *error_msg = (char *) malloc(80 * sizeof(char));
                 sprintf(error_msg, "%s != %s\n", get_mix_name(groups[g][0]), get_mix_name(groups[g][1]));
                 err += COMPARE(out[0], out[1], size, error_msg);
@@ -243,7 +243,7 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         size_t thrf   = fanout;
         size_t thrff  = fanout * fanout;
 
-        mixpass_impl_t hash = get_mix_impl(XKCP_TURBOSHAKE_128);
+        mix_func_t hash = get_mix_func(XKCP_TURBOSHAKE_128);
 
         keymix(hash, in, out1, size, fanout, thr1);
         keymix(hash, in, outf, size, fanout, thrf);
@@ -283,7 +283,7 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         keymix_ctx_t ctx;
         ctx_keymix_init(&ctx, XKCP_TURBOSHAKE_128, in, size, fanout);
 
-        keymix(get_mix_impl(XKCP_TURBOSHAKE_128), in, out_simple, size, fanout, 1);
+        keymix(get_mix_func(XKCP_TURBOSHAKE_128), in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
 
         keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);

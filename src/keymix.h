@@ -22,7 +22,7 @@ int get_available_fanouts(uint8_t n, uint8_t *fanouts);
 // Here `size` is the size of both input and output, and must be a multiple
 // of `BLOCK_SIZE`.
 // Accepts a positive number of threads, which must be a power of `fanout`.
-int keymix(mixpass_impl_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
+int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
            uint8_t nof_threads);
 
 #endif

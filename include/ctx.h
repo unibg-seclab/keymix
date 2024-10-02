@@ -20,7 +20,7 @@ typedef struct {
         mix_t mix;
 
         // The mix implementation.
-        mixpass_impl_t mixpass;
+        mix_func_t mixpass;
 
         // The fanout for the shuffle/spread part, can only be 2, 3, or 4
         uint8_t fanout;

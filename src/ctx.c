@@ -11,7 +11,7 @@ void ctx_init(keymix_ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fano
         ctx->key      = key;
         ctx->key_size = size;
         ctx->mix      = mix;
-        ctx->mixpass  = get_mix_impl(mix);
+        ctx->mixpass  = get_mix_func(mix);
         ctx->fanout   = fanout;
 }
 

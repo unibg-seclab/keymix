@@ -27,7 +27,7 @@ typedef struct {
         size_t chunk_size;
         uint8_t thread_levels;
         uint8_t total_levels;
-        mixpass_impl_t mixpass;
+        mix_func_t mixpass;
         uint8_t fanout;
         thr_barrier_t *barrier;
 } thr_keymix_t;
@@ -125,7 +125,7 @@ inline uint8_t total_levels(size_t size, uint8_t fanout) {
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
-void keymix_inner(mixpass_impl_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
+void keymix_inner(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
                   uint8_t levels) {
         (*mixpass)(in, out, size);
         for (uint8_t l = 1; l < levels; l++) {
@@ -189,7 +189,7 @@ thread_exit:
         return NULL;
 }
 
-int keymix(mixpass_impl_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
+int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
            uint8_t nof_threads) {
         if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
@@ -241,7 +241,7 @@ int keymix(mixpass_impl_t mixpass, byte *in, byte *out, size_t size, uint8_t fan
                 a->chunk_size    = thread_chunk_size;
                 a->thread_levels = thread_levels;
                 a->total_levels  = levels;
-                a->mixpass    = mixpass;
+                a->mixpass       = mixpass;
                 a->fanout        = fanout;
 
                 pthread_create(&threads[t], NULL, w_thread_keymix, a);

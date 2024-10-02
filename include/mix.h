@@ -7,7 +7,7 @@
 
 // A function that implements mix on a series of blocks.
 // Here `size` must be a multiple of `BLOCK_SIZE`.
-typedef int (*mixpass_impl_t)(byte *in, byte *out, size_t size);
+typedef int (*mix_func_t)(byte *in, byte *out, size_t size);
 
 // Accepted types of mix implementations.
 typedef enum {
@@ -124,8 +124,8 @@ const static mix_t MIX_TYPES[] = {
 #endif
 };
 
-// Obtains the corresponding MixCTR function given a certain AES implmmentation.
-mixpass_impl_t get_mix_impl(mix_t mix_type);
+// Get the mix function given its mix type.
+mix_func_t get_mix_func(mix_t mix_type);
 
 // Get the mix name given its mix type.
 char *get_mix_name(mix_t mix_type);
