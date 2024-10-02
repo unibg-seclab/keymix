@@ -8,7 +8,7 @@
 #include "enc.h"
 #include "keymix.h"
 #include "log.h"
-#include "mixctr.h"
+#include "mix.h"
 #include "spread.h"
 #include "types.h"
 #include "utils.h"
@@ -182,39 +182,39 @@ int verify_keymix(size_t fanout, uint8_t level) {
         byte *in     = setup(size, true);
         byte *out[2] = { setup(size, false), setup(size, false) };
 
-        mixctr_t groups[][2] = {
+        mix_t groups[][2] = {
 #if SIZE_MACRO == 16
                 // 128-bit block size
-                { MIXCTR_OPENSSL_DAVIES_MEYER_128, MIXCTR_WOLFCRYPT_DAVIES_MEYER_128 },
-                { MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128, MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128 },
+                { OPENSSL_DAVIES_MEYER_128, WOLFCRYPT_DAVIES_MEYER_128 },
+                { OPENSSL_MATYAS_MEYER_OSEAS_128, WOLFCRYPT_MATYAS_MEYER_OSEAS_128 },
 #elif SIZE_MACRO == 32
                 // 256-bit block size
-                { MIXCTR_OPENSSL_SHA3_256, MIXCTR_WOLFCRYPT_SHA3_256 },
-                { MIXCTR_OPENSSL_BLAKE2S, MIXCTR_WOLFCRYPT_BLAKE2S },
+                { OPENSSL_SHA3_256, WOLFCRYPT_SHA3_256 },
+                { OPENSSL_BLAKE2S, WOLFCRYPT_BLAKE2S },
 #elif SIZE_MACRO == 48
                 // 384-bit block size
-                { MIXCTR_AESNI, MIXCTR_OPENSSL },
-                { MIXCTR_OPENSSL, MIXCTR_WOLFSSL },
+                { AESNI_MIXCTR, OPENSSL_MIXCTR },
+                { OPENSSL_MIXCTR, WOLFSSL_MIXCTR },
 #elif SIZE_MACRO == 64
                 // 512-bit block size
-                { MIXCTR_OPENSSL_SHA3_512, MIXCTR_WOLFCRYPT_SHA3_512 },
-                { MIXCTR_OPENSSL_BLAKE2B, MIXCTR_WOLFCRYPT_BLAKE2B },
+                { OPENSSL_SHA3_512, WOLFCRYPT_SHA3_512 },
+                { OPENSSL_BLAKE2B, WOLFCRYPT_BLAKE2B },
 #endif
 #if SIZE_MACRO <= 128
                 // 1600-bit internal state: r=1088, c=512
-                { MIXCTR_OPENSSL_SHAKE256, MIXCTR_WOLFCRYPT_SHAKE256 },
+                { OPENSSL_SHAKE256, WOLFCRYPT_SHAKE256 },
 #endif
 #if SIZE_MACRO <= 160
                 // 1600-bit internal state: r=1344, c=256
-                { MIXCTR_OPENSSL_SHAKE128, MIXCTR_WOLFCRYPT_SHAKE128 },
+                { OPENSSL_SHAKE128, WOLFCRYPT_SHAKE128 },
 #endif
         };
 
         int err = 0;
         int nof_groups = sizeof(groups) / sizeof(*groups);
         for (int g = 0; g < nof_groups; g++) {
-                keymix(get_mixctr_impl(groups[g][0]), in, out[0], size, fanout, 1);
-                keymix(get_mixctr_impl(groups[g][1]), in, out[1], size, fanout, 1);
+                keymix(get_mix_impl(groups[g][0]), in, out[0], size, fanout, 1);
+                keymix(get_mix_impl(groups[g][1]), in, out[1], size, fanout, 1);
                 char *error_msg = (char *) malloc(80 * sizeof(char));
                 sprintf(error_msg, "%s != %s\n", get_mix_name(groups[g][0]), get_mix_name(groups[g][1]));
                 err += COMPARE(out[0], out[1], size, error_msg);
@@ -243,7 +243,7 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         size_t thrf   = fanout;
         size_t thrff  = fanout * fanout;
 
-        mixctrpass_impl_t hash = get_mixctr_impl(MIXCTR_XKCP_TURBOSHAKE_128);
+        mixpass_impl_t hash = get_mix_impl(XKCP_TURBOSHAKE_128);
 
         keymix(hash, in, out1, size, fanout, thr1);
         keymix(hash, in, outf, size, fanout, thrf);
@@ -281,9 +281,9 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         uint8_t internal_threads = 1;
 
         keymix_ctx_t ctx;
-        ctx_keymix_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, in, size, fanout);
+        ctx_keymix_init(&ctx, XKCP_TURBOSHAKE_128, in, size, fanout);
 
-        keymix(get_mixctr_impl(MIXCTR_XKCP_TURBOSHAKE_128), in, out_simple, size, fanout, 1);
+        keymix(get_mix_impl(XKCP_TURBOSHAKE_128), in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
 
         keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);
@@ -328,7 +328,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         byte *outman = setup(keymix_out_size, false);
 
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, iv, fanout);
+        ctx_encrypt_init(&ctx, XKCP_TURBOSHAKE_128, key, key_size, iv, fanout);
 
         encrypt(&ctx, in, out1, resource_size);
         encrypt_t(&ctx, in, out2, resource_size, 2, 1);
@@ -338,7 +338,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
         err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
 
-        ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, iv, fanout);
+        ctx_encrypt_init(&ctx, XKCP_TURBOSHAKE_128, key, key_size, iv, fanout);
         encrypt_t(&ctx, in, out2, resource_size, 1, fanout);
         encrypt_t(&ctx, in, out3, resource_size, 1, fanout * fanout);
         err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
@@ -347,7 +347,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         err += COMPARE(out2, out3, resource_size, "Encrypt (%d int-thr) != Encrypt (%d int-thr)\n",
                        fanout, fanout * fanout);
 
-        ctx_keymix_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, fanout);
+        ctx_keymix_init(&ctx, XKCP_TURBOSHAKE_128, key, key_size, fanout);
         ctx_enable_iv_counter(&ctx, iv);
         keymix_t(&ctx, outman, keymix_out_size, 1, 1);
         memxor(outman, in, outman, resource_size);
@@ -377,7 +377,7 @@ int custom_checks() {
         byte dec[size];
 
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, SIZE_MACRO, iv, fanout);
+        ctx_encrypt_init(&ctx, XKCP_TURBOSHAKE_128, key, SIZE_MACRO, iv, fanout);
         encrypt(&ctx, in, enc, size);
         encrypt(&ctx, enc, dec, size);
 

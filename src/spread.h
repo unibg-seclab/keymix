@@ -23,10 +23,10 @@ typedef struct {
         // The actual size of the whole buffer.
         size_t buffer_abs_size;
 
-        // How many levels of MixCTR can be done by the threads without synchronization.
+        // How many levels of mixing can be done by the threads without synchronization.
         uint8_t thread_levels;
 
-        // The total number of MixCTR levels.
+        // The total number of mixing levels.
         uint8_t total_levels;
 
         // The fanout to consider.

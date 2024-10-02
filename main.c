@@ -20,7 +20,7 @@
 #include "ctx.h"
 #include "keymix.h"
 #include "log.h"
-#include "mixctr.h"
+#include "mix.h"
 #include "types.h"
 #include "utils.h"
 
@@ -53,7 +53,7 @@ int main() {
                 goto clean;
         }
 
-        const mixctr_t *configs = MIX_TYPES;
+        const mix_t *configs = MIX_TYPES;
 
         // mixing_config mconf = {&wolfssl, 3};
         // uint8_t threads[] = {1, 3, 9, 27, 81};
@@ -62,7 +62,7 @@ int main() {
         //         int pe              = 0;
         //         uint8_t nof_threads = threads[t];
         //         double time =
-        //             MEASURE({ pe = keymix(get_mixctr_impl(configs[0]), key, out, key_size, 3, nof_threads); });
+        //             MEASURE({ pe = keymix(get_mix_impl(configs[0]), key, out, key_size, 3, nof_threads); });
         //         uint8_t precision    = 2;
         //         double readable_size = (double)key_size / SIZE_1MiB;
         //         printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
@@ -77,7 +77,7 @@ int main() {
         // }
 
         int err = 0;
-        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mixctr_t); i++) {
+        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_t); i++) {
                 printf("zeroing memory...\n");
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
@@ -97,8 +97,8 @@ int main() {
                 keymix_ctx_t ctx;
                 ctx_keymix_init(&ctx, configs[i], key, key_size, fanout);
 
-                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, fanout, 1); }); // all layers
-                // double time = MEASURE({ err = (*get_mixctr_impl(configs[i]))(key, out, key_size); }); // single layer
+                double time = MEASURE({ err = keymix(get_mix_impl(configs[i]), key, out, key_size, fanout, 1); }); // all layers
+                // double time = MEASURE({ err = (*get_mix_impl(configs[i]))(key, out, key_size); }); // single layer
 
                 explicit_bzero(out, key_size);
 

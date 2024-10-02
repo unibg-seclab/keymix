@@ -32,7 +32,7 @@ typedef struct {
         const char *key;
         uint128_t iv;
         uint8_t fanout;
-        mixctr_t mixctr;
+        mix_t mixctr;
         uint8_t threads;
         bool verbose;
 } cli_args_t;
@@ -116,8 +116,8 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         argp_error(state, "IV must consist of valid hex characters");
                 break;
         case ARG_KEY_PRIMITIVE:
-                arguments->mixctr = get_mix_type(arg);
-                if (arguments->mixctr == -1)
+                arguments->mix = get_mix_type(arg);
+                if (arguments->mix == -1)
                         argp_error(state, "primitive must be one of the available ones");
                 break;
         case ARG_KEY_THREADS:
@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
         args.output  = NULL;
         args.key     = NULL;
         args.iv      = 0;
-        args.mixctr  = MIXCTR_XKCP_TURBOSHAKE_128;
+        args.mix     = XKCP_TURBOSHAKE_128;
         args.threads = 1;
         args.verbose = false;
 
@@ -189,7 +189,7 @@ int main(int argc, char **argv) {
                 printf("key:       %s\n", args.key);
                 printf("iv:        [redacted]\n");
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
-                printf("primitive: %s", get_mix_name(args.mixctr));
+                printf("primitive: %s", get_mix_name(args.mix));
                 printf("fanout:    %d\n", args.fanout);
                 printf("threads:   %d\n", args.threads);
                 printf("===============\n");
@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
 
         // Do the encryption
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, args.mixctr, key, key_size, args.iv, args.fanout);
+        ctx_encrypt_init(&ctx, args.mix, key, key_size, args.iv, args.fanout);
         if (stream_encrypt(fout, fin, &ctx, args.threads))
                 err = ERR_ENC;
 

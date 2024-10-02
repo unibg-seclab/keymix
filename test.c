@@ -132,7 +132,7 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
 
 void test_keymix(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
                  uint8_t external_threads) {
-        char *impl = get_mix_name(ctx->mixctr);
+        char *impl = get_mix_name(ctx->mix);
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
              external_threads, impl, ctx->fanout, size / ctx->key_size);
 
@@ -206,8 +206,8 @@ int main(int argc, char *argv[]) {
         char *out_keymix = "data/out.csv";
         char *out_enc    = "data/enc.csv";
 
-        const mixctr_t *mix_types = MIX_TYPES;
-        uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mixctr_t);
+        const mix_t *mix_types = MIX_TYPES;
+        uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mix_t);
 
         uint8_t fanouts[NUM_OF_FANOUTS];
         uint8_t fanouts_count = get_available_fanouts(NUM_OF_FANOUTS, fanouts);
@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
         csv_header();
 
         FOR_EVERY(mix_type_p, mix_types, mix_types_count) {
-                mixctr_t mix_type = *mix_type_p;
+                mix_t mix_type = *mix_type_p;
 
                 FOR_EVERY(fanout_p, fanouts, fanouts_count) {
                         uint8_t fanout = *fanout_p;
@@ -313,7 +313,7 @@ int main(int argc, char *argv[]) {
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
-                                ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, 0, fanout);
+                                ctx_encrypt_init(&ctx, XKCP_TURBOSHAKE_128, key, key_size, 0, fanout);
                                 if (size < 100 * SIZE_1GiB) {
                                         out = malloc(size);
                                         in  = out;

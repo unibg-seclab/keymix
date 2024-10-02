@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "mixctr.h"
+#include "mix.h"
 #include "types.h"
 
 // The context for keymix operations. It houses all shared information that
@@ -13,14 +13,14 @@ typedef struct {
         // The secret key.
         byte *key;
 
-        // The key's size, its number of 48-B blocks must be a power of fanout.
+        // The key's size, its number of blocks must be a power of fanout.
         size_t key_size;
 
-        // The AES implementation to consider.
-        mixctr_t mixctr;
+        // The mix type to consider.
+        mix_t mix;
 
-        // The MixCTR implementation.
-        mixctrpass_impl_t mixctrpass;
+        // The mix implementation.
+        mixpass_impl_t mixpass;
 
         // The fanout for the shuffle/spread part, can only be 2, 3, or 4
         uint8_t fanout;
@@ -42,11 +42,11 @@ typedef struct {
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
-void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
+void ctx_encrypt_init(keymix_ctx_t *ctx, mix_t mixctr, byte *key, size_t size, uint128_t iv,
                       uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint8_t fanout);
+void ctx_keymix_init(keymix_ctx_t *ctx, mix_t mixctr, byte *key, size_t size, uint8_t fanout);
 
 // Updates the context `ctx` to enable the XOR operation after doing the keymix.
 void ctx_enable_encryption(keymix_ctx_t *ctx);

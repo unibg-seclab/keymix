@@ -1,4 +1,4 @@
-#include "mixctr.h"
+#include "mix.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -622,89 +622,89 @@ int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size) {
 
 // *** GET IMPLEMENTATION BY NAME ***
 
-inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
+inline mixpass_impl_t get_mix_impl(mix_t mix_type) {
         switch (mix_type) {
 #if SIZE_MACRO == 16
-        case MIXCTR_OPENSSL_AES_128:
+        case OPENSSL_AES_128:
                 fetch_openssl_cipher("AES-128-ECB");
                 return &openssl_aes_ecb;
-        case MIXCTR_OPENSSL_DAVIES_MEYER_128:
+        case OPENSSL_DAVIES_MEYER_128:
                 fetch_openssl_cipher("AES-128-ECB");
                 return &openssl_davies_meyer;
-        case MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128:
+        case OPENSSL_MATYAS_MEYER_OSEAS_128:
                 fetch_openssl_cipher("AES-128-ECB");
                 return &openssl_matyas_meyer_oseas;
-        case MIXCTR_WOLFCRYPT_AES_128:
+        case WOLFCRYPT_AES_128:
                 return &wolfcrypt_aes_ecb;
-        case MIXCTR_WOLFCRYPT_DAVIES_MEYER_128:
+        case WOLFCRYPT_DAVIES_MEYER_128:
                 return &wolfcrypt_davies_meyer;
-        case MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128:
+        case WOLFCRYPT_MATYAS_MEYER_OSEAS_128:
                 return &wolfcrypt_matyas_meyer_oseas;
 #elif SIZE_MACRO == 32
-        case MIXCTR_OPENSSL_SHA3_256:
+        case OPENSSL_SHA3_256:
                 fetch_openssl_digest("SHA3-256");
                 return &openssl_hash;
-        case MIXCTR_OPENSSL_BLAKE2S:
+        case OPENSSL_BLAKE2S:
                 fetch_openssl_digest("BLAKE2S-256");
                 return &openssl_hash;
-        case MIXCTR_WOLFCRYPT_SHA3_256:
+        case WOLFCRYPT_SHA3_256:
                 return &wolfcrypt_sha3_256_hash;
-        case MIXCTR_WOLFCRYPT_BLAKE2S:
+        case WOLFCRYPT_BLAKE2S:
                 return &wolfcrypt_blake2s_hash;
-        case MIXCTR_BLAKE3_BLAKE3:
+        case BLAKE3_BLAKE3:
                 return &blake3_blake3_hash;
 #elif SIZE_MACRO == 48
-        case MIXCTR_WOLFSSL:
+        case WOLFSSL_MIXCTR:
                 return &wolfssl;
-        case MIXCTR_OPENSSL:
+        case OPENSSL_MIXCTR:
                 fetch_openssl_cipher("AES-256-ECB");
                 return &openssl;
-        case MIXCTR_AESNI:
+        case AESNI_MIXCTR:
                 return &aesni;
 #elif SIZE_MACRO == 64
-        case MIXCTR_OPENSSL_SHA3_512:
+        case OPENSSL_SHA3_512:
                 fetch_openssl_digest("SHA3-512");
                 return &openssl_hash;
-        case MIXCTR_OPENSSL_BLAKE2B:
+        case OPENSSL_BLAKE2B:
                 fetch_openssl_digest("BLAKE2B-512");
                 return &openssl_hash;
-        case MIXCTR_WOLFCRYPT_SHA3_512:
+        case WOLFCRYPT_SHA3_512:
                 return &wolfcrypt_sha3_512_hash;
-        case MIXCTR_WOLFCRYPT_BLAKE2B:
+        case WOLFCRYPT_BLAKE2B:
                 return &wolfcrypt_blake2b_hash;
 #endif
 #if SIZE_MACRO <= 48
         // 384-bit internal state
-        case MIXCTR_XKCP_XOODYAK:
+        case XKCP_XOODYAK:
                 return &xkcp_xoodyak_hash;
-        case MIXCTR_XKCP_XOOFFF_WBC:
+        case XKCP_XOOFFF_WBC:
                 return &xkcp_xoofff_wbc_ecb;
 #endif
 #if SIZE_MACRO <= 128
         // 1600-bit internal state: r=1088, c=512
-        case MIXCTR_OPENSSL_SHAKE256:
+        case OPENSSL_SHAKE256:
                 fetch_openssl_digest("SHAKE-256");
                 return &openssl_xof_hash;
-        case MIXCTR_WOLFCRYPT_SHAKE256:
+        case WOLFCRYPT_SHAKE256:
                 return &wolfcrypt_shake256_hash;
-        case MIXCTR_XKCP_TURBOSHAKE_256:
+        case XKCP_TURBOSHAKE_256:
                 return &xkcp_turboshake256_hash;
 #endif
 #if SIZE_MACRO <= 160
         // 1600-bit internal state: r=1344, c=256
-        case MIXCTR_OPENSSL_SHAKE128:
+        case OPENSSL_SHAKE128:
                 fetch_openssl_digest("SHAKE-128");
                 return &openssl_xof_hash;
-        case MIXCTR_WOLFCRYPT_SHAKE128:
+        case WOLFCRYPT_SHAKE128:
                 return &wolfcrypt_shake128_hash;
-        case MIXCTR_XKCP_TURBOSHAKE_128:
+        case XKCP_TURBOSHAKE_128:
                 return &xkcp_turboshake128_hash;
-        case MIXCTR_XKCP_KANGAROOTWELVE:
+        case XKCP_KANGAROOTWELVE:
                 return &xkcp_kangarootwelve_hash;
 #endif
 #if SIZE_MACRO <= 192
         // 1600-bit internal state
-        case MIXCTR_XKCP_KRAVETTE_WBC:
+        case XKCP_KRAVETTE_WBC:
                 return &xkcp_kravette_wbc_ecb;
 #endif
         default:
@@ -768,13 +768,13 @@ char *MIX_NAMES[] = {
 #endif
 };
 
-char *get_mix_name(mixctr_t mix_type) {
+char *get_mix_name(mix_t mix_type) {
         return MIX_NAMES[mix_type];
 }
 
-mixctr_t get_mix_type(char* name) {
+mix_t get_mix_type(char* name) {
         for (int8_t i = 0; i < sizeof(MIX_NAMES) / sizeof(*MIX_NAMES); i++)
                 if (strcmp(name, MIX_NAMES[i]) == 0)
-                        return (mixctr_t)i;
+                        return (mix_t)i;
         return -1;
 }
