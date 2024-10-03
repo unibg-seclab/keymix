@@ -97,7 +97,7 @@ int wolfssl(byte *in, byte *out, size_t size) {
 
 int openssl(byte *in, byte *out, size_t size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        EVP_EncryptInit(ctx, fetch_openssl_cipher("AES-256-ECB"), NULL, NULL);
+        EVP_EncryptInit(ctx, openssl_cipher, NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
 
@@ -267,7 +267,7 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, fetch_openssl_cipher("AES-128-ECB"), NULL, NULL)) {
+        if (!EVP_EncryptInit(ctx, openssl_cipher, NULL, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 
@@ -575,7 +575,7 @@ int openssl_aes_ecb(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, fetch_openssl_cipher("AES-128-ECB"), key, NULL)) {
+        if (!EVP_EncryptInit(ctx, openssl_cipher, key, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 
