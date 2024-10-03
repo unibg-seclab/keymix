@@ -39,7 +39,7 @@
 
 // NOTE: These function are not thread safe, so they must be executed once by
 // the main thread and only then be shared among the worker threads. This is
-// why, despite being ugly, we call them in the get_mixctr_impl.
+// why, despite being ugly, we call them in the get_mix_func.
 
 EVP_CIPHER *openssl_cipher;
 
@@ -93,7 +93,7 @@ int wolfssl(byte *in, byte *out, size_t size) {
 
 int openssl(byte *in, byte *out, size_t size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        EVP_EncryptInit(ctx, openssl_cipher, NULL, NULL);
+        EVP_EncryptInit(ctx, fetch_openssl_cipher("AES-256-ECB"), NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
 
@@ -263,7 +263,7 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, openssl_cipher, NULL, NULL)) {
+        if (!EVP_EncryptInit(ctx, fetch_openssl_cipher("AES-128-ECB"), NULL, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 
@@ -571,7 +571,7 @@ int openssl_aes_ecb(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, openssl_cipher, key, NULL)) {
+        if (!EVP_EncryptInit(ctx, fetch_openssl_cipher("AES-128-ECB"), key, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 

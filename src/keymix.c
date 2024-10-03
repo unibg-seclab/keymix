@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "log.h"
+#include "mix.h"
 #include "spread.h"
 #include "types.h"
 #include "utils.h"
@@ -189,7 +190,7 @@ thread_exit:
         return NULL;
 }
 
-int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
+int keymix(mix_t mix_type, byte *in, byte *out, size_t size, uint8_t fanout,
            uint8_t nof_threads) {
         if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
@@ -207,7 +208,7 @@ int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
-                keymix_inner(mixpass, in, out, size, fanout, levels);
+                keymix_inner(get_mix_func(mix_type), in, out, size, fanout, levels);
                 return 0;
         }
 
@@ -241,7 +242,7 @@ int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
                 a->chunk_size    = thread_chunk_size;
                 a->thread_levels = thread_levels;
                 a->total_levels  = levels;
-                a->mixpass       = mixpass;
+                a->mixpass       = get_mix_func(mix_type);
                 a->fanout        = fanout;
 
                 pthread_create(&threads[t], NULL, w_thread_keymix, a);

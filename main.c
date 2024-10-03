@@ -62,7 +62,7 @@ int main() {
         //         int pe              = 0;
         //         uint8_t nof_threads = threads[t];
         //         double time =
-        //             MEASURE({ pe = keymix(get_mix_func(configs[0]), key, out, key_size, 3, nof_threads); });
+        //             MEASURE({ pe = keymix(configs[0], key, out, key_size, 3, nof_threads); });
         //         uint8_t precision    = 2;
         //         double readable_size = (double)key_size / SIZE_1MiB;
         //         printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
@@ -97,7 +97,7 @@ int main() {
                 keymix_ctx_t ctx;
                 ctx_keymix_init(&ctx, configs[i], key, key_size, fanout);
 
-                double time = MEASURE({ err = keymix(get_mix_func(configs[i]), key, out, key_size, fanout, 1); }); // all layers
+                double time = MEASURE({ err = keymix(configs[i], key, out, key_size, fanout, 1); }); // all layers
                 // double time = MEASURE({ err = (*get_mix_func(configs[i]))(key, out, key_size); }); // single layer
 
                 explicit_bzero(out, key_size);
