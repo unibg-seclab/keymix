@@ -8,10 +8,11 @@ void ctx_init(keymix_ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fano
         size_t num_macros = size / BLOCK_SIZE;
         assert(size % BLOCK_SIZE == 0 && ISPOWEROF(num_macros, fanout) &&
                "Number of blocks in the key MUST be a power of the fanout");
-        ctx->key      = key;
-        ctx->key_size = size;
-        ctx->mix      = mix;
-        ctx->fanout   = fanout;
+        ctx->key        = key;
+        ctx->key_size   = size;
+        ctx->mix        = mix;
+        ctx->mixpass    = get_mix_func(mix);
+        ctx->fanout     = fanout;
 }
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mix_t mixctr, byte *key, size_t size, uint128_t iv,

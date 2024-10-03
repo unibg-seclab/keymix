@@ -47,6 +47,8 @@ EVP_CIPHER* fetch_openssl_cipher(const char* cipher_name) {
         // Fetch OpenSSL cipher only when necessary
         if (!openssl_cipher || strcmp(EVP_CIPHER_get0_name(openssl_cipher), cipher_name)) {
                 openssl_cipher = EVP_CIPHER_fetch(NULL, cipher_name, NULL);
+                const char* name = EVP_CIPHER_get0_name(openssl_cipher);
+                printf("%s\n", name);
         }
 
         return openssl_cipher;
@@ -58,6 +60,8 @@ EVP_MD* fetch_openssl_digest(const char* digest_name) {
         // Fetch OpenSSL digest only when necessary
         if (!openssl_digest || strcmp(EVP_MD_get0_name(openssl_digest), digest_name)) {
                 openssl_digest = EVP_MD_fetch(NULL, digest_name, NULL);
+                const char* name = EVP_MD_get0_name(openssl_digest);
+                printf("%s\n", name);
         }
 
         return openssl_digest;

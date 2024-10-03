@@ -92,7 +92,7 @@ void *w_keymix(void *a) {
         size_t remaining_size = args->resource_size;
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
-                keymix(ctx->mix, tmpkey, outbuffer, ctx->key_size, ctx->fanout,
+                keymix(ctx->mixpass, tmpkey, outbuffer, ctx->key_size, ctx->fanout,
                        args->internal_threads);
 
                 if (ctx->encrypt) {
