@@ -114,33 +114,14 @@ inline uint8_t total_levels(size_t size, size_t size_macro, uint8_t fanout) {
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
-// This is a little hack, because OpenSSL is *painfully* slow when used in
-// multi-threaded environments.
-// https://github.com/openssl/openssl/issues/17064
-// This is defined in mixctr.c
-// extern EVP_CIPHER *openssl_aes256ecb;
-EVP_CIPHER *openssl_aes256ecb;
-
 int openssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out);
 
 inline void mixctrpass(keymix_ctx_t *ctx, byte *in, byte *out, size_t size) {
         byte *last = in + size;
 
         void *libctx = NULL;
-
-        switch (ctx->mixctr_name) {
-        case MIXCTR_OPENSSL:
-                libctx = EVP_CIPHER_CTX_new();
-                EVP_EncryptInit(libctx, openssl_aes256ecb, NULL, NULL);
-                EVP_CIPHER_CTX_set_padding(libctx, 0);
-                break;
-        case MIXCTR_WOLFSSL:
-                libctx = malloc(sizeof(Aes));
-                wc_AesInit(libctx, NULL, INVALID_DEVID);
-                break;
-        case MIXCTR_AESNI:
-                libctx = NULL;
-                break;
+        if (ctx->mixctrpass_setup) {
+                libctx = ctx->mixctrpass_setup();
         }
 
         for (; in < last; in += ctx->size_macro, out += ctx->size_macro) {
@@ -150,17 +131,8 @@ inline void mixctrpass(keymix_ctx_t *ctx, byte *in, byte *out, size_t size) {
                 (*(ctx->mixctr_impl))(libctx, key, data, 3, out);
         }
 
-        switch (ctx->mixctr_name) {
-        case MIXCTR_OPENSSL:
-                EVP_CIPHER_CTX_cleanup(libctx);
-                EVP_CIPHER_CTX_free(libctx);
-                break;
-        case MIXCTR_WOLFSSL:
-                wc_AesFree(libctx);
-                free(libctx);
-                break;
-        case MIXCTR_AESNI:
-                break;
+        if (ctx->mixctrpass_teardown) {
+                ctx->mixctrpass_teardown(libctx);
         }
 }
 

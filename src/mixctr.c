@@ -20,6 +20,16 @@ int wolfssl(void *wolfssl_ctx, byte *key, uint128_t *data, size_t blocks_per_mac
         return 0;
 }
 
+void *wolfssl_mixctrpass_setup() {
+        void *libctx = malloc(sizeof(Aes));
+        wc_AesInit(libctx, NULL, INVALID_DEVID);
+        return libctx;
+}
+void wolfssl_mixctrpass_teardown(void *libctx) {
+        wc_AesFree(libctx);
+        free(libctx);
+}
+
 // ------------------------------------------------------------ OpenSSL
 
 int openssl(void *openssl_ctx, byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
@@ -27,6 +37,24 @@ int openssl(void *openssl_ctx, byte *key, uint128_t *data, size_t blocks_per_mac
         EVP_EncryptInit(openssl_ctx, NULL, key, NULL);
         EVP_EncryptUpdate(openssl_ctx, out, &outl, (byte *)data, blocks_per_macro * SIZE_BLOCK);
         return 0;
+}
+
+// This is a little hack, because OpenSSL is *painfully* slow when used in
+// multi-threaded environments.
+// https://github.com/openssl/openssl/issues/17064
+// This is defined in mixctr.c
+// extern EVP_CIPHER *openssl_aes256ecb;
+EVP_CIPHER *openssl_aes256ecb;
+
+void *openssl_mixctrpass_setup() {
+        void *libctx = EVP_CIPHER_CTX_new();
+        EVP_EncryptInit(libctx, openssl_aes256ecb, NULL, NULL);
+        EVP_CIPHER_CTX_set_padding(libctx, 0);
+        return libctx;
+}
+void openssl_mixctrpass_teardown(void *libctx) {
+        EVP_CIPHER_CTX_cleanup(libctx);
+        EVP_CIPHER_CTX_free(libctx);
 }
 
 // ------------------------------------------------------------ AES-NI as implemented by Intel
@@ -120,18 +148,26 @@ int aesni(void *_ignored, byte *key, uint128_t *data, size_t blocks_per_macro, b
 
 // ------------------------------------------------------------ Generic mixctr code
 
-inline int get_mixctr_impl(mixctr_t name, mixctr_impl_t *impl, size_t *size_macro) {
+inline int get_mixctr_impl(mixctr_t name, mixctr_impl_t *impl, size_t *size_macro,
+                           mixctrpass_setup_impl_t *mixctrpass_setup,
+                           mixctrpass_teardown_impl_t *mixctrpass_teardown) {
         *size_macro = 48;
 
         switch (name) {
         case MIXCTR_WOLFSSL:
-                *impl = &wolfssl;
+                *impl                = &wolfssl;
+                *mixctrpass_setup    = &wolfssl_mixctrpass_setup;
+                *mixctrpass_teardown = &wolfssl_mixctrpass_teardown;
                 return 0;
         case MIXCTR_OPENSSL:
-                *impl = &openssl;
+                *impl                = &openssl;
+                *mixctrpass_setup    = &openssl_mixctrpass_setup;
+                *mixctrpass_teardown = &openssl_mixctrpass_teardown;
                 return 0;
         case MIXCTR_AESNI:
-                *impl = &aesni;
+                *impl                = &aesni;
+                *mixctrpass_setup    = NULL;
+                *mixctrpass_teardown = NULL;
                 return 0;
         default:
                 *impl       = NULL;

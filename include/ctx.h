@@ -24,6 +24,9 @@ typedef struct {
         // ... and its name
         mixctr_t mixctr_name;
 
+        mixctrpass_setup_impl_t mixctrpass_setup;
+        mixctrpass_teardown_impl_t mixctrpass_teardown;
+
         // The fanout for the shuffle/spread part, can only be 2, 3, or 4
         fanout_t fanout;
 

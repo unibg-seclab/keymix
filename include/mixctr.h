@@ -11,6 +11,9 @@
 typedef int (*mixctr_impl_t)(void *libctx, byte *key, uint128_t *data, size_t blocks_per_macro,
                              byte *out);
 
+typedef void *(*mixctrpass_setup_impl_t)();
+typedef void (*mixctrpass_teardown_impl_t)(void *libctx);
+
 // Accepted AES implementations for MixCTR.
 typedef enum {
         MIXCTR_WOLFSSL,
@@ -21,6 +24,8 @@ typedef enum {
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.
 // Also gets the correct macro size (for now, always 48 B).
 // Returns 0 on success, 1 if the given implementation does not exists.
-int get_mixctr_impl(mixctr_t name, mixctr_impl_t *impl, size_t *size_macro);
+int get_mixctr_impl(mixctr_t name, mixctr_impl_t *impl, size_t *size_macro,
+                    mixctrpass_setup_impl_t *mixctrpass_setup,
+                    mixctrpass_teardown_impl_t *mixctrpass_teardown);
 
 #endif

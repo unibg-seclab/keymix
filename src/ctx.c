@@ -22,7 +22,8 @@ int ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
 
 int ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
         int err = 0;
-        if (get_mixctr_impl(mixctr, &ctx->mixctr_impl, &ctx->size_macro)) {
+        if (get_mixctr_impl(mixctr, &ctx->mixctr_impl, &ctx->size_macro, &ctx->mixctrpass_setup,
+                            &ctx->mixctrpass_teardown)) {
                 err = CTX_ERR_NOMIXCTR;
         }
         ctx->mixctr_name = mixctr;
