@@ -12,24 +12,17 @@
 
 // ------------------------------------------------------------ WolfSSL
 
-int wolfssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
-        Aes aes;
-        wc_AesInit(&aes, NULL, INVALID_DEVID);
-
-        wc_AesSetKey(&aes, key, 2 * SIZE_BLOCK, NULL, AES_ENCRYPTION);
+int wolfssl(void *wolfssl_ctx, byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
+        wc_AesSetKey(wolfssl_ctx, key, 2 * SIZE_BLOCK, NULL, AES_ENCRYPTION);
 
         for (uint8_t b = 0; b < blocks_per_macro; b++)
-                wc_AesEncryptDirect(&aes, out + b * SIZE_BLOCK, (byte *)(data + b));
-
-        wc_AesFree(&aes);
+                wc_AesEncryptDirect(wolfssl_ctx, out + b * SIZE_BLOCK, (byte *)(data + b));
         return 0;
 }
 
 // ------------------------------------------------------------ OpenSSL
 
-EVP_CIPHER_CTX *openssl_ctx;
-
-int openssl(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
+int openssl(void *openssl_ctx, byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
         int outl;
         EVP_EncryptInit(openssl_ctx, NULL, key, NULL);
         EVP_EncryptUpdate(openssl_ctx, out, &outl, (byte *)data, blocks_per_macro * SIZE_BLOCK);
@@ -114,7 +107,7 @@ void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         _mm_storeu_si128((__m128i *)out, m);
 }
 
-int aesni(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
+int aesni(void *_ignored, byte *key, uint128_t *data, size_t blocks_per_macro, byte *out) {
         __m128i key_schedule[15];
 
         aes_256_key_expansion(key, key_schedule);

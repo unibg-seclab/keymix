@@ -19,8 +19,10 @@ typedef struct {
         // The key's size, its number of 48-B blocks must be a power of fanout.
         size_t key_size;
 
-        // The MixCTR implementation.
+        // The MixCTR implementation...
         mixctr_impl_t mixctr_impl;
+        // ... and its name
+        mixctr_t mixctr_name;
 
         // The fanout for the shuffle/spread part, can only be 2, 3, or 4
         fanout_t fanout;

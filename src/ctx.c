@@ -25,6 +25,7 @@ int ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, 
         if (get_mixctr_impl(mixctr, &ctx->mixctr_impl, &ctx->size_macro)) {
                 err = CTX_ERR_NOMIXCTR;
         }
+        ctx->mixctr_name = mixctr;
 
         size_t num_macros = size / ctx->size_macro;
         if (size % ctx->size_macro != 0 || !ISPOWEROF(num_macros, fanout)) {

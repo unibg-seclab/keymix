@@ -6,7 +6,10 @@
 #include <stdlib.h>
 
 // A function that implements MixCTR on a 48-B block.
-typedef int (*mixctr_impl_t)(byte *key, uint128_t *data, size_t blocks_per_macro, byte *out);
+// `libctx` is whatever context necessary for the underlying library, or NULL
+// if not needed
+typedef int (*mixctr_impl_t)(void *libctx, byte *key, uint128_t *data, size_t blocks_per_macro,
+                             byte *out);
 
 // Accepted AES implementations for MixCTR.
 typedef enum {
