@@ -3,6 +3,7 @@
 #include "config.h"
 #include "log.h"
 #include "types.h"
+#include "utils.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -220,7 +221,7 @@ int openssl_xof_hash(byte *in, byte *out, size_t size) {
 EVP_CIPHER *openssl_aes128ecb;
 
 int openssl_davies_meyer(byte *in, byte *out, size_t size) {
-        const unsigned char *iv = "curr-hadcoded-iv";
+        unsigned char *iv = "curr-hadcoded-iv";
         int outl;
 
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -242,6 +243,7 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size) {
                 if (!EVP_EncryptUpdate(ctx, out, &outl, iv, SIZE_MACRO)) {
                         _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
                 }
+                memxor(out, out, iv, SIZE_MACRO);
         }
 
         // if (!EVP_EncryptFinal(ctx, out, &outl)) {
@@ -350,7 +352,7 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
 int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
         int ret;
         Aes aes;
-        const byte *iv = "curr-hadcoded-iv";
+        byte *iv = "curr-hadcoded-iv";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -367,6 +369,7 @@ int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
                 if (ret) {
                         _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
                 }
+                memxor(out, out, iv, SIZE_MACRO);
         }
 
         wc_AesFree(&aes);
