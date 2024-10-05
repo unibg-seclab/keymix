@@ -692,7 +692,6 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
 #if SIZE_MACRO <= 160
         // 1600-bit internal state: r=1344, c=256
         case MIXCTR_OPENSSL_SHAKE128:
-                fetch_openssl_digest("SHAKE-128");
                 return &openssl_xof_hash;
         case MIXCTR_WOLFCRYPT_SHAKE128:
                 return &wolfcrypt_shake128_hash;

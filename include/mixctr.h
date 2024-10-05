@@ -55,10 +55,6 @@ typedef enum {
         MIXCTR_OPENSSL_SHAKE256,
         MIXCTR_WOLFCRYPT_SHAKE256,
         MIXCTR_XKCP_TURBOSHAKE_256,
-        // Kravette in wide block cipher mode
-        // To ensure a security strength of 128 bits, the block size should be
-        // at least of 64 bytes (see https://eprint.iacr.org/2016/1188.pdf).
-        MIXCTR_XKCP_KRAVETTE_WBC,
 #endif
 #if SIZE_MACRO <= 160
         // 1600-bit internal state: r=1344, c=256
