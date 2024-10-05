@@ -255,9 +255,9 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size) {
 }
 
 int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
-        // To support inplace execution of the function we need to make a copy
-        // of the input
-        unsigned char *in_copy = (unsigned char *) malloc(size);
+        // To support inplace execution of the function we need avoid
+        // overwriting the input
+        unsigned char *out_enc = (in == out ? malloc(size) : out);
         unsigned char *iv = "curr-hadcoded-iv";
         int outl;
 
@@ -272,18 +272,21 @@ int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
 
         EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
 
-        memcpy(in_copy, in, size);
-        if (!EVP_EncryptUpdate(ctx, out, &outl, in, size)) {
+        if (!EVP_EncryptUpdate(ctx, out_enc, &outl, in, size)) {
                 _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
         }
-        memxor(out, out, in_copy, size);
 
-        // if (!EVP_EncryptFinal(ctx, out, &outl)) {
+        // if (!EVP_EncryptFinal(ctx, out_enc, &outl)) {
         //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
         // }
 
+        memxor(out, out_enc, in, size);
+
         EVP_CIPHER_CTX_free(ctx);
-        free(in_copy);
+
+        if (in == out) {
+                free(out_enc);
+        }
         return 0;
 }
 
@@ -412,10 +415,10 @@ int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
 int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
         int ret;
         Aes aes;
+        // To support inplace execution of the function we need avoid
+        // overwriting the input
+        byte *out_enc = (in == out ? malloc(size) : out);
         byte *iv = "curr-hadcoded-iv";
-        // To support inplace execution of the function we need to make a copy
-        // of the input
-        byte *in_copy = (byte *) malloc(SIZE_MACRO);
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -429,16 +432,17 @@ int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
 
         byte *last = in + size;
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                memcpy(in_copy, in, SIZE_MACRO);
-                ret = wc_AesEncryptDirect(&aes, out, in);
+                ret = wc_AesEncryptDirect(&aes, out_enc, in);
                 if (ret) {
                         _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
                 }
-                memxor(out, out, in_copy, SIZE_MACRO);
+                memxor(out, out_enc, in, SIZE_MACRO);
         }
 
         wc_AesFree(&aes);
-        free(in_copy);
+        if (in == out) {
+                free(out_enc);
+        }
         return 0;
 }
 
