@@ -37,21 +37,26 @@ typedef enum {
         MIXCTR_WOLFCRYPT_BLAKE2B,
 #endif
         // Extendable-output functions (XOFs)
-#if SIZE_MACRO <= 48 /* 384-bit internal state */
+#if SIZE_MACRO <= 48
+        // 384-bit internal state
         MIXCTR_XKCP_XOODYAK,
 #endif
-#if SIZE_MACRO <= 192 /* 1600-bit internal state */
-        // To ensure the maximum security strength of 128 bits, the block
+#if SIZE_MACRO <= 128
+        // 1600-bit internal state: r=1088, c=512
+        // NOTE: To ensure the maximum security strength of 256 bits, the block
+        // size should be at least of 64 bytes.
+        MIXCTR_OPENSSL_SHAKE256,
+        MIXCTR_WOLFCRYPT_SHAKE256,
+        MIXCTR_XKCP_TURBOSHAKE_256,
+#endif
+#if SIZE_MACRO <= 160
+        // 1600-bit internal state: r=1344, c=256
+        // NOTE: To ensure the maximum security strength of 128 bits, the block
         // size should be at least of 32 bytes.
         MIXCTR_OPENSSL_SHAKE128,
         MIXCTR_WOLFCRYPT_SHAKE128,
         MIXCTR_XKCP_TURBOSHAKE_128,
         MIXCTR_XKCP_KANGAROOTWELVE,
-        // To ensure the maximum security strength of 256 bits, the block
-        // size should be at least of 64 bytes.
-        MIXCTR_OPENSSL_SHAKE256,
-        MIXCTR_WOLFCRYPT_SHAKE256,
-        MIXCTR_XKCP_TURBOSHAKE_256,
 #endif
 } mixctr_t;
 

@@ -13,7 +13,8 @@ typedef enum {
         FANOUT2 = 2,
         FANOUT3 = 3,
         FANOUT4 = 4,
-        FANOUT12 = 12,
+        FANOUT8 = 8,
+        FANOUT10 = 10,
 } fanout_t;
 
 #ifndef SIZE_MACRO
@@ -29,10 +30,19 @@ typedef enum {
 // // SHA3 and BLAKE2B block size (512 bit)
 // #define SIZE_MACRO 64
 
-// SHAKE128 and SHAKE256 are extendable output functions (XOF) with an internal
-// state of 1600 bit. So, assuming chunks of 128 bit, we cannot go past a block
-// size of 12 * 128 = 1536 bit
-#define SIZE_MACRO 192
+// // SHAKE256 is an extendable output functions (XOF) with an internal state of
+// // 1600 bit. The sponge function produces this state by diving the input in
+// // rate and capacity. With SHAKE256 the rate is 1088 bit and the capacity
+// // 512 bit. So, assuming chunks of 128 bit, we cannot go past a block
+// // size of 8 * 128 = 1024 bit
+// #define SIZE_MACRO 128
+
+// SHAKE128 is an extendable output functions (XOF) with an internal state of
+// 1600 bit. The sponge function produces this state by diving the input in
+// rate and capacity. With SHAKE256 the rate is 1344 bit and the capacity
+// 256 bit. So, assuming chunks of 128 bit, we cannot go past a block
+// size of 10 * 128 = 1280 bit
+#define SIZE_MACRO 160
 #endif /* SIZE_MACRO */
 
 #endif

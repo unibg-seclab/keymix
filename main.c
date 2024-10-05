@@ -91,17 +91,22 @@ int main() {
                 MIXCTR_WOLFCRYPT_SHA3_512,
                 MIXCTR_WOLFCRYPT_BLAKE2B,
 #endif
-#if SIZE_MACRO <= 48 /* 384-bit internal state */
+#if SIZE_MACRO <= 48
+                // 384-bit internal state
                 MIXCTR_XKCP_XOODYAK,
 #endif
-#if SIZE_MACRO <= 192 /* 1600-bit internal state */
+#if SIZE_MACRO <= 128
+                // 1600-bit internal state: r=1088, c=512
+                MIXCTR_OPENSSL_SHAKE256,
+                MIXCTR_WOLFCRYPT_SHAKE256,
+                MIXCTR_XKCP_TURBOSHAKE_256,
+#endif
+#if SIZE_MACRO <= 160
+                // 1600-bit internal state: r=1344, c=256
                 MIXCTR_OPENSSL_SHAKE128,
                 MIXCTR_WOLFCRYPT_SHAKE128,
                 MIXCTR_XKCP_TURBOSHAKE_128,
                 MIXCTR_XKCP_KANGAROOTWELVE,
-                MIXCTR_OPENSSL_SHAKE256,
-                MIXCTR_WOLFCRYPT_SHAKE256,
-                MIXCTR_XKCP_TURBOSHAKE_256,
 #endif
         };
         char *descr[] = {
@@ -133,14 +138,18 @@ int main() {
 #if SIZE_MACRO <= 48 /* 384-bit internal state */
                 "xkcp xoodyak",
 #endif
-#if SIZE_MACRO <= 192 /* 1600-bit internal state */
+#if SIZE_MACRO <= 128
+                // 1600-bit internal state: r=1088, c=512
+                "openssl shake256",
+                "wolfcrypt shake256",
+                "xkcp turboshake256",
+#endif
+#if SIZE_MACRO <= 160
+                // 1600-bit internal state: r=1344, c=256
                 "openssl shake128",
                 "wolfcrypt shake128",
                 "xkcp turboshake128",
                 "xkcp kangarootwelve",
-                "openssl shake256",
-                "wolfcrypt shake256",
-                "xkcp turboshake256",
 #endif
         };
 

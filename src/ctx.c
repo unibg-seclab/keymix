@@ -61,16 +61,20 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
                 wolfcrypt_hash_algorithm = WC_HASH_TYPE_BLAKE2B;
                 break;
 #endif
-        case MIXCTR_OPENSSL_SHAKE128:
-        case MIXCTR_WOLFCRYPT_SHAKE128:
-                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
-                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE128;
-                break;
+#if SIZE_MACRO <= 128
         case MIXCTR_OPENSSL_SHAKE256:
         case MIXCTR_WOLFCRYPT_SHAKE256:
                 openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
                 wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE256;
                 break;
+#endif
+#if SIZE_MACRO <= 160
+        case MIXCTR_OPENSSL_SHAKE128:
+        case MIXCTR_WOLFCRYPT_SHAKE128:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE128;
+                break;
+#endif
         }
 }
 
@@ -118,16 +122,20 @@ void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size,
                 wolfcrypt_hash_algorithm = WC_HASH_TYPE_BLAKE2B;
                 break;
 #endif
-        case MIXCTR_OPENSSL_SHAKE128:
-        case MIXCTR_WOLFCRYPT_SHAKE128:
-                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
-                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE128;
-                break;
+#if SIZE_MACRO <= 128
         case MIXCTR_OPENSSL_SHAKE256:
         case MIXCTR_WOLFCRYPT_SHAKE256:
                 openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-256", NULL);
                 wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE256;
                 break;
+#endif
+#if SIZE_MACRO <= 160
+        case MIXCTR_OPENSSL_SHAKE128:
+        case MIXCTR_WOLFCRYPT_SHAKE128:
+                openssl_hash_algorithm = EVP_MD_fetch(NULL, "SHAKE-128", NULL);
+                wolfcrypt_hash_algorithm = WC_HASH_TYPE_SHAKE128;
+                break;
+#endif
         }
 }
 

@@ -550,22 +550,28 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         case MIXCTR_WOLFCRYPT_BLAKE2B:
                 return &wolfcrypt_blake2b_hash;
 #endif
-#if SIZE_MACRO <= 48 /* 384-bit internal state */
+#if SIZE_MACRO <= 48
+        // 384-bit internal state
         case MIXCTR_XKCP_XOODYAK:
                 return &xkcp_xoodyak_hash;
 #endif
-#if SIZE_MACRO <= 192 /* 1600-bit internal state */
-        case MIXCTR_OPENSSL_SHAKE128:
+#if SIZE_MACRO <= 128
+        // 1600-bit internal state: r=1088, c=512
         case MIXCTR_OPENSSL_SHAKE256:
+                return &openssl_xof_hash;
+        case MIXCTR_WOLFCRYPT_SHAKE256:
+                return &wolfcrypt_shake256_hash;
+        case MIXCTR_XKCP_TURBOSHAKE_256:
+                return &xkcp_turboshake256_hash;
+#endif
+#if SIZE_MACRO <= 160
+        // 1600-bit internal state: r=1344, c=256
+        case MIXCTR_OPENSSL_SHAKE128:
                 return &openssl_xof_hash;
         case MIXCTR_WOLFCRYPT_SHAKE128:
                 return &wolfcrypt_shake128_hash;
-        case MIXCTR_WOLFCRYPT_SHAKE256:
-                return &wolfcrypt_shake256_hash;
         case MIXCTR_XKCP_TURBOSHAKE_128:
                 return &xkcp_turboshake128_hash;
-        case MIXCTR_XKCP_TURBOSHAKE_256:
-                return &xkcp_turboshake256_hash;
         case MIXCTR_XKCP_KANGAROOTWELVE:
                 return &xkcp_kangarootwelve_hash;
 #endif
