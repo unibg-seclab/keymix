@@ -70,6 +70,8 @@ int main() {
                 // 128-bit block size
                 MIXCTR_OPENSSL_DAVIES_MEYER_128,
                 MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
+                MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128,
+                MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
 #elif SIZE_MACRO == 32
                 // 256-bit block size
                 MIXCTR_OPENSSL_SHA3_256,
@@ -107,6 +109,8 @@ int main() {
                 // 128-bit block size
                 "openssl davies-meyer (128)",
                 "wolfcrypt davies-meyer (128)",
+                "openssl matyas-meyer-oseas (128)",
+                "wolfcrypt matyas-meyer-oseas (128)",
 #elif SIZE_MACRO == 32
                 // 256-bit block size
                 "openssl sha3 (256)",

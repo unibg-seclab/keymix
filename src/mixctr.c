@@ -254,6 +254,39 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
+        // To support inplace execution of the function we need to make a copy
+        // of the input
+        unsigned char *in_copy = (unsigned char *) malloc(size);
+        unsigned char *iv = "curr-hadcoded-iv";
+        int outl;
+
+        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
+        }
+
+        if (!EVP_EncryptInit(ctx, openssl_aes128ecb, iv, NULL)) {
+                _log(LOG_ERROR, "EVP_EncryptInit error\n");
+        }
+
+        EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
+
+        memcpy(in_copy, in, size);
+        if (!EVP_EncryptUpdate(ctx, out, &outl, in, size)) {
+                _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
+        }
+        memxor(out, out, in_copy, size);
+
+        // if (!EVP_EncryptFinal(ctx, out, &outl)) {
+        //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
+        // }
+
+        EVP_CIPHER_CTX_free(ctx);
+        free(in_copy);
+        return 0;
+}
+
 // ------------------------------------------------------------ wolfCrypt hash functions
 
 enum wc_HashType wolfcrypt_hash_algorithm;
@@ -376,6 +409,39 @@ int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
         return 0;
 }
 
+int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
+        int ret;
+        Aes aes;
+        byte *iv = "curr-hadcoded-iv";
+        // To support inplace execution of the function we need to make a copy
+        // of the input
+        byte *in_copy = (byte *) malloc(SIZE_MACRO);
+
+        ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+        if (ret) {
+                _log(LOG_ERROR, "wc_AesInit error\n");
+        }
+
+        ret = wc_AesSetKey(&aes, iv, AES_BLOCK_SIZE, NULL, AES_ENCRYPTION);
+        if (ret) {
+                _log(LOG_ERROR, "wc_AesSetKey error\n");
+        }
+
+        byte *last = in + size;
+        for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
+                memcpy(in_copy, in, SIZE_MACRO);
+                ret = wc_AesEncryptDirect(&aes, out, in);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
+                }
+                memxor(out, out, in_copy, SIZE_MACRO);
+        }
+
+        wc_AesFree(&aes);
+        free(in_copy);
+        return 0;
+}
+
 // ------------------------------------------------------------ XKCP hash functions
 
 // Keccak-p[1600, 12]: Keccak 1600-bit permutations and 12 rounds
@@ -450,6 +516,10 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
                 return &openssl_davies_meyer;
         case MIXCTR_WOLFCRYPT_DAVIES_MEYER_128:
                 return &wolfcrypt_davies_meyer;
+        case MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128:
+                return &openssl_matyas_meyer_oseas;
+        case MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128:
+                return &wolfcrypt_matyas_meyer_oseas;
 #elif SIZE_MACRO == 32
         case MIXCTR_OPENSSL_SHA3_256:
         case MIXCTR_OPENSSL_BLAKE2S:

@@ -14,7 +14,9 @@ typedef enum {
         // Fixed-output functions
 #if SIZE_MACRO == 16
         MIXCTR_OPENSSL_DAVIES_MEYER_128,
+        MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128,
         MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
+        MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
 #elif SIZE_MACRO == 32
         // 256-bit block size
         MIXCTR_OPENSSL_SHA3_256,

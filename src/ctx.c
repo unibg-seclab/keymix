@@ -31,6 +31,7 @@ void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size
         switch (mixctr) {
 #if SIZE_MACRO == 16
         case MIXCTR_OPENSSL_DAVIES_MEYER_128:
+        case MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128:
                 openssl_aes128ecb = EVP_CIPHER_fetch(NULL, "AES-128-ECB", NULL);
 #elif SIZE_MACRO == 32
         case MIXCTR_OPENSSL_SHA3_256:
