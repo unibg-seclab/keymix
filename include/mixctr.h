@@ -66,4 +66,7 @@ mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type);
 // Get the mix name given its mix type.
 char *get_mix_name(mixctr_t mix_type);
 
+// Get the mix type given its name.
+mixctr_t get_mix_type(char *name);
+
 #endif

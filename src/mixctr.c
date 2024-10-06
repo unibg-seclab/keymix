@@ -627,3 +627,11 @@ char *MIX_NAMES[] = {
 char *get_mix_name(mixctr_t mix_type) {
         return MIX_NAMES[mix_type];
 }
+
+
+mixctr_t get_mix_type(char* name) {
+        for (int8_t i = 0; i < sizeof(MIX_NAMES) / sizeof(*MIX_NAMES); i++)
+                if (strcmp(name, MIX_NAMES[i]) == 0)
+                        return (mixctr_t)i;
+        return -1;
+}

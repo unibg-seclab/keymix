@@ -36,12 +36,12 @@ typedef struct {
 } cli_args_t;
 
 enum args_key {
-        ARG_KEY_OUTPUT  = 'o',
-        ARG_KEY_FANOUT  = 'f',
-        ARG_KEY_LIBRARY = 'l',
-        ARG_KEY_THREADS = 't',
-        ARG_KEY_VERBOSE = 'v',
-        ARG_KEY_IV      = 'i',
+        ARG_KEY_OUTPUT    = 'o',
+        ARG_KEY_FANOUT    = 'f',
+        ARG_KEY_PRIMITIVE = 'p',
+        ARG_KEY_THREADS   = 't',
+        ARG_KEY_VERBOSE   = 'v',
+        ARG_KEY_IV        = 'i',
 };
 
 const char *argp_program_version     = "1.0.0";
@@ -57,10 +57,10 @@ static char args_doc[]               = "KEYFILE [INPUT]";
 static struct argp_option options[] = {
     {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
     {"iv", ARG_KEY_IV, "STRING", 0,
-     "16-Byte initialization vector in hexadecimal format (default 0)"},
-    {"fanout", ARG_KEY_FANOUT, "UINT", 0, "2, 3 (default), or 4"},
-    {"library", ARG_KEY_LIBRARY, "STRING", 0, "wolfssl (default), openssl or aesni"},
-    {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default 1)"},
+     "16-Byte initialization vector in hexadecimal format (default: 0)"},
+    {"fanout", ARG_KEY_FANOUT, "UINT", 0, "A divisor of the block size (default: 2)"},
+    {"primitive", ARG_KEY_PRIMITIVE, "STRING", 0, "One of the mixing primitive available (default: xkcp-tuboshake-128)"},
+    {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default: 1)"},
     {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
 };
@@ -99,30 +99,24 @@ inline int parse_hex(uint128_t *valp, char *hex) {
         *valp = val;
         return 0;
 }
+
 inline int parse_fanout(fanout_t *out, char *str) {
-        int x = atoi(str);
-        switch (x) {
-        case FANOUT2:
-        case FANOUT3:
-        case FANOUT4:
-                *out = x;
-                return 0;
-        default:
+        char *endptr;
+        long fanout;
+
+        fanout = strtol(str, &endptr, 10);
+
+        // Error out on invalid conversion, out of range value, and partial
+        // parsing of the string
+        if (!fanout || fanout == LONG_MIN || fanout == LONG_MAX || *endptr)
                 return 1;
-        }
-}
+        
+        // Error out on invalid fanout
+        if (SIZE_MACRO % fanout)
+                return 1;
 
-mixctr_t parse_mixctr(char *name) {
-        if (strcmp("wolfssl", name) == 0)
-                return MIXCTR_WOLFSSL;
-
-        if (strcmp("openssl", name) == 0)
-                return MIXCTR_OPENSSL;
-
-        if (strcmp("aesni", name) == 0)
-                return MIXCTR_AESNI;
-
-        return -1;
+        *out = fanout;
+        return 0;
 }
 
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -142,13 +136,12 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 break;
         case ARG_KEY_FANOUT:
                 if (parse_fanout(&(arguments->fanout), arg))
-                        argp_error(state, "fanout must be one of %d, %d, %d", FANOUT2, FANOUT3,
-                                   FANOUT4);
+                        argp_error(state, "fanout must be a divisor of %d", SIZE_MACRO);
                 break;
-        case ARG_KEY_LIBRARY:
-                arguments->mixctr = parse_mixctr(arg);
+        case ARG_KEY_PRIMITIVE:
+                arguments->mixctr = get_mix_type(arg);
                 if (arguments->mixctr == -1)
-                        argp_error(state, "library must be one of wolfssl, openssl, aesni");
+                        argp_error(state, "primitive must be one of the available ones");
                 break;
         case ARG_KEY_THREADS:
                 arguments->threads = strtoul(arg, NULL, 10);
@@ -198,8 +191,8 @@ int main(int argc, char **argv) {
         args.output  = NULL;
         args.key     = NULL;
         args.iv      = 0;
-        args.fanout  = 3;
-        args.mixctr  = MIXCTR_WOLFSSL;
+        args.fanout  = 2;
+        args.mixctr  = MIXCTR_XKCP_TURBOSHAKE_128;
         args.threads = 1;
         args.verbose = false;
 
@@ -211,25 +204,14 @@ int main(int argc, char **argv) {
                 printf("===============\n");
                 printf("KEYMIXER CONFIG\n");
                 printf("===============\n");
-                printf("resource: %s\n", args.input);
-                printf("output:   %s\n", args.output);
-                printf("key:      %s\n", args.key);
-                printf("iv:       [redacted]\n");
+                printf("resource:  %s\n", args.input);
+                printf("output:    %s\n", args.output);
+                printf("key:       %s\n", args.key);
+                printf("iv:        [redacted]\n");
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
-                printf("aes impl: ");
-                switch (args.mixctr) {
-                case MIXCTR_WOLFSSL:
-                        printf("woflssl\n");
-                        break;
-                case MIXCTR_OPENSSL:
-                        printf("openssl\n");
-                        break;
-                case MIXCTR_AESNI:
-                        printf("aesni\n");
-                        break;
-                }
-                printf("fanout:   %d\n", args.fanout);
-                printf("threads:  %d\n", args.threads);
+                printf("primitive: %s", get_mix_name(args.mixctr));
+                printf("fanout:    %d\n", args.fanout);
+                printf("threads:   %d\n", args.threads);
                 printf("===============\n");
         }
 
@@ -266,7 +248,7 @@ int main(int argc, char **argv) {
 
         size_t num_macros = key_size / SIZE_MACRO;
         if (!ISPOWEROF(num_macros, args.fanout)) {
-                errmsg("key's number of 48-B blocks is not a power of fanout (%d)", args.fanout);
+                errmsg("key's number of blocks is not a power of fanout (%d)", args.fanout);
                 err = ERR_KEY_SIZE;
                 goto cleanup;
         }
