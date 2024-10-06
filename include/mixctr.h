@@ -70,8 +70,8 @@ const static mixctr_t MIX_TYPES[] = {
 #elif SIZE_MACRO == 32
         // 256-bit block size
         MIXCTR_OPENSSL_SHA3_256,
-        MIXCTR_OPENSSL_BLAKE2S,
         MIXCTR_WOLFCRYPT_SHA3_256,
+        MIXCTR_OPENSSL_BLAKE2S,
         MIXCTR_WOLFCRYPT_BLAKE2S,
         MIXCTR_BLAKE3_BLAKE3,
 #elif SIZE_MACRO == 48
@@ -82,8 +82,8 @@ const static mixctr_t MIX_TYPES[] = {
 #elif SIZE_MACRO == 64
         // 512-bit block size
         MIXCTR_OPENSSL_SHA3_512,
-        MIXCTR_OPENSSL_BLAKE2B,
         MIXCTR_WOLFCRYPT_SHA3_512,
+        MIXCTR_OPENSSL_BLAKE2B,
         MIXCTR_WOLFCRYPT_BLAKE2B,
 #endif
 #if SIZE_MACRO <= 48

@@ -629,14 +629,14 @@ char *MIX_NAMES[] = {
 #if SIZE_MACRO == 16
         // 128-bit block size
         "openssl-davies-meyer",
-        "wolfcrypt-davies-meyer",
         "openssl-matyas-meyer-oseas",
+        "wolfcrypt-davies-meyer",
         "wolfcrypt-matyas-meyer-oseas",
 #elif SIZE_MACRO == 32
         // 256-bit block size
         "openssl-sha3-256",
-        "wolfcrypt-sha3-256",
         "openssl-blake2s",
+        "wolfcrypt-sha3-256",
         "wolfcrypt-blake2s",
         "blake3-blake3",
 #elif SIZE_MACRO == 48
@@ -647,8 +647,8 @@ char *MIX_NAMES[] = {
 #elif SIZE_MACRO == 64
         // 512-bit block size
         "openssl-sha3-512",
-        "wolfcrypt-sha3-512",
         "openssl-blake2b",
+        "wolfcrypt-sha3-512",
         "wolfcrypt-blake2b",
 #endif
 #if SIZE_MACRO <= 48 /* 384-bit internal state */
