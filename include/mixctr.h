@@ -60,6 +60,51 @@ typedef enum {
 #endif
 } mixctr_t;
 
+const static mixctr_t MIX_TYPES[] = {
+#if SIZE_MACRO == 16
+        // 128-bit block size
+        MIXCTR_OPENSSL_DAVIES_MEYER_128,
+        MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
+        MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128,
+        MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+#elif SIZE_MACRO == 32
+        // 256-bit block size
+        MIXCTR_OPENSSL_SHA3_256,
+        MIXCTR_OPENSSL_BLAKE2S,
+        MIXCTR_WOLFCRYPT_SHA3_256,
+        MIXCTR_WOLFCRYPT_BLAKE2S,
+        MIXCTR_BLAKE3_BLAKE3,
+#elif SIZE_MACRO == 48
+        // 384-bit block size
+        MIXCTR_AESNI,
+        MIXCTR_OPENSSL,
+        MIXCTR_WOLFSSL,
+#elif SIZE_MACRO == 64
+        // 512-bit block size
+        MIXCTR_OPENSSL_SHA3_512,
+        MIXCTR_OPENSSL_BLAKE2B,
+        MIXCTR_WOLFCRYPT_SHA3_512,
+        MIXCTR_WOLFCRYPT_BLAKE2B,
+#endif
+#if SIZE_MACRO <= 48
+        // 384-bit internal state
+        MIXCTR_XKCP_XOODYAK,
+#endif
+#if SIZE_MACRO <= 128
+        // 1600-bit internal state: r=1088, c=512
+        MIXCTR_OPENSSL_SHAKE256,
+        MIXCTR_WOLFCRYPT_SHAKE256,
+        MIXCTR_XKCP_TURBOSHAKE_256,
+#endif
+#if SIZE_MACRO <= 160
+        // 1600-bit internal state: r=1344, c=256
+        MIXCTR_OPENSSL_SHAKE128,
+        MIXCTR_WOLFCRYPT_SHAKE128,
+        MIXCTR_XKCP_TURBOSHAKE_128,
+        MIXCTR_XKCP_KANGAROOTWELVE,
+#endif
+};
+
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.
 mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type);
 

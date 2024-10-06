@@ -214,51 +214,8 @@ int main(int argc, char *argv[]) {
         char *out_keymix = "data/out.csv";
         char *out_enc    = "data/enc.csv";
 
-        mixctr_t mix_types[] = {
-#if SIZE_MACRO == 16
-                MIXCTR_OPENSSL_DAVIES_MEYER_128,
-                MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
-                MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128,
-                MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
-#elif SIZE_MACRO == 32
-                MIXCTR_OPENSSL_SHA3_256,
-                MIXCTR_WOLFCRYPT_SHA3_256,
-                MIXCTR_OPENSSL_BLAKE2S,
-                MIXCTR_WOLFCRYPT_BLAKE2S,
-                MIXCTR_BLAKE3_BLAKE3,
-#elif SIZE_MACRO == 48
-                MIXCTR_AESNI,
-                MIXCTR_OPENSSL,
-                MIXCTR_WOLFSSL,
-#elif SIZE_MACRO == 64
-                MIXCTR_OPENSSL_SHA3_512,
-                MIXCTR_WOLFCRYPT_SHA3_512,
-                MIXCTR_OPENSSL_BLAKE2B,
-                MIXCTR_WOLFCRYPT_BLAKE2B,
-#endif
-        // Extendable-output functions (XOFs)
-#if SIZE_MACRO <= 48
-                MIXCTR_XKCP_XOODYAK,
-#endif
-#if SIZE_MACRO <= 128
-                // 1600-bit internal state: r=1088, c=512
-                // NOTE: To ensure the maximum security strength of 256 bits, the block
-                // size should be at least of 64 bytes.
-                MIXCTR_OPENSSL_SHAKE256,
-                MIXCTR_WOLFCRYPT_SHAKE256,
-                MIXCTR_XKCP_TURBOSHAKE_256,
-#endif
-#if SIZE_MACRO <= 160
-                // 1600-bit internal state: r=1344, c=256
-                // NOTE: To ensure the maximum security strength of 128 bits, the block
-                // size should be at least of 32 bytes.
-                MIXCTR_OPENSSL_SHAKE128,
-                MIXCTR_WOLFCRYPT_SHAKE128,
-                MIXCTR_XKCP_TURBOSHAKE_128,
-                MIXCTR_XKCP_KANGAROOTWELVE,
-#endif
-        };
-        uint8_t mix_types_count = sizeof(mix_types) / sizeof(*mix_types);
+        const mixctr_t *mix_types = MIX_TYPES;
+        uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mixctr_t);
 
         uint8_t fanouts[NUM_OF_FANOUTS];
         uint8_t fanouts_count = NUM_OF_FANOUTS;
