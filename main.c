@@ -97,8 +97,8 @@ int main() {
                 keymix_ctx_t ctx;
                 ctx_keymix_init(&ctx, configs[i], key, key_size, fanout);
 
-                // double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, fanout, 1); }); // all layers
-                double time = MEASURE({ err = (*get_mixctr_impl(configs[i]))(key, out, key_size); }); // single layer
+                double time = MEASURE({ err = keymix(get_mixctr_impl(configs[i]), key, out, key_size, fanout, 1); }); // all layers
+                // double time = MEASURE({ err = (*get_mixctr_impl(configs[i]))(key, out, key_size); }); // single layer
 
                 explicit_bzero(out, key_size);
 
