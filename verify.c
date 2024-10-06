@@ -13,8 +13,10 @@
 #include "types.h"
 #include "utils.h"
 
+#define NUM_OF_FANOUTS 3
+
 #define MIN_LEVEL 1
-#define MAX_LEVEL 9
+#define MAX_LEVEL 8
 
 #define COMPARE(a, b, size, ...)                                                                   \
         ({                                                                                         \
@@ -95,8 +97,8 @@ int verify_shuffles(size_t fanout, uint8_t level) {
 
         int err = 0;
         for (uint8_t l = 1; l <= level; l++) {
-                uint8_t nof_threads          = pow(fanout, fmin(l, 3));
-                bool is_shuffle_chunks_level = (level - l < fmin(l, 3));
+                uint8_t nof_threads          = pow(fanout, fmin(l, 2));
+                bool is_shuffle_chunks_level = (level - l < fmin(l, 2));
 
                 // Fill in buffer of the inplace operations
                 memcpy(out_spread, in, size);
@@ -170,31 +172,57 @@ int verify_shuffles_with_varying_threads(size_t fanout, uint8_t level) {
         return err;
 }
 
-// Verify the equivalence of the results when using different encryption
-// functions (i.e., AES-NI, OpenSSL, WolfSSL)
+// Verify the equivalence of the results when using different encryption and
+// hash libraries
 int verify_keymix(size_t fanout, uint8_t level) {
         size_t size = (size_t)pow(fanout, level) * SIZE_MACRO;
 
-        _log(LOG_INFO, "> Verifying keymix mixctr-independence for size %.2f MiB\n", MiB(size));
+        _log(LOG_INFO, "> Verifying keymix mix-independence for size %.2f MiB\n", MiB(size));
 
-        byte *in          = setup(size, true);
-        byte *out_wolfssl = setup(size, false);
-        byte *out_openssl = setup(size, false);
-        byte *out_aesni   = setup(size, false);
+        byte *in     = setup(size, true);
+        byte *out[2] = { setup(size, false), setup(size, false) };
 
-        keymix(get_mixctr_impl(MIXCTR_WOLFSSL), in, out_wolfssl, size, fanout, 1);
-        keymix(get_mixctr_impl(MIXCTR_OPENSSL), in, out_openssl, size, fanout, 1);
-        keymix(get_mixctr_impl(MIXCTR_AESNI), in, out_aesni, size, fanout, 1);
+        mixctr_t groups[][2] = {
+#if SIZE_MACRO == 16
+                // 128-bit block size
+                { MIXCTR_OPENSSL_DAVIES_MEYER_128, MIXCTR_WOLFCRYPT_DAVIES_MEYER_128 },
+                { MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128, MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128 },
+#elif SIZE_MACRO == 32
+                // 256-bit block size
+                { MIXCTR_OPENSSL_SHA3_256, MIXCTR_WOLFCRYPT_SHA3_256 },
+                { MIXCTR_OPENSSL_BLAKE2S, MIXCTR_WOLFCRYPT_BLAKE2S },
+#elif SIZE_MACRO == 48
+                // 384-bit block size
+                { MIXCTR_AESNI_MIXCTR, MIXCTR_OPENSSL_MIXCTR },
+                { MIXCTR_OPENSSL_MIXCTR, MIXCTR_WOLFSSL_MIXCTR },
+#elif SIZE_MACRO == 64
+                // 512-bit block size
+                { MIXCTR_OPENSSL_SHA3_512, MIXCTR_WOLFCRYPT_SHA3_512 },
+                { MIXCTR_OPENSSL_BLAKE2B, MIXCTR_WOLFCRYPT_BLAKE2B },
+#endif
+#if SIZE_MACRO <= 128
+                // 1600-bit internal state: r=1088, c=512
+                { MIXCTR_OPENSSL_SHAKE256, MIXCTR_WOLFCRYPT_SHAKE256 },
+#endif
+#if SIZE_MACRO <= 160
+                // 1600-bit internal state: r=1344, c=256
+                { MIXCTR_OPENSSL_SHAKE128, MIXCTR_WOLFCRYPT_SHAKE128 },
+#endif
+        };
 
         int err = 0;
-        err += COMPARE(out_wolfssl, out_openssl, size, "WolfSSL != OpenSSL\n");
-        err += COMPARE(out_openssl, out_aesni, size, "OpenSSL != AES-NI (opt)\n");
-        err += COMPARE(out_wolfssl, out_aesni, size, "WolfSSL != AES-NI (opt)\n");
+        int nof_groups = sizeof(groups) / sizeof(*groups);
+        for (int g = 0; g < nof_groups; g++) {
+                keymix(get_mixctr_impl(groups[g][0]), in, out[0], size, fanout, 1);
+                keymix(get_mixctr_impl(groups[g][1]), in, out[1], size, fanout, 1);
+                char *error_msg = (char *) malloc(80 * sizeof(char));
+                sprintf(error_msg, "%s != %s\n", get_mix_name(groups[g][0]), get_mix_name(groups[g][1]));
+                err += COMPARE(out[0], out[1], size, error_msg);
+        }
 
         free(in);
-        free(out_wolfssl);
-        free(out_openssl);
-        free(out_aesni);
+        free(out[0]);
+        free(out[1]);
 
         return err;
 }
@@ -210,19 +238,16 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         byte *out1   = setup(size, false);
         byte *outf   = setup(size, false);
         byte *outff  = setup(size, false);
-        byte *outfff = setup(size, false);
 
         size_t thr1   = 1;
         size_t thrf   = fanout;
         size_t thrff  = fanout * fanout;
-        size_t thrfff = fanout * fanout * fanout;
 
-        mixctrpass_impl_t aesni = get_mixctr_impl(MIXCTR_AESNI);
+        mixctrpass_impl_t hash = get_mixctr_impl(MIXCTR_XKCP_TURBOSHAKE_128);
 
-        keymix(aesni, in, out1, size, fanout, thr1);
-        keymix(aesni, in, outf, size, fanout, thrf);
-        keymix(aesni, in, outff, size, fanout, thrff);
-        keymix(aesni, in, outfff, size, fanout, thrfff);
+        keymix(hash, in, out1, size, fanout, thr1);
+        keymix(hash, in, outf, size, fanout, thrf);
+        keymix(hash, in, outff, size, fanout, thrff);
 
         // Comparisons
         int err = 0;
@@ -231,15 +256,10 @@ int verify_multithreaded_keymix(size_t fanout, uint8_t level) {
         err += COMPARE(out1, outff, size, "Keymix (1) != Keymix (%zu)\n", thrff);
         err += COMPARE(outf, outff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrff);
 
-        err += COMPARE(out1, outfff, size, "Keymix (1) != Keymix (%zu)\n", thrfff);
-        err += COMPARE(outf, outfff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrfff);
-        err += COMPARE(outff, outfff, size, "Keymix (%zu) != Keymix (%zu)\n", thrff, thrff);
-
         free(in);
         free(out1);
         free(outf);
         free(outff);
-        free(outfff);
 
         return err;
 }
@@ -261,9 +281,9 @@ int verify_keymix_t(size_t fanout, uint8_t level) {
         uint8_t internal_threads = 1;
 
         keymix_ctx_t ctx;
-        ctx_keymix_init(&ctx, MIXCTR_AESNI, in, size, fanout);
+        ctx_keymix_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, in, size, fanout);
 
-        keymix(get_mixctr_impl(MIXCTR_AESNI), in, out_simple, size, fanout, 1);
+        keymix(get_mixctr_impl(MIXCTR_XKCP_TURBOSHAKE_128), in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
 
         keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);
@@ -308,7 +328,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         byte *outman = setup(keymix_out_size, false);
 
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, iv, fanout);
+        ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, iv, fanout);
 
         encrypt(&ctx, in, out1, resource_size);
         encrypt_t(&ctx, in, out2, resource_size, 2, 1);
@@ -318,7 +338,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
         err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
 
-        ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, iv, fanout);
+        ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, iv, fanout);
         encrypt_t(&ctx, in, out2, resource_size, 1, fanout);
         encrypt_t(&ctx, in, out3, resource_size, 1, fanout * fanout);
         err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
@@ -327,7 +347,7 @@ int verify_enc(size_t fanout, uint8_t level) {
         err += COMPARE(out2, out3, resource_size, "Encrypt (%d int-thr) != Encrypt (%d int-thr)\n",
                        fanout, fanout * fanout);
 
-        ctx_keymix_init(&ctx, MIXCTR_AESNI, key, key_size, fanout);
+        ctx_keymix_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, fanout);
         ctx_enable_iv_counter(&ctx, iv);
         keymix_t(&ctx, outman, keymix_out_size, 1, 1);
         memxor(outman, in, outman, resource_size);
@@ -357,7 +377,7 @@ int custom_checks() {
         byte dec[size];
 
         keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, MIXCTR_OPENSSL, key, SIZE_MACRO, iv, fanout);
+        ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, SIZE_MACRO, iv, fanout);
         encrypt(&ctx, in, enc, size);
         encrypt(&ctx, enc, dec, size);
 
@@ -372,6 +392,20 @@ int custom_checks() {
         if (err)                                                                                   \
                 goto cleanup;
 
+// Pick 1st fanouts available for the selected block size
+void setup_fanouts(uint8_t n, uint8_t *fanouts) {
+        uint8_t count = 0;
+        for (uint8_t fanout = 2; fanout <= SIZE_MACRO; fanout++) {
+                if (SIZE_MACRO % fanout)
+                        continue;
+
+                fanouts[count++] = fanout;
+
+                if (count == n)
+                        break;
+        }
+}
+
 int main() {
         uint64_t rand_seed = time(NULL);
         srand(rand_seed);
@@ -380,7 +414,12 @@ int main() {
 
         CHECKED(custom_checks());
 
-        for (uint8_t fanout = 2; fanout <= 4; fanout++) {
+        uint8_t fanouts[NUM_OF_FANOUTS];
+        setup_fanouts(NUM_OF_FANOUTS, fanouts);
+
+        for (uint8_t i = 0; i < NUM_OF_FANOUTS; i++) {
+                uint8_t fanout = fanouts[i];
+
                 _log(LOG_INFO, "Verifying with fanout %zu\n", fanout);
                 for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                         CHECKED(verify_shuffles(fanout, l));

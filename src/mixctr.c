@@ -27,6 +27,40 @@
 // SIZE_MACRO = BLOCKS_PER_MACRO * AES_BLOCK_SIZE
 #define BLOCKS_PER_MACRO 3
 
+// *** OpenSSL hacks ***
+
+// For performance reasons the OpenSSL doc suggests to avoid fetching the same
+// cipher and digest algorithm multiple times.
+// https://docs.openssl.org/master/man7/ossl-guide-libcrypto-introduction/#performance
+
+// The following functions are helpers to ensure this is the case.
+
+// NOTE: These function are not thread safe, so they must be executed once by
+// the main thread and only then be shared among the worker threads. This is
+// why, despite being ugly, we call them in the get_mixctr_impl.
+
+EVP_CIPHER *openssl_cipher;
+
+EVP_CIPHER* fetch_openssl_cipher(const char* cipher_name) {
+        // Fetch OpenSSL cipher only when necessary
+        if (!openssl_cipher || strcmp(EVP_CIPHER_get0_name(openssl_cipher), cipher_name)) {
+                openssl_cipher = EVP_CIPHER_fetch(NULL, cipher_name, NULL);
+        }
+
+        return openssl_cipher;
+}
+
+EVP_MD *openssl_digest;
+
+EVP_MD* fetch_openssl_digest(const char* digest_name) {
+        // Fetch OpenSSL digest only when necessary
+        if (!openssl_digest || strcmp(EVP_MD_get0_name(openssl_digest), digest_name)) {
+                openssl_digest = EVP_MD_fetch(NULL, digest_name, NULL);
+        }
+
+        return openssl_digest;
+}
+
 // ------------------------------------------------------------ WolfSSL
 
 int wolfssl(byte *in, byte *out, size_t size) {
@@ -53,11 +87,9 @@ int wolfssl(byte *in, byte *out, size_t size) {
 
 // ------------------------------------------------------------ OpenSSL
 
-EVP_CIPHER *openssl_aes256ecb;
-
 int openssl(byte *in, byte *out, size_t size) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        EVP_EncryptInit(ctx, openssl_aes256ecb, NULL, NULL);
+        EVP_EncryptInit(ctx, openssl_cipher, NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
         int outl;
 
@@ -176,14 +208,12 @@ int aesni(byte *in, byte *out, size_t size) {
 
 // ------------------------------------------------------------ OpenSSL hash functions
 
-EVP_MD *openssl_hash_algorithm;
-
 int generic_openssl_hash(byte *in, byte *out, size_t size, bool is_xof) {
         EVP_MD_CTX *mdctx;
         if ((mdctx = EVP_MD_CTX_create()) == NULL) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
-        if (!EVP_DigestInit_ex(mdctx, openssl_hash_algorithm, NULL)) {
+        if (!EVP_DigestInit_ex(mdctx, openssl_digest, NULL)) {
                 _log(LOG_ERROR, "EVP_DigestInit_ex error\n");
         }
 
@@ -218,8 +248,6 @@ int openssl_xof_hash(byte *in, byte *out, size_t size) {
         return generic_openssl_hash(in, out, size, true);
 }
 
-EVP_CIPHER *openssl_aes128ecb;
-
 int openssl_davies_meyer(byte *in, byte *out, size_t size) {
         unsigned char *iv = "curr-hadcoded-iv";
         int outl;
@@ -229,7 +257,7 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, openssl_aes128ecb, NULL, NULL)) {
+        if (!EVP_EncryptInit(ctx, openssl_cipher, NULL, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 
@@ -266,7 +294,7 @@ int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, openssl_aes128ecb, iv, NULL)) {
+        if (!EVP_EncryptInit(ctx, openssl_cipher, iv, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 
@@ -292,17 +320,23 @@ int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
 
 // ------------------------------------------------------------ wolfCrypt hash functions
 
-enum wc_HashType wolfcrypt_hash_algorithm;
-
-int wolfcrypt_hash(byte *in, byte *out, size_t size) {
+int generic_wolfcrypt_hash(enum wc_HashType hash_type, byte *in, byte *out, size_t size) {
         byte *last = in + size;
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                int error = wc_Hash(wolfcrypt_hash_algorithm, in, SIZE_MACRO, out, SIZE_MACRO);
+                int error = wc_Hash(hash_type, in, SIZE_MACRO, out, SIZE_MACRO);
                 if (error) {
                         _log(LOG_ERROR, "wc_Hash error %d\n", error);
                 }
         }
         return 0;
+}
+
+int wolfcrypt_sha3_256_hash(byte *in, byte *out, size_t size) {
+        return generic_wolfcrypt_hash(WC_HASH_TYPE_SHA3_256, in, out, size);
+}
+
+int wolfcrypt_sha3_512_hash(byte *in, byte *out, size_t size) {
+        return generic_wolfcrypt_hash(WC_HASH_TYPE_SHA3_512, in, out, size);
 }
 
 int wolfcrypt_shake128_hash(byte *in, byte *out, size_t size) {
@@ -517,19 +551,24 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
         switch (mix_type) {
 #if SIZE_MACRO == 16
         case MIXCTR_OPENSSL_DAVIES_MEYER_128:
+                fetch_openssl_cipher("AES-128-ECB");
                 return &openssl_davies_meyer;
+        case MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128:
+                fetch_openssl_cipher("AES-128-ECB");
+                return &openssl_matyas_meyer_oseas;
         case MIXCTR_WOLFCRYPT_DAVIES_MEYER_128:
                 return &wolfcrypt_davies_meyer;
-        case MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128:
-                return &openssl_matyas_meyer_oseas;
         case MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128:
                 return &wolfcrypt_matyas_meyer_oseas;
 #elif SIZE_MACRO == 32
         case MIXCTR_OPENSSL_SHA3_256:
+                fetch_openssl_digest("SHA3-256");
+                return &openssl_hash;
         case MIXCTR_OPENSSL_BLAKE2S:
+                fetch_openssl_digest("BLAKE2S-256");
                 return &openssl_hash;
         case MIXCTR_WOLFCRYPT_SHA3_256:
-                return &wolfcrypt_hash;
+                return &wolfcrypt_sha3_256_hash;
         case MIXCTR_WOLFCRYPT_BLAKE2S:
                 return &wolfcrypt_blake2s_hash;
         case MIXCTR_BLAKE3_BLAKE3:
@@ -538,15 +577,19 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
         case MIXCTR_WOLFSSL:
                 return &wolfssl;
         case MIXCTR_OPENSSL:
+                fetch_openssl_cipher("AES-256-ECB");
                 return &openssl;
         case MIXCTR_AESNI:
                 return &aesni;
 #elif SIZE_MACRO == 64
         case MIXCTR_OPENSSL_SHA3_512:
+                fetch_openssl_digest("SHA3-512");
+                return &openssl_hash;
         case MIXCTR_OPENSSL_BLAKE2B:
+                fetch_openssl_digest("BLAKE2B-512");
                 return &openssl_hash;
         case MIXCTR_WOLFCRYPT_SHA3_512:
-                return &wolfcrypt_hash;
+                return &wolfcrypt_sha3_512_hash;
         case MIXCTR_WOLFCRYPT_BLAKE2B:
                 return &wolfcrypt_blake2b_hash;
 #endif
@@ -558,6 +601,7 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
 #if SIZE_MACRO <= 128
         // 1600-bit internal state: r=1088, c=512
         case MIXCTR_OPENSSL_SHAKE256:
+                fetch_openssl_digest("SHAKE-256");
                 return &openssl_xof_hash;
         case MIXCTR_WOLFCRYPT_SHAKE256:
                 return &wolfcrypt_shake256_hash;
@@ -567,6 +611,7 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
 #if SIZE_MACRO <= 160
         // 1600-bit internal state: r=1344, c=256
         case MIXCTR_OPENSSL_SHAKE128:
+                fetch_openssl_digest("SHAKE-128");
                 return &openssl_xof_hash;
         case MIXCTR_WOLFCRYPT_SHAKE128:
                 return &wolfcrypt_shake128_hash;
