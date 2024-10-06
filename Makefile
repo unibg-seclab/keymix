@@ -19,12 +19,11 @@ SECRET = secret
 # ------------ Compiler flags
 
 CC = gcc
-CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -Isrc
+CFLAGS = -O3 -msse2 -msse -march=native -maes -Wno-cpp -Iinclude -Isrc $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 LDLIBS = -lblake3 -lcrypto -lXKCP -lm -lwolfssl -pthread
 
 # ------------ Generic building
 
-build: CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 build: $(OBJECTS)
 
 all: $(OUT) $(TEST) $(VERIFY) $(KEYMIXER)
@@ -76,15 +75,12 @@ endif
 
 # ------------ main.c for quick tests
 
-$(OUT): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(OUT): main.o $(OBJECTS)
-run: CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 run: $(OUT)
 	@ ./$(OUT)
 
 # ------------ Testing
 
-$(TEST): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(TEST): test.o $(OBJECTS)
 
 keymix-test: CFLAGS += -DDO_KEYMIX_TESTS
@@ -103,12 +99,10 @@ run-test:
 
 # ------------ Verifying
 
-$(VERIFY): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(VERIFY): verify.o $(OBJECTS)
 
 # ------------ Keymixer
 
-$(KEYMIXER): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(KEYMIXER): keymixer.o $(OBJECTS)
 cli: $(KEYMIXER)
 
