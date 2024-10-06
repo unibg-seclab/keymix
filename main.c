@@ -109,49 +109,6 @@ int main() {
                 MIXCTR_XKCP_KANGAROOTWELVE,
 #endif
         };
-        char *descr[] = {
-#if SIZE_MACRO == 16
-                // 128-bit block size
-                "openssl davies-meyer (128)",
-                "wolfcrypt davies-meyer (128)",
-                "openssl matyas-meyer-oseas (128)",
-                "wolfcrypt matyas-meyer-oseas (128)",
-#elif SIZE_MACRO == 32
-                // 256-bit block size
-                "openssl sha3 (256)",
-                "openssl blake2s (256)",
-                "wolfcrypt sha3 (256)",
-                "wolfcrypt blake2s (256)",
-                "blake3 blake3 (256)",
-#elif SIZE_MACRO == 48
-                // 384-bit block size
-                "aes-ni mixctr (384)",
-                "openssl mixctr (384)",
-                "wolfcrypt mixctr (384)",
-#elif SIZE_MACRO == 64
-                // 512-bit block size
-                "openssl sha3 (512)",
-                "openssl blake2b (512)",
-                "wolfcrypt sha3 (512)",
-                "wolfcrypt blake2b (512)",
-#endif
-#if SIZE_MACRO <= 48 /* 384-bit internal state */
-                "xkcp xoodyak",
-#endif
-#if SIZE_MACRO <= 128
-                // 1600-bit internal state: r=1088, c=512
-                "openssl shake256",
-                "wolfcrypt shake256",
-                "xkcp turboshake256",
-#endif
-#if SIZE_MACRO <= 160
-                // 1600-bit internal state: r=1344, c=256
-                "openssl shake128",
-                "wolfcrypt shake128",
-                "xkcp turboshake128",
-                "xkcp kangarootwelve",
-#endif
-        };
 
         // // Setup global OpenSSL cipher
         // openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
@@ -191,7 +148,7 @@ int main() {
                 uint8_t levels      = 1 + LOGBASE(nof_macros, fanout);
 
                 printf("levels:\t\t\t%d\n", levels);
-                printf("%s mixing...\n", descr[i]);
+                printf("%s mixing...\n", get_mix_name(configs[i]));
                 printf("fanout:\t\t\t%d\n", fanout);
 
                 // Setup global cipher and hash functions

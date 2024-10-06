@@ -513,8 +513,8 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
 
 // ------------------------------------------------------------ Generic mixctr code
 
-inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
-        switch (name) {
+inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
+        switch (mix_type) {
 #if SIZE_MACRO == 16
         case MIXCTR_OPENSSL_DAVIES_MEYER_128:
                 return &openssl_davies_meyer;
@@ -578,4 +578,52 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t name) {
         default:
                 return NULL;
         }
+}
+
+char *MIX_NAMES[] = {
+#if SIZE_MACRO == 16
+        // 128-bit block size
+        "openssl-davies-meyer",
+        "wolfcrypt-davies-meyer",
+        "openssl-matyas-meyer-oseas",
+        "wolfcrypt-matyas-meyer-oseas",
+#elif SIZE_MACRO == 32
+        // 256-bit block size
+        "openssl-sha3-256",
+        "wolfcrypt-sha3-256",
+        "openssl-blake2s",
+        "wolfcrypt-blake2s",
+        "blake3-blake3",
+#elif SIZE_MACRO == 48
+        // 384-bit block size
+        "aes-ni-mixctr",
+        "openssl-mixctr",
+        "wolfcrypt-mixctr",
+#elif SIZE_MACRO == 64
+        // 512-bit block size
+        "openssl-sha3-512",
+        "wolfcrypt-sha3-512",
+        "openssl-blake2b",
+        "wolfcrypt-blake2b",
+#endif
+#if SIZE_MACRO <= 48 /* 384-bit internal state */
+        "xkcp-xoodyak",
+#endif
+#if SIZE_MACRO <= 128
+        // 1600-bit internal state: r=1088, c=512
+        "openssl-shake256",
+        "wolfcrypt-shake256",
+        "xkcp-turboshake256",
+#endif
+#if SIZE_MACRO <= 160
+        // 1600-bit internal state: r=1344, c=256
+        "openssl-shake128",
+        "wolfcrypt-shake128",
+        "xkcp-turboshake128",
+        "xkcp-kangarootwelve",
+#endif
+};
+
+char *get_mix_name(mixctr_t mix_type) {
+        return MIX_NAMES[mix_type];
 }

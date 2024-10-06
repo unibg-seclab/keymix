@@ -61,6 +61,9 @@ typedef enum {
 } mixctr_t;
 
 // Obtains the corresponding MixCTR function given a certain AES implmmentation.
-mixctrpass_impl_t get_mixctr_impl(mixctr_t name);
+mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type);
+
+// Get the mix name given its mix type.
+char *get_mix_name(mixctr_t mix_type);
 
 #endif
