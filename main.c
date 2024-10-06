@@ -32,12 +32,6 @@
 
 #define SIZE_1MiB (1024 * 1024)
 
-// // This is a little hack, because OpenSSL is *painfully* slow when used in
-// // multi-threaded environments.
-// // https://github.com/openssl/openssl/issues/17064
-// // This is defined in mixctr.c
-// extern EVP_CIPHER *openssl_aes256ecb;
-
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("%s\n", descr);
         for (size_t i = 0; i < size; i++) {
@@ -66,9 +60,6 @@ int main() {
         }
 
         const mixctr_t *configs = MIX_TYPES;
-
-        // // Setup global OpenSSL cipher
-        // openssl_aes256ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 
         // mixing_config mconf = {&wolfssl, 3};
         // uint8_t threads[] = {1, 3, 9, 27, 81};
