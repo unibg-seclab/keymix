@@ -708,8 +708,10 @@ inline mixctrpass_impl_t get_mixctr_impl(mixctr_t mix_type) {
 char *MIX_NAMES[] = {
 #if SIZE_MACRO == 16
         // 128-bit block size
+        "openssl-aes-128",
         "openssl-davies-meyer",
         "openssl-matyas-meyer-oseas",
+        "wolfcrypt-aes-128",
         "wolfcrypt-davies-meyer",
         "wolfcrypt-matyas-meyer-oseas",
 #elif SIZE_MACRO == 32
@@ -752,7 +754,6 @@ char *MIX_NAMES[] = {
 char *get_mix_name(mixctr_t mix_type) {
         return MIX_NAMES[mix_type];
 }
-
 
 mixctr_t get_mix_type(char* name) {
         for (int8_t i = 0; i < sizeof(MIX_NAMES) / sizeof(*MIX_NAMES); i++)
