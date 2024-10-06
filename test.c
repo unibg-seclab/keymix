@@ -19,6 +19,8 @@
 #define SIZE_1GiB (1024 * SIZE_1MiB)
 
 #define NUM_OF_TESTS 5
+#define NUM_OF_FANOUTS 3
+#define NUM_OF_FANOUTS_ENC 1
 #define MIN_KEY_SIZE (8 * SIZE_1MiB)
 #define MAX_KEY_SIZE (1.9 * SIZE_1GiB)
 
@@ -58,6 +60,20 @@ void csv_line(size_t key_size, size_t size, uint8_t internal_threads, uint8_t ex
         fprintf(fout, "%d,", fanout);
         fprintf(fout, "%.2f\n", time);
         fflush(fout);
+}
+
+// Pick 1st fanouts available for the selected block size
+void setup_fanouts(uint8_t n, uint8_t *fanouts) {
+        uint8_t count = 0;
+        for (uint8_t fanout = 2; fanout <= SIZE_MACRO; fanout++) {
+                if (SIZE_MACRO % fanout)
+                        continue;
+
+                fanouts[count++] = fanout;
+
+                if (count == n)
+                        break;
+        }
 }
 
 uint8_t first_x_that_surpasses(double bar, uint8_t fanout) {
@@ -103,10 +119,19 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
                 internal_threads[2]     = 9;
                 break;
         case 4:
-                *internal_threads_count = 3;
+                *internal_threads_count = 2;
                 internal_threads[0]     = 1;
                 internal_threads[1]     = 4;
-                internal_threads[2]     = 16;
+                break;
+        case 5:
+                *internal_threads_count = 2;
+                internal_threads[0]     = 1;
+                internal_threads[1]     = 5;
+                break;
+        case 8:
+                *internal_threads_count = 2;
+                internal_threads[0]     = 1;
+                internal_threads[1]     = 8;
                 break;
         }
 }
@@ -115,18 +140,7 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
 
 void test_keymix(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
                  uint8_t external_threads) {
-        char *impl = "(unspecified)";
-        switch (ctx->mixctr) {
-        case MIXCTR_AESNI:
-                impl = "aesni";
-                break;
-        case MIXCTR_WOLFSSL:
-                impl = "wolfssl";
-                break;
-        case MIXCTR_OPENSSL:
-                impl = "openssl";
-                break;
-        }
+        char *impl = get_mix_name(ctx->mixctr);
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
              external_threads, impl, ctx->fanout, size / ctx->key_size);
 
@@ -200,9 +214,56 @@ int main(int argc, char *argv[]) {
         char *out_keymix = "data/out.csv";
         char *out_enc    = "data/enc.csv";
 
-        // Gli unici per cui il nostro schema funzione e ha senso
-        uint8_t fanouts[]     = {2, 3, 4};
-        uint8_t fanouts_count = sizeof(fanouts) / sizeof(__typeof__(*fanouts));
+        mixctr_t mix_types[] = {
+#if SIZE_MACRO == 16
+                MIXCTR_OPENSSL_DAVIES_MEYER_128,
+                MIXCTR_WOLFCRYPT_DAVIES_MEYER_128,
+                MIXCTR_OPENSSL_MATYAS_MEYER_OSEAS_128,
+                MIXCTR_WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+#elif SIZE_MACRO == 32
+                MIXCTR_OPENSSL_SHA3_256,
+                MIXCTR_WOLFCRYPT_SHA3_256,
+                MIXCTR_OPENSSL_BLAKE2S,
+                MIXCTR_WOLFCRYPT_BLAKE2S,
+                MIXCTR_BLAKE3_BLAKE3,
+#elif SIZE_MACRO == 48
+                MIXCTR_AESNI,
+                MIXCTR_OPENSSL,
+                MIXCTR_WOLFSSL,
+#elif SIZE_MACRO == 64
+                MIXCTR_OPENSSL_SHA3_512,
+                MIXCTR_WOLFCRYPT_SHA3_512,
+                MIXCTR_OPENSSL_BLAKE2B,
+                MIXCTR_WOLFCRYPT_BLAKE2B,
+#endif
+        // Extendable-output functions (XOFs)
+#if SIZE_MACRO <= 48
+                MIXCTR_XKCP_XOODYAK,
+#endif
+#if SIZE_MACRO <= 128
+                // 1600-bit internal state: r=1088, c=512
+                // NOTE: To ensure the maximum security strength of 256 bits, the block
+                // size should be at least of 64 bytes.
+                MIXCTR_OPENSSL_SHAKE256,
+                MIXCTR_WOLFCRYPT_SHAKE256,
+                MIXCTR_XKCP_TURBOSHAKE_256,
+#endif
+#if SIZE_MACRO <= 160
+                // 1600-bit internal state: r=1344, c=256
+                // NOTE: To ensure the maximum security strength of 128 bits, the block
+                // size should be at least of 32 bytes.
+                MIXCTR_OPENSSL_SHAKE128,
+                MIXCTR_WOLFCRYPT_SHAKE128,
+                MIXCTR_XKCP_TURBOSHAKE_128,
+                MIXCTR_XKCP_KANGAROOTWELVE,
+#endif
+        };
+        uint8_t mix_types_count = sizeof(mix_types) / sizeof(*mix_types);
+
+        uint8_t fanouts[NUM_OF_FANOUTS];
+        uint8_t fanouts_count = NUM_OF_FANOUTS;
+
+        setup_fanouts(NUM_OF_FANOUTS, fanouts);
 
         byte *key = NULL;
         byte *out = NULL;
@@ -215,11 +276,14 @@ int main(int argc, char *argv[]) {
         uint8_t external_threads_count =
             sizeof(external_threads) / sizeof(__typeof__(*external_threads));
 
-        // There are never no more than 5 internal threads' values
+        // There are never more than 5 internal threads' values
         uint8_t internal_threads[5] = {0, 0, 0, 0, 0};
         uint8_t internal_threads_count;
 
         keymix_ctx_t ctx;
+
+#define DO_KEYMIX_TESTS 1
+#define DO_ENCRYPTION_TESTS 1
 
 #ifdef DO_KEYMIX_TESTS
         fout = fopen(out_keymix, "w");
@@ -227,37 +291,35 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        FOR_EVERY(fanout_p, fanouts, fanouts_count) {
-                uint8_t fanout = *fanout_p;
+        FOR_EVERY(mix_type_p, mix_types, mix_types_count) {
+                mixctr_t mix_type = *mix_type_p;
 
-                setup_keys(fanout, &key_sizes, &key_sizes_count);
-                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
+                FOR_EVERY(fanout_p, fanouts, fanouts_count) {
+                        uint8_t fanout = *fanout_p;
 
-                FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
-                        size_t key_size = *key_size_p;
-                        _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *key_size_p,
-                             MiB(*key_size_p));
-                        key = malloc(key_size);
+                        setup_keys(fanout, &key_sizes, &key_sizes_count);
+                        setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
-                        FOR_EVERY(ithr, internal_threads, internal_threads_count) {
-                                // FOR_EVERY(ethr, external_threads, external_threads_count) {
-                                size_t size = key_size;
+                        FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
+                                size_t key_size = *key_size_p;
+                                _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *key_size_p,
+                                MiB(*key_size_p));
+                                key = malloc(key_size);
 
-                                out = malloc(size);
+                                FOR_EVERY(ithr, internal_threads, internal_threads_count) {
+                                        // FOR_EVERY(ethr, external_threads, external_threads_count) {
+                                        size_t size = key_size;
 
-                                ctx_keymix_init(&ctx, MIXCTR_WOLFSSL, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, 1);
+                                        out = malloc(size);
 
-                                ctx_keymix_init(&ctx, MIXCTR_OPENSSL, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, 1);
+                                        ctx_keymix_init(&ctx, mix_type, key, key_size, fanout);
+                                        test_keymix(&ctx, out, size, *ithr, 1);
 
-                                ctx_keymix_init(&ctx, MIXCTR_AESNI, key, key_size, fanout);
-                                test_keymix(&ctx, out, size, *ithr, 1);
+                                        free(out);
+                                }
 
-                                free(out);
+                                free(key);
                         }
-
-                        free(key);
                 }
         }
 
@@ -271,8 +333,10 @@ int main(int argc, char *argv[]) {
         // - AES-NI
         // - 3 internal threads
 
-        uint8_t fanouts_enc[] = {3};
-        fanouts_count         = 1;
+        uint8_t fanouts_enc[NUM_OF_FANOUTS_ENC];
+        fanouts_count = NUM_OF_FANOUTS_ENC;
+
+        setup_fanouts(NUM_OF_FANOUTS_ENC, fanouts_enc);
 
         uint8_t external_threads_enc[] = {1, 2, 3, 4, 5, 6, 7, 8};
         external_threads_count         = 8;
@@ -304,7 +368,7 @@ int main(int argc, char *argv[]) {
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
-                                ctx_encrypt_init(&ctx, MIXCTR_AESNI, key, key_size, 0, fanout);
+                                ctx_encrypt_init(&ctx, MIXCTR_XKCP_TURBOSHAKE_128, key, key_size, 0, fanout);
                                 if (size < 100 * SIZE_1GiB) {
                                         out = malloc(size);
                                         in  = out;

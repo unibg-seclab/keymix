@@ -84,6 +84,7 @@ run: $(OUT)
 
 # ------------ Testing
 
+$(TEST): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(TEST): test.o $(OBJECTS)
 
 keymix-test: CFLAGS += -DDO_KEYMIX_TESTS
@@ -102,10 +103,12 @@ run-test:
 
 # ------------ Verifying
 
+$(VERIFY): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(VERIFY): verify.o $(OBJECTS)
 
 # ------------ Keymixer
 
+$(KEYMIXER): CFLAGS += $(if $(SIZE_MACRO),-DSIZE_MACRO=$(SIZE_MACRO),)
 $(KEYMIXER): keymixer.o $(OBJECTS)
 cli: $(KEYMIXER)
 
