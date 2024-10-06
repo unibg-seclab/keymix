@@ -392,6 +392,20 @@ int custom_checks() {
         if (err)                                                                                   \
                 goto cleanup;
 
+// Pick 1st fanouts available for the selected block size
+void setup_fanouts(uint8_t n, uint8_t *fanouts) {
+        uint8_t count = 0;
+        for (uint8_t fanout = 2; fanout <= SIZE_MACRO; fanout++) {
+                if (SIZE_MACRO % fanout)
+                        continue;
+
+                fanouts[count++] = fanout;
+
+                if (count == n)
+                        break;
+        }
+}
+
 int main() {
         uint64_t rand_seed = time(NULL);
         srand(rand_seed);
