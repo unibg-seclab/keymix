@@ -760,7 +760,7 @@ char *MIX_NAMES[] = {
 #endif
 #if SIZE_MACRO <= 192
         // 1600-bit internal state
-        "xkcp kravette-wbc",
+        "xkcp-kravette-wbc",
 #endif
 };
 
