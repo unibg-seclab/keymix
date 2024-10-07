@@ -8,6 +8,7 @@
 #include <openssl/evp.h>
 
 #include "enc.h"
+#include "keymix.h"
 #include "log.h"
 #include "types.h"
 #include "utils.h"
@@ -60,20 +61,6 @@ void csv_line(size_t key_size, size_t size, uint8_t internal_threads, uint8_t ex
         fprintf(fout, "%d,", fanout);
         fprintf(fout, "%.2f\n", time);
         fflush(fout);
-}
-
-// Pick 1st fanouts available for the selected block size
-void setup_fanouts(uint8_t n, uint8_t *fanouts) {
-        uint8_t count = 0;
-        for (uint8_t fanout = 2; fanout <= SIZE_MACRO; fanout++) {
-                if (SIZE_MACRO % fanout)
-                        continue;
-
-                fanouts[count++] = fanout;
-
-                if (count == n)
-                        break;
-        }
 }
 
 uint8_t first_x_that_surpasses(double bar, uint8_t fanout) {
@@ -132,6 +119,11 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
                 *internal_threads_count = 2;
                 internal_threads[0]     = 1;
                 internal_threads[1]     = 8;
+                break;
+        case 10:
+                *internal_threads_count = 2;
+                internal_threads[0]     = 1;
+                internal_threads[1]     = 10;
                 break;
         }
 }
@@ -218,9 +210,7 @@ int main(int argc, char *argv[]) {
         uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mixctr_t);
 
         uint8_t fanouts[NUM_OF_FANOUTS];
-        uint8_t fanouts_count = NUM_OF_FANOUTS;
-
-        setup_fanouts(NUM_OF_FANOUTS, fanouts);
+        uint8_t fanouts_count = get_available_fanouts(NUM_OF_FANOUTS, fanouts);
 
         byte *key = NULL;
         byte *out = NULL;
@@ -291,9 +281,7 @@ int main(int argc, char *argv[]) {
         // - 3 internal threads
 
         uint8_t fanouts_enc[NUM_OF_FANOUTS_ENC];
-        fanouts_count = NUM_OF_FANOUTS_ENC;
-
-        setup_fanouts(NUM_OF_FANOUTS_ENC, fanouts_enc);
+        fanouts_count = get_available_fanouts(NUM_OF_FANOUTS_ENC, fanouts_enc);
 
         uint8_t external_threads_enc[] = {1, 2, 3, 4, 5, 6, 7, 8};
         external_threads_count         = 8;

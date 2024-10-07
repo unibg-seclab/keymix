@@ -1,11 +1,13 @@
-#include "enc.h"
-#include "file.h"
-#include "types.h"
-#include "utils.h"
 #include <argp.h>
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
+
+#include "enc.h"
+#include "file.h"
+#include "keymix.h"
+#include "types.h"
+#include "utils.h"
 
 // ------------------------------------------------------------------ Error management and codes
 
@@ -37,7 +39,6 @@ typedef struct {
 
 enum args_key {
         ARG_KEY_OUTPUT    = 'o',
-        ARG_KEY_FANOUT    = 'f',
         ARG_KEY_PRIMITIVE = 'p',
         ARG_KEY_THREADS   = 't',
         ARG_KEY_VERBOSE   = 'v',
@@ -58,7 +59,6 @@ static struct argp_option options[] = {
     {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
     {"iv", ARG_KEY_IV, "STRING", 0,
      "16-Byte initialization vector in hexadecimal format (default: 0)"},
-    {"fanout", ARG_KEY_FANOUT, "UINT", 0, "A divisor of the block size (default: 2)"},
     {"primitive", ARG_KEY_PRIMITIVE, "STRING", 0, "One of the mixing primitive available (default: xkcp-tuboshake-128)"},
     {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default: 1)"},
     {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
@@ -100,25 +100,6 @@ inline int parse_hex(uint128_t *valp, char *hex) {
         return 0;
 }
 
-inline int parse_fanout(fanout_t *out, char *str) {
-        char *endptr;
-        long fanout;
-
-        fanout = strtol(str, &endptr, 10);
-
-        // Error out on invalid conversion, out of range value, and partial
-        // parsing of the string
-        if (!fanout || fanout == LONG_MIN || fanout == LONG_MAX || *endptr)
-                return 1;
-        
-        // Error out on invalid fanout
-        if (SIZE_MACRO % fanout)
-                return 1;
-
-        *out = fanout;
-        return 0;
-}
-
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
         cli_args_t *arguments = state->input;
         switch (key) {
@@ -133,10 +114,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         argp_error(state, "IV must be 16-B long");
                 if (parse_hex(&(arguments->iv), arg))
                         argp_error(state, "IV must consist of valid hex characters");
-                break;
-        case ARG_KEY_FANOUT:
-                if (parse_fanout(&(arguments->fanout), arg))
-                        argp_error(state, "fanout must be a divisor of %d", SIZE_MACRO);
                 break;
         case ARG_KEY_PRIMITIVE:
                 arguments->mixctr = get_mix_type(arg);
@@ -191,10 +168,13 @@ int main(int argc, char **argv) {
         args.output  = NULL;
         args.key     = NULL;
         args.iv      = 0;
-        args.fanout  = 2;
         args.mixctr  = MIXCTR_XKCP_TURBOSHAKE_128;
         args.threads = 1;
         args.verbose = false;
+
+        // Setup fanout
+        if(!get_available_fanouts(1, (uint8_t*)&args.fanout))
+                return EXIT_FAILURE;
 
         // Start parsing
         if (argp_parse(&argp, argc, argv, 0, 0, &args))

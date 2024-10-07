@@ -105,6 +105,21 @@ int barrier_destroy(thr_barrier_t *state) {
 
 // --------------------------------------------------------- Some utility functions
 
+int get_available_fanouts(uint8_t n, uint8_t *fanouts) {
+        uint8_t count = 0;
+        for (uint8_t fanout = SIZE_MACRO / CHUNK_SIZE; fanout >= 2; fanout--) {
+                if (SIZE_MACRO % fanout)
+                        continue;
+
+                fanouts[count++] = fanout;
+
+                if (count == n)
+                        break;
+        }
+
+        return count;
+}
+
 inline uint8_t total_levels(size_t size, uint8_t fanout) {
         uint64_t nof_macros = size / SIZE_MACRO;
         return 1 + LOGBASE(nof_macros, fanout);

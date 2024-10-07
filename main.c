@@ -24,12 +24,6 @@
 #include "types.h"
 #include "utils.h"
 
-#if SIZE_MACRO == 16
-#define CHUNK_SIZE 8
-#else
-#define CHUNK_SIZE 16
-#endif
-
 #define SIZE_1MiB (1024 * 1024)
 
 void print_buffer_hex(byte *buf, size_t size, char *descr) {

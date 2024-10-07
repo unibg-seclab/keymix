@@ -16,7 +16,7 @@
 #define NUM_OF_FANOUTS 3
 
 #define MIN_LEVEL 1
-#define MAX_LEVEL 8
+#define MAX_LEVEL 5
 
 #define COMPARE(a, b, size, ...)                                                                   \
         ({                                                                                         \
@@ -193,8 +193,8 @@ int verify_keymix(size_t fanout, uint8_t level) {
                 { MIXCTR_OPENSSL_BLAKE2S, MIXCTR_WOLFCRYPT_BLAKE2S },
 #elif SIZE_MACRO == 48
                 // 384-bit block size
-                { MIXCTR_AESNI_MIXCTR, MIXCTR_OPENSSL_MIXCTR },
-                { MIXCTR_OPENSSL_MIXCTR, MIXCTR_WOLFSSL_MIXCTR },
+                { MIXCTR_AESNI, MIXCTR_OPENSSL },
+                { MIXCTR_OPENSSL, MIXCTR_WOLFSSL },
 #elif SIZE_MACRO == 64
                 // 512-bit block size
                 { MIXCTR_OPENSSL_SHA3_512, MIXCTR_WOLFCRYPT_SHA3_512 },
@@ -392,20 +392,6 @@ int custom_checks() {
         if (err)                                                                                   \
                 goto cleanup;
 
-// Pick 1st fanouts available for the selected block size
-void setup_fanouts(uint8_t n, uint8_t *fanouts) {
-        uint8_t count = 0;
-        for (uint8_t fanout = 2; fanout <= SIZE_MACRO; fanout++) {
-                if (SIZE_MACRO % fanout)
-                        continue;
-
-                fanouts[count++] = fanout;
-
-                if (count == n)
-                        break;
-        }
-}
-
 int main() {
         uint64_t rand_seed = time(NULL);
         srand(rand_seed);
@@ -415,9 +401,9 @@ int main() {
         CHECKED(custom_checks());
 
         uint8_t fanouts[NUM_OF_FANOUTS];
-        setup_fanouts(NUM_OF_FANOUTS, fanouts);
+        uint8_t fanouts_count = get_available_fanouts(NUM_OF_FANOUTS, fanouts);
 
-        for (uint8_t i = 0; i < NUM_OF_FANOUTS; i++) {
+        for (uint8_t i = 0; i < fanouts_count; i++) {
                 uint8_t fanout = fanouts[i];
 
                 _log(LOG_INFO, "Verifying with fanout %zu\n", fanout);
