@@ -249,7 +249,7 @@ int openssl_xof_hash(byte *in, byte *out, size_t size) {
 }
 
 int openssl_davies_meyer(byte *in, byte *out, size_t size) {
-        unsigned char *iv = "curr-hadcoded-iv";
+        unsigned char *iv = "cur-hardcoded-iv";
         int outl;
 
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -286,7 +286,7 @@ int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
         // To support inplace execution of the function we need avoid
         // overwriting the input
         unsigned char *out_enc = (in == out ? malloc(size) : out);
-        unsigned char *iv = "curr-hadcoded-iv";
+        unsigned char *iv = "cur-hardcoded-iv";
         int outl;
 
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -422,7 +422,7 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
 int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
         int ret;
         Aes aes;
-        byte *iv = "curr-hadcoded-iv";
+        byte *iv = "cur-hardcoded-iv";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -451,8 +451,9 @@ int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
         Aes aes;
         // To support inplace execution of the function we need avoid
         // overwriting the input
-        byte *out_enc = (in == out ? malloc(size) : out);
-        byte *iv = "curr-hadcoded-iv";
+        bool is_inplace = (in == out);
+        byte *out_enc = (is_inplace ? malloc(SIZE_MACRO) : out);
+        byte *iv = "cur-hardcoded-iv";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -471,10 +472,14 @@ int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
                         _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
                 }
                 memxor(out, out_enc, in, SIZE_MACRO);
+
+                if (!is_inplace) {
+                        out_enc += SIZE_MACRO;
+                }
         }
 
         wc_AesFree(&aes);
-        if (in == out) {
+        if (is_inplace) {
                 free(out_enc);
         }
         return 0;
