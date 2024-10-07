@@ -380,18 +380,19 @@ int wolfcrypt_shake256_hash(byte *in, byte *out, size_t size) {
 }
 
 int wolfcrypt_blake2s_hash(byte *in, byte *out, size_t size) {
-        Blake2s b2s[1];
-        int ret = wc_InitBlake2s(b2s, SIZE_MACRO);
-        if (ret) {
-                _log(LOG_ERROR, "wc_InitBlake2s error %d\n", ret);
-        }
+        int ret;
+        Blake2s b2s;
         byte *last = in + size;
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                int ret = wc_Blake2sUpdate(b2s, in, SIZE_MACRO);
+                ret = wc_InitBlake2s(&b2s, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_InitBlake2s error %d\n", ret);
+                }
+                ret = wc_Blake2sUpdate(&b2s, in, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2sUpdate error %d\n", ret);
                 }
-                ret = wc_Blake2sFinal(b2s, out, SIZE_MACRO);
+                ret = wc_Blake2sFinal(&b2s, out, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2sFinal error %d\n", ret);
                 }
@@ -400,18 +401,19 @@ int wolfcrypt_blake2s_hash(byte *in, byte *out, size_t size) {
 }
 
 int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
-        Blake2b b2b[1];
-        int ret = wc_InitBlake2b(b2b, SIZE_MACRO);
-        if (ret) {
-                _log(LOG_ERROR, "wc_InitBlake2b error %d\n", ret);
-        }
+        int ret;
+        Blake2b b2b;
         byte *last = in + size;
         for (; in < last; in += SIZE_MACRO, out += SIZE_MACRO) {
-                int ret = wc_Blake2bUpdate(b2b, in, SIZE_MACRO);
+                ret = wc_InitBlake2b(&b2b, SIZE_MACRO);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_InitBlake2b error %d\n", ret);
+                }
+                ret = wc_Blake2bUpdate(&b2b, in, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2bUpdate error %d\n", ret);
                 }
-                ret = wc_Blake2bFinal(b2b, out, SIZE_MACRO);
+                ret = wc_Blake2bFinal(&b2b, out, SIZE_MACRO);
                 if (ret) {
                         _log(LOG_ERROR, "wc_Blake2bFinal error %d\n", ret);
                 }
