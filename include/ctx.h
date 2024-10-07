@@ -1,9 +1,11 @@
 #ifndef CTX_H
 #define CTX_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "mixctr.h"
 #include "types.h"
-#include <stdbool.h>
 
 // The context for keymix operations. It houses all shared information that
 // won't be modified by the algorithm.
@@ -21,7 +23,7 @@ typedef struct {
         mixctrpass_impl_t mixctrpass;
 
         // The fanout for the shuffle/spread part, can only be 2, 3, or 4
-        fanout_t fanout;
+        uint8_t fanout;
 
         // The initial IV to XOR with the first block of the key.
         // This is only done if `do_iv_counter` is enabled.
@@ -41,10 +43,10 @@ typedef struct {
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
-                      fanout_t fanout);
+                      uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout);
+void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint8_t fanout);
 
 // Updates the context `ctx` to enable the XOR operation after doing the keymix.
 void ctx_enable_encryption(keymix_ctx_t *ctx);

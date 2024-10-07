@@ -25,7 +25,7 @@ typedef struct {
         uint128_t counter;
 
         // mixctrpass_impl_t mixctrpass;
-        // fanout_t fanout;
+        // uint8_t fanout;
         uint8_t internal_threads;
 } worker_args_t;
 

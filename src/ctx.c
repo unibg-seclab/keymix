@@ -4,7 +4,7 @@
 
 #include <openssl/evp.h>
 
-void ctx_init(keymix_ctx_t *ctx, mixctr_t mix, byte *key, size_t size, fanout_t fanout) {
+void ctx_init(keymix_ctx_t *ctx, mixctr_t mix, byte *key, size_t size, uint8_t fanout) {
         size_t num_macros = size / SIZE_MACRO;
         assert(size % SIZE_MACRO == 0 && ISPOWEROF(num_macros, fanout) &&
                "Number of blocks in the key MUST be a power of the fanout");
@@ -16,13 +16,13 @@ void ctx_init(keymix_ctx_t *ctx, mixctr_t mix, byte *key, size_t size, fanout_t 
 }
 
 void ctx_encrypt_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint128_t iv,
-                      fanout_t fanout) {
+                      uint8_t fanout) {
         ctx_init(ctx, mixctr, key, size, fanout);
         ctx_enable_encryption(ctx);
         ctx_enable_iv_counter(ctx, iv);
 }
 
-void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, fanout_t fanout) {
+void ctx_keymix_init(keymix_ctx_t *ctx, mixctr_t mixctr, byte *key, size_t size, uint8_t fanout) {
         ctx_init(ctx, mixctr, key, size, fanout);
         ctx_disable_encryption(ctx);
         ctx_disable_iv_counter(ctx);

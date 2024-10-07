@@ -8,15 +8,6 @@ typedef unsigned char byte;
 // This requires GCC to be used as a compiler.
 typedef __uint128_t uint128_t;
 
-// Accepted fanouts by the spread algorithm.
-typedef enum {
-        FANOUT2 = 2,
-        FANOUT3 = 3,
-        FANOUT4 = 4,
-        FANOUT8 = 8,
-        FANOUT10 = 10,
-} fanout_t;
-
 #ifndef SIZE_MACRO
 // // AES block size (128 bit)
 // #define SIZE_MACRO 16

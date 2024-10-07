@@ -31,7 +31,7 @@ typedef struct {
         const char *output;
         const char *key;
         uint128_t iv;
-        fanout_t fanout;
+        uint8_t fanout;
         mixctr_t mixctr;
         uint8_t threads;
         bool verbose;
