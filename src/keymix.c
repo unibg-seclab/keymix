@@ -107,12 +107,8 @@ int barrier_destroy(thr_barrier_t *state) {
 
 // --------------------------------------------------------- Some utility functions
 
-int get_chunk_size(block_size_t block_size) {
-        return (block_size == 16 ? 8 : 16);
-}
-
 int get_fanouts_from_block_size(block_size_t block_size, uint8_t n, uint8_t *fanouts) {
-        uint8_t chunk_size = get_chunk_size(block_size);
+        uint8_t chunk_size = (block_size == 16 ? 8 : 16);
         uint8_t count = 0;
 
         for (uint8_t fanout = block_size / chunk_size; fanout >= 2; fanout--) {
@@ -209,11 +205,20 @@ thread_exit:
         return NULL;
 }
 
-int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, block_size_t block_size,
-           uint8_t fanout, uint8_t nof_threads) {
+int keymix(mix_t mix_type, byte *in, byte *out, size_t size, uint8_t fanout, uint8_t nof_threads) {
         if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
                 return 1;
+        }
+
+        int err = 0;
+        mix_func_t mixpass;
+        block_size_t block_size;
+
+        err = get_mix_func(mix_type, &mixpass, &block_size);
+        if (err) {
+                _log(LOG_ERROR, "Unknown mixing function\n");
+                return err;
         }
 
         // We can't assign more than 1 thread to a single macro, so we will
@@ -236,7 +241,6 @@ int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, block_size_t bl
 
         _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
 
-        int err = 0;
         pthread_t threads[nof_threads];
         thr_keymix_t args[nof_threads];
         thr_barrier_t barrier;

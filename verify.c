@@ -228,17 +228,8 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
 
         int err = 0;
         for (int g = 0; g < nof_groups; g++) {
-                if (get_mix_func(groups[g][0], &funcs[0], &block_sizes[0])) {
-                        _log(LOG_ERROR, "Unknown mixing primitive\n");
-                        exit(EXIT_FAILURE);
-                }
-
-                if (get_mix_func(groups[g][1], &funcs[1], &block_sizes[1])) {
-                        _log(LOG_ERROR, "Unknown mixing primitive\n");
-                        exit(EXIT_FAILURE);
-                }
-                keymix(funcs[0], in, out[0], size, block_size, fanout, 1);
-                keymix(funcs[1], in, out[1], size, block_size, fanout, 1);
+                keymix(groups[g][0], in, out[0], size, fanout, 1);
+                keymix(groups[g][1], in, out[1], size, fanout, 1);
                 char *error_msg = (char *) malloc(80 * sizeof(char));
                 sprintf(error_msg, "%s != %s\n", get_mix_name(groups[g][0]), get_mix_name(groups[g][1]));
                 err += COMPARE(out[0], out[1], size, error_msg);
@@ -275,9 +266,9 @@ int verify_multithreaded_keymix(mix_t mix_type, size_t fanout, uint8_t level) {
         size_t thrf   = fanout;
         size_t thrff  = fanout * fanout;
 
-        keymix(mix, in, out1, size, block_size, fanout, thr1);
-        keymix(mix, in, outf, size, block_size, fanout, thrf);
-        keymix(mix, in, outff, size, block_size, fanout, thrff);
+        keymix(mix_type, in, out1, size, fanout, thr1);
+        keymix(mix_type, in, outf, size, fanout, thrf);
+        keymix(mix_type, in, outff, size, fanout, thrff);
 
         // Comparisons
         int err = 0;
@@ -321,7 +312,7 @@ int verify_keymix_t(mix_t mix_type, size_t fanout, uint8_t level) {
         ctx_t ctx;
         ctx_keymix_init(&ctx, mix_type, in, size, fanout);
 
-        keymix(ctx.mixpass, in, out_simple, size, block_size, fanout, 1);
+        keymix(mix_type, in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
 
         keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);

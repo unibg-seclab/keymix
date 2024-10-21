@@ -92,8 +92,8 @@ void *w_keymix(void *a) {
         size_t remaining_size = args->resource_size;
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
-                keymix(ctx->mixpass, tmpkey, outbuffer, ctx->key_size, ctx->block_size,
-                       ctx->fanout, args->internal_threads);
+                keymix(ctx->mix, tmpkey, outbuffer, ctx->key_size, ctx->fanout,
+                       args->internal_threads);
                 if (ctx->encrypt) {
                         memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
                         in += ctx->key_size;
