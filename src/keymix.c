@@ -1,13 +1,14 @@
 #include "keymix.h"
 
+#include <pthread.h>
+#include <stdio.h>
+#include <string.h>
+
 #include "config.h"
 #include "log.h"
 #include "spread.h"
 #include "types.h"
 #include "utils.h"
-#include <pthread.h>
-#include <stdio.h>
-#include <string.h>
 
 // --------------------------------------------------------- Types for threading
 
@@ -30,6 +31,7 @@ typedef struct {
         mix_func_t mixpass;
         uint8_t fanout;
         thr_barrier_t *barrier;
+        block_size_t block_size;
 } thr_keymix_t;
 
 // --------------------------------------------------------- Threading barrier code
@@ -105,10 +107,16 @@ int barrier_destroy(thr_barrier_t *state) {
 
 // --------------------------------------------------------- Some utility functions
 
-int get_available_fanouts(uint8_t n, uint8_t *fanouts) {
+int get_chunk_size(block_size_t block_size) {
+        return (block_size == 16 ? 8 : 16);
+}
+
+int get_fanouts_from_block_size(block_size_t block_size, uint8_t n, uint8_t *fanouts) {
+        uint8_t chunk_size = get_chunk_size(block_size);
         uint8_t count = 0;
-        for (uint8_t fanout = BLOCK_SIZE / CHUNK_SIZE; fanout >= 2; fanout--) {
-                if (BLOCK_SIZE % fanout)
+
+        for (uint8_t fanout = block_size / chunk_size; fanout >= 2; fanout--) {
+                if (block_size % fanout)
                         continue;
 
                 fanouts[count++] = fanout;
@@ -120,16 +128,27 @@ int get_available_fanouts(uint8_t n, uint8_t *fanouts) {
         return count;
 }
 
-inline uint8_t total_levels(size_t size, uint8_t fanout) {
-        uint64_t nof_macros = size / BLOCK_SIZE;
+int get_fanouts_from_mix_type(mix_t mix_type, uint8_t n, uint8_t *fanouts) {
+        mix_func_t mix_func;
+        block_size_t block_size;
+
+        if (get_mix_func(mix_type, &mix_func, &block_size)) {
+                return -1;
+        }
+
+        return get_fanouts_from_block_size(block_size, n, fanouts);
+}
+
+inline uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout) {
+        uint64_t nof_macros = size / block_size;
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
-void keymix_inner(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
-                  uint8_t levels) {
+void keymix_inner(mix_func_t mixpass, byte *in, byte *out, size_t size, block_size_t block_size,
+                  uint8_t fanout, uint8_t levels) {
         (*mixpass)(in, out, size);
         for (uint8_t l = 1; l < levels; l++) {
-                spread(out, size, l, fanout);
+                spread(out, size, l, block_size, fanout);
                 (*mixpass)(out, out, size);
         }
 }
@@ -141,8 +160,8 @@ void *w_thread_keymix(void *a) {
         int8_t nof_threads = args->total_size / args->chunk_size;
 
         // No need to sync among other threads here
-        keymix_inner(args->mixpass, args->in, args->out, args->chunk_size, args->fanout,
-                     args->thread_levels);
+        keymix_inner(args->mixpass, args->in, args->out, args->chunk_size, args->block_size,
+                     args->fanout, args->thread_levels);
 
         _log(LOG_DEBUG, "thread %d finished the layers without coordination\n", args->id);
 
@@ -167,6 +186,7 @@ void *w_thread_keymix(void *a) {
                     .total_levels    = args->total_levels,
                     .fanout          = args->fanout,
                     .level           = l,
+                    .block_size      = args->block_size,
                 };
                 spread_chunks(&thrdata);
 
@@ -189,8 +209,8 @@ thread_exit:
         return NULL;
 }
 
-int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
-           uint8_t nof_threads) {
+int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, block_size_t block_size,
+           uint8_t fanout, uint8_t nof_threads) {
         if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
                 return 1;
@@ -198,21 +218,21 @@ int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
 
         // We can't assign more than 1 thread to a single macro, so we will
         // never spawn more than nof_macros threads
-        uint64_t nof_macros = size / BLOCK_SIZE;
+        uint64_t nof_macros = size / block_size;
         nof_threads         = MIN(nof_threads, nof_macros);
-        uint8_t levels      = total_levels(size, fanout);
+        uint8_t levels      = get_levels(size, block_size, fanout);
 
         _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
 
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
-                keymix_inner(mixpass, in, out, size, fanout, levels);
+                keymix_inner(mixpass, in, out, size, block_size, fanout, levels);
                 return 0;
         }
 
         size_t thread_chunk_size = size / nof_threads;
-        uint8_t thread_levels    = total_levels(thread_chunk_size, fanout);
+        uint8_t thread_levels    = get_levels(thread_chunk_size, block_size, fanout);
 
         _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
 
@@ -243,6 +263,7 @@ int keymix(mix_func_t mixpass, byte *in, byte *out, size_t size, uint8_t fanout,
                 a->total_levels  = levels;
                 a->mixpass       = mixpass;
                 a->fanout        = fanout;
+                a->block_size    = block_size;
 
                 pthread_create(&threads[t], NULL, w_thread_keymix, a);
         }

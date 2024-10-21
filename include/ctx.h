@@ -7,6 +7,11 @@
 #include "mix.h"
 #include "types.h"
 
+typedef enum {
+        CTX_ERR_NOMIXCTR = 1,
+        CTX_ERR_KEYSIZE  = 2,
+} ctx_err_t;
+
 // The context for keymix operations. It houses all shared information that
 // won't be modified by the algorithm.
 typedef struct {
@@ -37,28 +42,31 @@ typedef struct {
         // and increasing counters to the following ones.
         // Otherwise, this step is skipped.
         bool do_iv_counter;
-} keymix_ctx_t;
+
+        // Input/output size of the mixing primitive.
+        block_size_t block_size;
+} ctx_t;
 
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
-void ctx_encrypt_init(keymix_ctx_t *ctx, mix_t mixctr, byte *key, size_t size, uint128_t iv,
-                      uint8_t fanout);
+int ctx_encrypt_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint128_t iv,
+                     uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
-void ctx_keymix_init(keymix_ctx_t *ctx, mix_t mixctr, byte *key, size_t size, uint8_t fanout);
+int ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout);
 
 // Updates the context `ctx` to enable the XOR operation after doing the keymix.
-void ctx_enable_encryption(keymix_ctx_t *ctx);
+void ctx_enable_encryption(ctx_t *ctx);
 
 // Updates the context `ctx` to disable the XOR operation after doing the keymix.
-void ctx_disable_encryption(keymix_ctx_t *ctx);
+void ctx_disable_encryption(ctx_t *ctx);
 
 // Updates the context `ctx` to enable the application of IV and counter to the key.
 // Must provide an IV.
-void ctx_enable_iv_counter(keymix_ctx_t *ctx, uint128_t iv);
+void ctx_enable_iv_counter(ctx_t *ctx, uint128_t iv);
 
 // Updates the context `ctx` to disable the application of IV and counter to the key.
-void ctx_disable_iv_counter(keymix_ctx_t *ctx);
+void ctx_disable_iv_counter(ctx_t *ctx);
 
 #endif

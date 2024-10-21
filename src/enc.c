@@ -11,7 +11,7 @@
 // ---------------------------------------------- Keymix internals
 
 typedef struct {
-        keymix_ctx_t *ctx;
+        ctx_t *ctx;
         // byte *key;
         // size_t key_size;
         uint64_t keys_to_do;
@@ -50,7 +50,7 @@ inline void _reverse128bits(uint128_t *x) {
 
 void *w_keymix(void *a) {
         worker_args_t *args = (worker_args_t *)a;
-        keymix_ctx_t *ctx   = args->ctx;
+        ctx_t *ctx          = args->ctx;
 
         // Keep a local copy of the key: it needs to be modified, and we are
         // in a multithreaded environment, so we can't just overwrite the same
@@ -92,9 +92,8 @@ void *w_keymix(void *a) {
         size_t remaining_size = args->resource_size;
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
-                keymix(ctx->mixpass, tmpkey, outbuffer, ctx->key_size, ctx->fanout,
-                       args->internal_threads);
-
+                keymix(ctx->mixpass, tmpkey, outbuffer, ctx->key_size, ctx->block_size,
+                       ctx->fanout, args->internal_threads);
                 if (ctx->encrypt) {
                         memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
                         in += ctx->key_size;
@@ -118,7 +117,7 @@ void *w_keymix(void *a) {
         return NULL;
 }
 
-int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
+int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
                     uint8_t internal_threads, uint128_t starting_counter) {
         pthread_t threads[external_threads];
         worker_args_t args[external_threads];
@@ -184,28 +183,28 @@ int keymix_internal(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t
 
 // ---------------------------------------------- Principal interface
 
-int keymix_t(keymix_ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
+int keymix_t(ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
              uint8_t internal_threads) {
         return keymix_ex(ctx, buffer, size, external_threads, internal_threads, 0);
 }
 
-int keymix_ex(keymix_ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
+int keymix_ex(ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
               uint8_t internal_threads, uint128_t starting_counter) {
         assert(!ctx->encrypt && "You can't use an encryption context with keymix");
         return keymix_internal(ctx, NULL, buffer, size, external_threads, internal_threads,
                                starting_counter);
 }
 
-int encrypt(keymix_ctx_t *ctx, byte *in, byte *out, size_t size) {
+int encrypt(ctx_t *ctx, byte *in, byte *out, size_t size) {
         return encrypt_ex(ctx, in, out, size, 1, 1, 0);
 }
 
-int encrypt_t(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
+int encrypt_t(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
               uint8_t internal_threads) {
         return encrypt_ex(ctx, in, out, size, external_threads, internal_threads, 0);
 }
 
-int encrypt_ex(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
+int encrypt_ex(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
                uint8_t internal_threads, uint128_t starting_counter) {
         assert(ctx->encrypt && ctx->do_iv_counter &&
                "You must use an encryption context with encrypt");

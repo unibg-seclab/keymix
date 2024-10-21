@@ -8,15 +8,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include <openssl/e_os2.h>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
-#include <openssl/types.h>
-#include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
-
 #include "ctx.h"
 #include "keymix.h"
 #include "log.h"
@@ -24,6 +15,8 @@
 #include "types.h"
 #include "utils.h"
 
+#define MIX_TYPE OPENSSL_MATYAS_MEYER_OSEAS_128
+#define PRECISION 2
 #define SIZE_1MiB (1024 * 1024)
 
 void print_buffer_hex(byte *buf, size_t size, char *descr) {
@@ -38,87 +31,133 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
 }
 
 int main() {
-        uint8_t fanout = BLOCK_SIZE / CHUNK_SIZE;
-        size_t key_size = BLOCK_SIZE;
+        mix_func_t func;
+        block_size_t block_size;
+        uint8_t chunk_size;
+        uint8_t fanout;
+        byte *key;
+        byte *out;
+        size_t key_size;
+        uint64_t nof_macros;
+        uint8_t levels;
+        int err = 0;
+        double time;
+        double readable_size;
+
+        uint8_t threads[] = {1, 2, 4, 8, 16};
+        uint8_t nof_threads;
+
+        printf("[*] Multi-threaded execution of keymix (%s)...\n\n", get_mix_name(MIX_TYPE));
+
+        if (get_mix_func(MIX_TYPE, &func, &block_size)) {
+                _log(LOG_ERROR, "Unknown mixing primitive\n");
+                exit(EXIT_FAILURE);
+        }
+
+        printf("block size:\t%d\n", block_size);
+        get_fanouts_from_block_size(block_size, 1, &fanout);
+        printf("fanout:\t\t%d\n", fanout);
+
+        key_size = block_size;
         while (key_size < 256 * SIZE_1MiB) {
                 key_size *= fanout;
         }
-        printf("Key has size %zu MiB\n", key_size / SIZE_1MiB);
-        printf("====\n");
-
-        byte *key = malloc(key_size);
-        byte *out = malloc(key_size);
+        printf("key size:\t%zu MiB\n", key_size / SIZE_1MiB);
+        key = malloc(key_size);
+        out = malloc(key_size);
         if (key == NULL || out == NULL) {
-                _log(LOG_DEBUG, "Cannot allocate more memory\n");
-                goto clean;
+                _log(LOG_ERROR, "Cannot allocate memory\n");
+                goto cleanup;
         }
 
-        const mix_t *configs = MIX_TYPES;
+        printf("levels:\t\t%d\n\n", 1 + (uint8_t) LOGBASE(key_size / block_size, fanout));
 
-        // mixing_config mconf = {&wolfssl, 3};
-        // uint8_t threads[] = {1, 3, 9, 27, 81};
-        // for (uint8_t t = 0; t < sizeof(threads) / sizeof(uint8_t); t++) {
-        //         printf("Multi-threaded wolfssl (128) with %d threads\n", threads[t]);
-        //         int pe              = 0;
-        //         uint8_t nof_threads = threads[t];
-        //         double time =
-        //             MEASURE({ pe = keymix(get_mix_func(configs[0]), key, out, key_size, 3, nof_threads); });
-        //         uint8_t precision    = 2;
-        //         double readable_size = (double)key_size / SIZE_1MiB;
-        //         printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
-        //         printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
-        //         printf("avg. speed [MiB/s]:\t%.*lf\n", precision, readable_size * 1000 / time);
-        //         printf("====\n");
+        for (uint8_t t = 0; t < sizeof(threads) / sizeof(uint8_t); t++) {
+                printf("[+] with %d threads\n", threads[t]);
+                nof_threads = threads[t];
 
-        //         if (pe != 0) {
-        //                 printf("something went wrong %d\n", pe);
-        //                 exit(1);
-        //         }
-        // }
-
-        int err = 0;
-        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_t); i++) {
-                printf("zeroing memory...\n");
                 explicit_bzero(key, key_size);
                 explicit_bzero(out, key_size);
 
-                if (key_size <= BLOCK_SIZE * fanout) {
+                double time =
+                    MEASURE({ err = keymix(func, key, out, key_size, block_size, fanout, nof_threads); });
+                readable_size = (double)key_size / SIZE_1MiB;
+                printf("total time:\t%.*lf s\n", PRECISION, time / 1000);
+                printf("total size:\t%.*lf MiB\n", PRECISION, readable_size);
+                printf("average speed:\t%.*lf MiB/s\n\n", PRECISION, readable_size * 1000 / (time));
+
+                if (err) {
+                        printf("Error occured while encrypting");
+                        goto cleanup;
+                }
+
+                explicit_bzero(key, key_size);
+                explicit_bzero(out, key_size);
+        }
+
+        free(key);
+        free(out);
+
+        printf("[*] Single-threaded keymix with varying mixing primitives\n\n");
+        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_t); i++) {
+                printf("[+] %s mixing...\n", get_mix_name(MIX_TYPES[i]));
+
+                err = get_mix_func(MIX_TYPES[i], &func, &block_size);
+                if (err) {
+                        _log(LOG_ERROR, "No implementation found\n");
+                        goto cleanup;
+                }
+
+                chunk_size = get_chunk_size(block_size);
+                fanout = block_size / chunk_size;
+
+                printf("block size:\t%d\n", block_size);
+                printf("fanout:\t\t%d\n", fanout);
+
+                key_size = block_size;
+                while (key_size < 256 * SIZE_1MiB) {
+                        key_size *= fanout;
+                }
+                printf("key size:\t%zu MiB\n", key_size / SIZE_1MiB);
+                key = malloc(key_size);
+                out = malloc(key_size);
+                if (key == NULL || out == NULL) {
+                        _log(LOG_ERROR, "Cannot allocate memory\n");
+                        goto cleanup;
+                }
+
+                printf("levels:\t\t%d\n", 1 + (uint8_t) LOGBASE(key_size / block_size, fanout));
+
+                explicit_bzero(key, key_size);
+                explicit_bzero(out, key_size);
+
+                if (key_size <= block_size * fanout) {
                         print_buffer_hex(key, key_size, "key");
                         print_buffer_hex(out, key_size, "out");
                 }
-                uint64_t nof_macros = key_size / BLOCK_SIZE;
-                uint8_t levels      = 1 + LOGBASE(nof_macros, fanout);
 
-                printf("levels:\t\t\t%d\n", levels);
-                printf("%s mixing...\n", get_mix_name(configs[i]));
-                printf("fanout:\t\t\t%d\n", fanout);
-
-                // Setup global cipher and hash functions
-                keymix_ctx_t ctx;
-                ctx_keymix_init(&ctx, configs[i], key, key_size, fanout);
-
-                double time = MEASURE({ err = keymix(get_mix_func(configs[i]), key, out, key_size, fanout, 1); }); // all layers
-                // double time = MEASURE({ err = (*get_mix_func(configs[i]))(key, out, key_size); }); // single layer
-
-                explicit_bzero(out, key_size);
-
-                if (err != 0) {
+                time = MEASURE({ err = keymix(func, key, out, key_size, block_size, fanout, 1); }); // all layers
+                // time = MEASURE({ err = (*func)(key, out, key_size); }); // single layer
+                if (err) {
                         printf("Error occured while encrypting");
-                        goto clean;
+                        goto cleanup;
                 }
 
-                uint8_t precision    = 2;
-                double readable_size = (double)key_size / SIZE_1MiB;
-                printf("total time [s]:\t\t%.*lf\n", precision, time / 1000);
-                printf("total size [MiB]:\t%.*lf\n", precision, readable_size);
-                printf("avg. speed [MiB/s]:\t%.*lf\n", precision, readable_size * 1000 / (time));
-                printf("====\n");
+                readable_size = (double)key_size / SIZE_1MiB;
+                printf("total time:\t%.*lf s\n", PRECISION, time / 1000);
+                printf("total size:\t%.*lf MiB\n", PRECISION, readable_size);
+                printf("average speed:\t%.*lf MiB/s\n\n", PRECISION, readable_size * 1000 / (time));
+
+                explicit_bzero(key, key_size);
+                explicit_bzero(out, key_size);
+                free(key);
+                free(out);
         }
 
-clean:
-        explicit_bzero(key, key_size);
+        return EXIT_SUCCESS;
+
+cleanup:
         free(key);
-        explicit_bzero(out, key_size);
         free(out);
         return err;
 }

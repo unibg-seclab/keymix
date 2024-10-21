@@ -1,12 +1,13 @@
 #ifndef SPREAD_H
 #define SPREAD_H
 
+#include "mix.h"
 #include "types.h"
 #include <stdint.h>
 #include <stdlib.h>
 
 // Implements the spread algorithm in-place.
-void spread(byte *buffer, size_t size, uint8_t level, uint8_t fanout);
+void spread(byte *buffer, size_t size, uint8_t level, block_size_t block_size, uint8_t fanout);
 
 // Data needed by the in-place `spread` algorithm.
 typedef struct {
@@ -28,6 +29,9 @@ typedef struct {
 
         // The total number of mixing levels.
         uint8_t total_levels;
+
+        // Block size of the mixing primitive
+        block_size_t block_size;
 
         // The fanout to consider.
         uint8_t fanout;

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "ctx.h"
 #include "enc.h"
 #include "file.h"
 #include "keymix.h"
@@ -14,6 +15,7 @@
 #define ERR_ENC 100
 #define ERR_KEY_SIZE 101
 #define ERR_KEY_READ 102
+#define ERR_NOMIXCTR 103
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -172,12 +174,12 @@ int main(int argc, char **argv) {
         args.threads = 1;
         args.verbose = false;
 
-        // Setup fanout
-        if(!get_available_fanouts(1, (uint8_t*)&args.fanout))
-                return EXIT_FAILURE;
-
         // Start parsing
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
+                return EXIT_FAILURE;
+
+        // Setup fanout
+        if(get_fanouts_from_mix_type(args.mix, 1, (uint8_t*)&args.fanout) <= 0)
                 return EXIT_FAILURE;
 
         if (args.verbose) {
@@ -199,7 +201,7 @@ int main(int argc, char **argv) {
         size_t key_size = 0;
         byte *key       = NULL;
 
-        // prepare the streams
+        // Prepare the streams
         FILE *fkey = NULL;
         FILE *fin  = NULL;
         FILE *fout = NULL;
@@ -220,27 +222,25 @@ int main(int argc, char **argv) {
         key_size = get_file_size(fkey);
         key      = checked_malloc(key_size);
 
-        if (key_size % BLOCK_SIZE != 0) {
-                errmsg("key must be a multiple of %d B", BLOCK_SIZE);
-                err = ERR_KEY_SIZE;
-                goto cleanup;
-        }
-
-        size_t num_macros = key_size / BLOCK_SIZE;
-        if (!ISPOWEROF(num_macros, args.fanout)) {
-                errmsg("key's number of blocks is not a power of fanout (%d)", args.fanout);
-                err = ERR_KEY_SIZE;
-                goto cleanup;
-        }
-
         if (fread(key, 1, key_size, fkey) != key_size) {
                 err = ERR_KEY_READ;
                 goto cleanup;
         }
 
         // Do the encryption
-        keymix_ctx_t ctx;
-        ctx_encrypt_init(&ctx, args.mix, key, key_size, args.iv, args.fanout);
+        ctx_t ctx;
+        switch (ctx_encrypt_init(&ctx, args.mix, key, key_size, args.iv, args.fanout)) {
+        case CTX_ERR_NOMIXCTR:
+                errmsg("no implementation found");
+                err = ERR_NOMIXCTR;
+                goto cleanup;
+        case CTX_ERR_KEYSIZE:
+                errmsg("the number of blocks of the key is not a power of the fanout (%d)",
+                       args.fanout);
+                err = ERR_KEY_SIZE;
+                goto cleanup;
+        }
+
         if (stream_encrypt(fout, fin, &ctx, args.threads))
                 err = ERR_ENC;
 

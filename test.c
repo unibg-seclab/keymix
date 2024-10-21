@@ -22,6 +22,10 @@
 #define NUM_OF_TESTS 5
 #define NUM_OF_FANOUTS 3
 #define NUM_OF_FANOUTS_ENC 1
+
+#define ENC_MIX_TYPE XKCP_TURBOSHAKE_128
+#define ENC_MIX_BLOCK_SIZE TURBOSHAKE128_BLOCK_SIZE
+
 #define MIN_KEY_SIZE (8 * SIZE_1MiB)
 #define MAX_KEY_SIZE (1.9 * SIZE_1GiB)
 
@@ -63,26 +67,27 @@ void csv_line(size_t key_size, size_t size, uint8_t internal_threads, uint8_t ex
         fflush(fout);
 }
 
-uint8_t first_x_that_surpasses(double bar, uint8_t fanout) {
+uint8_t first_x_that_surpasses(double bar, block_size_t block_size, uint8_t fanout) {
         uint8_t x = 0;
         size_t size;
         do {
                 x++;
-                size = BLOCK_SIZE * pow(fanout, x);
+                size = block_size * pow(fanout, x);
         } while (size < bar);
 
         return x;
 }
 
-void setup_keys(uint8_t fanout, size_t **key_sizes, uint8_t *key_sizes_count) {
-        uint8_t min_x = first_x_that_surpasses(MIN_KEY_SIZE, fanout);
-        uint8_t max_x = first_x_that_surpasses(MAX_KEY_SIZE, fanout);
+void setup_keys(block_size_t block_size, uint8_t fanout, size_t **key_sizes,
+                uint8_t *key_sizes_count) {
+        uint8_t min_x = first_x_that_surpasses(MIN_KEY_SIZE, block_size, fanout);
+        uint8_t max_x = first_x_that_surpasses(MAX_KEY_SIZE, block_size, fanout);
 
         *key_sizes_count = max_x + 1 - min_x;
         *key_sizes       = realloc(*key_sizes, *key_sizes_count * sizeof(size_t));
 
         for (uint8_t x = min_x; x <= max_x; x++) {
-                (*key_sizes)[x - min_x] = BLOCK_SIZE * pow(fanout, x);
+                (*key_sizes)[x - min_x] = block_size * pow(fanout, x);
         }
 }
 
@@ -130,7 +135,7 @@ void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
 
 // -------------------------------------------------- Actual test functions
 
-void test_keymix(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
+void test_keymix(ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
                  uint8_t external_threads) {
         char *impl = get_mix_name(ctx->mix);
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
@@ -145,7 +150,7 @@ void test_keymix(keymix_ctx_t *ctx, byte *out, size_t size, uint8_t internal_thr
         _log(LOG_INFO, "\n");
 }
 
-void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
+void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
               uint8_t external_threads) {
         char *impl = "aesni";
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
@@ -160,7 +165,7 @@ void test_enc(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t inter
         }
         _log(LOG_INFO, "\n");
 }
-void test_enc_stream(keymix_ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
+void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
                      uint8_t external_threads) {
         char *impl = "aesni";
         _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
@@ -210,7 +215,7 @@ int main(int argc, char *argv[]) {
         uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mix_t);
 
         uint8_t fanouts[NUM_OF_FANOUTS];
-        uint8_t fanouts_count = get_available_fanouts(NUM_OF_FANOUTS, fanouts);
+        uint8_t fanouts_count;
 
         byte *key = NULL;
         byte *out = NULL;
@@ -227,7 +232,7 @@ int main(int argc, char *argv[]) {
         uint8_t internal_threads[5] = {0, 0, 0, 0, 0};
         uint8_t internal_threads_count;
 
-        keymix_ctx_t ctx;
+        ctx_t ctx;
 
 #define DO_KEYMIX_TESTS 1
 #define DO_ENCRYPTION_TESTS 1
@@ -240,11 +245,18 @@ int main(int argc, char *argv[]) {
 
         FOR_EVERY(mix_type_p, mix_types, mix_types_count) {
                 mix_t mix_type = *mix_type_p;
+                mix_func_t mix;
+                block_size_t block_size;
 
+                if (get_mix_func(mix_type, &mix, &block_size)) {
+                        _log(LOG_ERROR, "Unknown mixing primitive\n");
+                }
+
+                fanouts_count = get_fanouts_from_block_size(block_size, NUM_OF_FANOUTS, fanouts);
                 FOR_EVERY(fanout_p, fanouts, fanouts_count) {
                         uint8_t fanout = *fanout_p;
 
-                        setup_keys(fanout, &key_sizes, &key_sizes_count);
+                        setup_keys(block_size, fanout, &key_sizes, &key_sizes_count);
                         setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
                         FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
@@ -281,7 +293,7 @@ int main(int argc, char *argv[]) {
         // - 3 internal threads
 
         uint8_t fanouts_enc[NUM_OF_FANOUTS_ENC];
-        fanouts_count = get_available_fanouts(NUM_OF_FANOUTS_ENC, fanouts_enc);
+        fanouts_count = get_fanouts_from_mix_type(ENC_MIX_TYPE, NUM_OF_FANOUTS_ENC, fanouts_enc);
 
         uint8_t external_threads_enc[] = {1, 2, 3, 4, 5, 6, 7, 8};
         external_threads_count         = 8;
@@ -298,7 +310,7 @@ int main(int argc, char *argv[]) {
         FOR_EVERY(fanout_p, fanouts_enc, fanouts_count) {
                 uint8_t fanout = *fanout_p;
 
-                setup_keys(fanout, &key_sizes, &key_sizes_count);
+                setup_keys(ENC_MIX_BLOCK_SIZE, fanout, &key_sizes, &key_sizes_count);
                 setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
                 FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
@@ -313,7 +325,7 @@ int main(int argc, char *argv[]) {
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
-                                ctx_encrypt_init(&ctx, XKCP_TURBOSHAKE_128, key, key_size, 0, fanout);
+                                ctx_encrypt_init(&ctx, ENC_MIX_TYPE, key, key_size, 0, fanout);
                                 if (size < 100 * SIZE_1GiB) {
                                         out = malloc(size);
                                         in  = out;

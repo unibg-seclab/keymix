@@ -35,7 +35,7 @@ void derive_thread_numbers(uint8_t *internal_threads, uint8_t *external_threads,
         *external_threads = ethr;
 }
 
-int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
+int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
         uint8_t internal_threads, external_threads;
 
         // First, separate threads into internals and externals correctly,
@@ -77,7 +77,7 @@ int stream_encrypt(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
 // One thing of note: this code does one extr keymix when the file is an exact
 // multiple of external_threads * key_size, because we read after doing the keymix
 // and hence we don't check if the file has ended before.
-int stream_encrypt2(FILE *fout, FILE *fin, keymix_ctx_t *ctx, uint8_t threads) {
+int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
         uint8_t internal_threads, external_threads;
 
         derive_thread_numbers(&internal_threads, &external_threads, ctx->fanout, threads);

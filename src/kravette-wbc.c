@@ -7,6 +7,7 @@
 #include <xkcp/KravatteModes.h>
 
 #include "log.h"
+#include "mix.h"
 #include "types.h"
 
 // --- XKCP Kravatte-WBC in ECB mode ---
@@ -20,8 +21,8 @@ int xkcp_kravette_wbc_ecb(byte *in, byte *out, size_t size) {
         }
 
         byte *last = in + size;
-        for (; in < last; in += BLOCK_SIZE, out += BLOCK_SIZE) {
-                result = Kravatte_WBC_Encipher(&kwiEnc, in, out, 8 * BLOCK_SIZE, NULL, 0); // ignore tweakable part
+        for (; in < last; in += KRAVETTE_WBC_BLOCK_SIZE, out += KRAVETTE_WBC_BLOCK_SIZE) {
+                result = Kravatte_WBC_Encipher(&kwiEnc, in, out, 8 * KRAVETTE_WBC_BLOCK_SIZE, NULL, 0); // ignore tweakable part
                 if (result) {
                         _log(LOG_ERROR, "Kravatte_WBC_Encipher error %d\n", result);
                 }
