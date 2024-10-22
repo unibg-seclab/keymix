@@ -227,7 +227,7 @@ int keymix(mix_t mix_type, byte *in, byte *out, size_t size, uint8_t fanout, uin
         nof_threads         = MIN(nof_threads, nof_macros);
         uint8_t levels      = get_levels(size, block_size, fanout);
 
-        _log(LOG_DEBUG, "total levels:\t\t%d\n", levels);
+        _log(LOG_DEBUG, "total levels:\t%d\n", levels);
 
         // If there is 1 thread, just use the function directly, no need to
         // allocate and deallocate a lot of stuff
@@ -239,7 +239,7 @@ int keymix(mix_t mix_type, byte *in, byte *out, size_t size, uint8_t fanout, uin
         size_t thread_chunk_size = size / nof_threads;
         uint8_t thread_levels    = get_levels(thread_chunk_size, block_size, fanout);
 
-        _log(LOG_DEBUG, "thread levels:\t\t%d\n", thread_levels);
+        _log(LOG_DEBUG, "thread levels:\t%d\n", thread_levels);
 
         pthread_t threads[nof_threads];
         thr_keymix_t args[nof_threads];

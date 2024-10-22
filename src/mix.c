@@ -21,6 +21,9 @@
 #include "utils.h"
 #include "xoofff-wbc.h"
 
+// Maximum size of the OpenSSL encryption batch multiple of the AES block size
+#define MAX_BATCH_SIZE 2147483520
+
 typedef struct {
         char *name;
         mix_func_t function;
@@ -254,7 +257,7 @@ int openssl_blake2b_hash(byte *in, byte *out, size_t size) {
 }
 
 int openssl_davies_meyer(byte *in, byte *out, size_t size) {
-        unsigned char *iv = "cur-hardcoded-iv";
+        unsigned char *iv = "super-secure-key";
         int outl;
 
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -291,32 +294,8 @@ int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
         // To support inplace execution of the function we need avoid
         // overwriting the input
         unsigned char *out_enc = (in == out ? malloc(size) : out);
-        unsigned char *iv = "cur-hardcoded-iv";
-        int outl;
-
-        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        if (!ctx) {
-                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
-        }
-
-        if (!EVP_EncryptInit(ctx, EVP_aes_128_ecb(), iv, NULL)) {
-                _log(LOG_ERROR, "EVP_EncryptInit error\n");
-        }
-
-        EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
-
-        if (!EVP_EncryptUpdate(ctx, out_enc, &outl, in, size)) {
-                _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
-        }
-
-        // if (!EVP_EncryptFinal(ctx, out_enc, &outl)) {
-        //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
-        // }
-
+        openssl_aes_ecb(in, out_enc, size);
         memxor(out, out_enc, in, size);
-
-        EVP_CIPHER_CTX_free(ctx);
-
         if (in == out) {
                 free(out_enc);
         }
@@ -430,7 +409,7 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
 int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
         int ret;
         Aes aes;
-        byte *iv = "cur-hardcoded-iv";
+        byte *iv = "super-secure-key";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -461,7 +440,7 @@ int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
         // overwriting the input
         bool is_inplace = (in == out);
         byte *out_enc = (is_inplace ? malloc(BLOCK_SIZE_AES) : out);
-        byte *iv = "cur-hardcoded-iv";
+        byte *iv = "super-secure-key";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -567,6 +546,8 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
 // --- OpenSSL AES in ECB mode ---
 int openssl_aes_ecb(byte *in, byte *out, size_t size) {
         const unsigned char *key = "super-secure-key";
+        size_t remaining_size;
+        size_t curr_size;
         int outl;
 
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -580,8 +561,15 @@ int openssl_aes_ecb(byte *in, byte *out, size_t size) {
 
         EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
 
-        if (!EVP_EncryptUpdate(ctx, out, &outl, in, size)) {
-                _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
+        // EVP_EncryptUpdate works up to sizes of 2^31 - 1. Bigger keys require
+        // to call the function multiple times.
+        remaining_size = size;
+        while (remaining_size) {
+                curr_size = MIN(remaining_size, MAX_BATCH_SIZE);
+                if (!EVP_EncryptUpdate(ctx, out, &outl, in, curr_size)) {
+                        _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
+                }
+                remaining_size -= curr_size;
         }
 
         // if (!EVP_EncryptFinal(ctx, out, &outl)) {
