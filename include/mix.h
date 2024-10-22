@@ -56,24 +56,24 @@ typedef enum {
 typedef enum {
         // Fixed-output functions
         // We are bound to pick a block size equivalent to size of the output
-        AES_BLOCK_SIZE_ = 16,
-        SHA3_256_BLOCK_SIZE = 32,
-        BLAKE2S_BLOCK_SIZE = 32,
-        BLAKE3_BLOCK_SIZE = 32,
-        MIXCTR_BLOCK_SIZE = 48,
-        SHA3_512_BLOCK_SIZE = 64,
-        BLAKE2B_BLOCK_SIZE = 64,
+        BLOCK_SIZE_AES = 16,
+        BLOCK_SIZE_SHA3_256 = 32,
+        BLOCK_SIZE_BLAKE2S = 32,
+        BLOCK_SIZE_BLAKE3 = 32,
+        BLOCK_SIZE_MIXCTR = 48,
+        BLOCK_SIZE_SHA3_512 = 64,
+        BLOCK_SIZE_BLAKE2B = 64,
         // Extendable-output functions (XOFs)
         // We pick the biggest block size that does not exceed the internal
         // state of the permutation function and brings the best performance
-        XOODYAK_BLOCK_SIZE = BLOCKS_PER_MACRO * AES_BLOCK_SIZE_, // 384-bit internal state
-        XOOFFF_WBC_BLOCK_SIZE = 48, // 384-bit internal state
-        SHAKE256_BLOCK_SIZE = 128, // 1600-bit internal state: r=1088, c=512
-        TURBOSHAKE256_BLOCK_SIZE = 128, // 1600-bit internal state: r=1088, c=512
-        SHAKE128_BLOCK_SIZE = 160, // 1600-bit internal state: r=1344, c=256
-        TURBOSHAKE128_BLOCK_SIZE = 160, // 1600-bit internal state: r=1344, c=256
-        KANGAROOTWELVE_BLOCK_SIZE = 160, // 1600-bit internal state: r=1344, c=256
-        KRAVETTE_WBC_BLOCK_SIZE = 192, // 1600-bit internal state
+        BLOCK_SIZE_XOODYAK = BLOCKS_PER_MACRO * BLOCK_SIZE_AES, // 384-bit internal state
+        BLOCK_SIZE_XOOFFF_WBC = 48, // 384-bit internal state
+        BLOCK_SIZE_SHAKE256 = 128, // 1600-bit internal state: r=1088, c=512
+        BLOCK_SIZE_TURBOSHAKE256 = 128, // 1600-bit internal state: r=1088, c=512
+        BLOCK_SIZE_SHAKE128 = 160, // 1600-bit internal state: r=1344, c=256
+        BLOCK_SIZE_TURBOSHAKE128 = 160, // 1600-bit internal state: r=1344, c=256
+        BLOCK_SIZE_KANGAROOTWELVE = 160, // 1600-bit internal state: r=1344, c=256
+        BLOCK_SIZE_KRAVETTE_WBC = 192, // 1600-bit internal state
 } block_size_t;
 
 const static mix_t MIX_TYPES[] = {
@@ -116,13 +116,13 @@ const static mix_t MIX_TYPES[] = {
 };
 
 const static block_size_t BLOCK_SIZES[] = {
-        AES_BLOCK_SIZE_,
-        SHA3_256_BLOCK_SIZE,
-        MIXCTR_BLOCK_SIZE,
-        SHA3_512_BLOCK_SIZE,
-        SHAKE256_BLOCK_SIZE,
-        SHAKE128_BLOCK_SIZE,
-        KRAVETTE_WBC_BLOCK_SIZE,
+        BLOCK_SIZE_AES,
+        BLOCK_SIZE_SHA3_256,
+        BLOCK_SIZE_MIXCTR,
+        BLOCK_SIZE_SHA3_512,
+        BLOCK_SIZE_SHAKE256,
+        BLOCK_SIZE_SHAKE128,
+        BLOCK_SIZE_KRAVETTE_WBC,
 };
 
 // A function that implements mix on a series of blocks.

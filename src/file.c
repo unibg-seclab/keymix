@@ -29,7 +29,7 @@ void derive_thread_numbers(enc_mode_t enc_mode, uint8_t *internal_threads,
         while (threads % (ithr * fanout) == 0)
                 ithr *= fanout;
 
-        ethr = (enc_mode == CTR ? threads / ithr : 0);
+        ethr = (enc_mode == ENC_MODE_CTR ? threads / ithr : 0);
 
         *internal_threads = ithr;
         *external_threads = ethr;

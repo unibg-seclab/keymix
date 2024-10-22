@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
         args.output      = NULL;
         args.key         = NULL;
         args.iv          = 0;
-        args.enc_mode    = CTR;
+        args.enc_mode    = ENC_MODE_CTR;
         args.mix         = XKCP_TURBOSHAKE_128;
         args.one_way_mix = -1;
         args.threads     = 1;
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
                 return EXIT_FAILURE;
 
         // Check that one-way primitive is set with OFB encryption mode
-        if (args.enc_mode == OFB && args.one_way_mix == -1) {
+        if (args.enc_mode == ENC_MODE_OFB && args.one_way_mix == -1) {
                 errmsg("cannot use ofb encryption mode without a one-way primitive");
                 return EXIT_FAILURE;
         }
@@ -218,7 +218,7 @@ int main(int argc, char **argv) {
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
                 printf("enc mode:          %s", get_enc_mode_name(args.enc_mode));
                 printf("primitive:         %s", get_mix_name(args.mix));
-                if (args.enc_mode == OFB)
+                if (args.enc_mode == ENC_MODE_OFB)
                         printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
                 printf("fanout:            %d\n", args.fanout);
                 printf("threads:           %d\n", args.threads);

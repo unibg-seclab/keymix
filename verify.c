@@ -186,40 +186,40 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
         int nof_groups = 0;
 
         switch (block_size) {
-        case AES_BLOCK_SIZE_:
+        case BLOCK_SIZE_AES:
                 nof_groups = 2;
                 groups[0][0] = OPENSSL_DAVIES_MEYER_128;
                 groups[0][1] = WOLFCRYPT_DAVIES_MEYER_128;
                 groups[1][0] = OPENSSL_MATYAS_MEYER_OSEAS_128;
                 groups[1][1] = WOLFCRYPT_MATYAS_MEYER_OSEAS_128;
                 break;
-        case SHA3_256_BLOCK_SIZE:
+        case BLOCK_SIZE_SHA3_256:
                 nof_groups = 2;
                 groups[0][0] = OPENSSL_SHA3_256;
                 groups[0][1] = WOLFCRYPT_SHA3_256;
                 groups[1][0] = OPENSSL_BLAKE2S;
                 groups[1][1] = WOLFCRYPT_BLAKE2S;
                 break;
-        case MIXCTR_BLOCK_SIZE:
+        case BLOCK_SIZE_MIXCTR:
                 nof_groups = 2;
                 groups[0][0] = AESNI_MIXCTR;
                 groups[0][1] = OPENSSL_MIXCTR;
                 groups[1][0] = OPENSSL_MIXCTR;
                 groups[1][1] = WOLFSSL_MIXCTR;
                 break;
-        case SHA3_512_BLOCK_SIZE:
+        case BLOCK_SIZE_SHA3_512:
                 nof_groups = 2;
                 groups[0][0] = OPENSSL_SHA3_512;
                 groups[0][1] = WOLFCRYPT_SHA3_512;
                 groups[1][0] = OPENSSL_BLAKE2B;
                 groups[1][1] = WOLFCRYPT_BLAKE2B;
                 break;
-        case SHAKE256_BLOCK_SIZE:
+        case BLOCK_SIZE_SHAKE256:
                 nof_groups = 1;
                 groups[0][0] = OPENSSL_SHAKE256;
                 groups[0][1] = WOLFCRYPT_SHAKE256;
                 break;
-        case SHAKE128_BLOCK_SIZE:
+        case BLOCK_SIZE_SHAKE128:
                 nof_groups = 1;
                 groups[0][0] = OPENSSL_SHAKE128;
                 groups[0][1] = WOLFCRYPT_SHAKE128;
@@ -363,7 +363,7 @@ int verify_enc(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type, size_t f
         ctx_t ctx;
         ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, iv, fanout);
         encrypt(&ctx, in, out1, resource_size);
-        if (enc_mode == CTR) {
+        if (enc_mode == ENC_MODE_CTR) {
                 encrypt_t(&ctx, in, out2, resource_size, 2, 1);
                 encrypt_t(&ctx, in, out3, resource_size, 3, 1);
 
@@ -460,8 +460,8 @@ int main() {
                 mix_type = MIX_TYPES[i];
                 fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS, fanouts);
 
-                CHECKED(custom_checks(CTR, mix_type, 0));
-                CHECKED(custom_checks(OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128));
+                CHECKED(custom_checks(ENC_MODE_CTR, mix_type, 0));
+                CHECKED(custom_checks(ENC_MODE_OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128));
 
                 for (uint8_t j = 0; j < fanouts_count; j++) {
                         uint8_t fanout = fanouts[j];
@@ -471,8 +471,9 @@ int main() {
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_multithreaded_keymix(mix_type, fanout, l));
                                 CHECKED(verify_keymix_t(mix_type, fanout, l));
-                                CHECKED(verify_enc(CTR, mix_type, 0, fanout, l));
-                                CHECKED(verify_enc(OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
+                                CHECKED(verify_enc(ENC_MODE_CTR, mix_type, 0, fanout, l));
+                                CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
+                                                   OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
                         }
                         _log(LOG_INFO, "\n");
                 }

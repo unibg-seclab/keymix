@@ -21,8 +21,8 @@ int xkcp_xoofff_wbc_ecb(byte *in, byte *out, size_t size) {
         }
 
         byte *last = in + size;
-        for (; in < last; in += XOOFFF_WBC_BLOCK_SIZE, out += XOOFFF_WBC_BLOCK_SIZE) {
-                result = XoofffWBC_Encipher(&xpiEnc, in, out, 8 * XOOFFF_WBC_BLOCK_SIZE, NULL, 0); // ignore tweakable part
+        for (; in < last; in += BLOCK_SIZE_XOOFFF_WBC, out += BLOCK_SIZE_XOOFFF_WBC) {
+                result = XoofffWBC_Encipher(&xpiEnc, in, out, 8 * BLOCK_SIZE_XOOFFF_WBC, NULL, 0); // ignore tweakable part
                 if (result) {
                         _log(LOG_ERROR, "XoofffWBC_Encipher error %d\n", result);
                 }

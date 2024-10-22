@@ -225,8 +225,8 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_mix_
         uint8_t internal_threads_count;
 
         uint8_t external_threads_enc[] = {1, 2, 3, 4, 5, 6, 7, 8};
-        uint8_t external_threads_count = (enc_mode == CTR ? 8 : 1); // disable external threads for
-                                                                    // OFB encryption mode
+        uint8_t external_threads_count = (enc_mode == ENC_MODE_CTR ? 8 : 1); // use one thread for
+                                                                             // OFB encryption mode
 
         size_t file_sizes[]     = {SIZE_1MiB, 10 * SIZE_1MiB, 100 * SIZE_1MiB,
                                    SIZE_1GiB, 10 * SIZE_1GiB, 100 * SIZE_1GiB};
@@ -373,8 +373,8 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        do_encryption_tests(CTR, XKCP_TURBOSHAKE_128, -1);
-        do_encryption_tests(OFB, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
+        do_encryption_tests(ENC_MODE_CTR, XKCP_TURBOSHAKE_128, -1);
+        do_encryption_tests(ENC_MODE_OFB, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
 
         fclose(fout);
         fout = NULL;

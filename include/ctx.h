@@ -8,8 +8,8 @@
 #include "types.h"
 
 typedef enum {
-        CTR,
-        OFB,
+        ENC_MODE_CTR,
+        ENC_MODE_OFB,
 } enc_mode_t;
 
 typedef enum {

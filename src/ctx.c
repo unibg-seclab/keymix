@@ -15,7 +15,7 @@ int ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanou
                 return CTX_ERR_KEYSIZE;
         }
 
-        ctx->enc_mode = CTR;
+        ctx->enc_mode = ENC_MODE_CTR;
         ctx->key      = key;
         ctx->key_size = size;
         ctx->mix      = mix;

@@ -187,7 +187,7 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t extern
                         .counter          = counter,
                         .internal_threads = internal_threads,
                 };
-                if (ctx->enc_mode == CTR) {
+                if (ctx->enc_mode == ENC_MODE_CTR) {
                         w_keymix(&arg);
                 } else {
                         w_keymix_ofb(&arg);

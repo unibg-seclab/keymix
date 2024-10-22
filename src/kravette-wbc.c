@@ -21,8 +21,8 @@ int xkcp_kravette_wbc_ecb(byte *in, byte *out, size_t size) {
         }
 
         byte *last = in + size;
-        for (; in < last; in += KRAVETTE_WBC_BLOCK_SIZE, out += KRAVETTE_WBC_BLOCK_SIZE) {
-                result = Kravatte_WBC_Encipher(&kwiEnc, in, out, 8 * KRAVETTE_WBC_BLOCK_SIZE, NULL, 0); // ignore tweakable part
+        for (; in < last; in += BLOCK_SIZE_KRAVETTE_WBC, out += BLOCK_SIZE_KRAVETTE_WBC) {
+                result = Kravatte_WBC_Encipher(&kwiEnc, in, out, 8 * BLOCK_SIZE_KRAVETTE_WBC, NULL, 0); // ignore tweakable part
                 if (result) {
                         _log(LOG_ERROR, "Kravatte_WBC_Encipher error %d\n", result);
                 }
