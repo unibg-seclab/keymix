@@ -30,6 +30,76 @@ typedef struct {
         block_size_t block_size;
 } mix_function_t;
 
+// *** SYMMETRIC CIPHER FUNCTIONS ***
+
+// --- OpenSSL AES in ECB mode ---
+int openssl_aes_ecb(byte *in, byte *out, size_t size) {
+        const unsigned char *key = "super-secure-key";
+        size_t remaining_size;
+        size_t curr_size;
+        int outl;
+
+        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
+        }
+
+        if (!EVP_EncryptInit(ctx, EVP_aes_128_ecb(), key, NULL)) {
+                _log(LOG_ERROR, "EVP_EncryptInit error\n");
+        }
+
+        EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
+
+        // EVP_EncryptUpdate works up to sizes of 2^31 - 1. Bigger keys require
+        // to call the function multiple times.
+        remaining_size = size;
+        while (remaining_size) {
+                curr_size = MIN(remaining_size, MAX_BATCH_SIZE);
+                if (!EVP_EncryptUpdate(ctx, out, &outl, in, curr_size)) {
+                        _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
+                }
+                remaining_size -= curr_size;
+        }
+
+        // if (!EVP_EncryptFinal(ctx, out, &outl)) {
+        //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
+        // }
+
+        EVP_CIPHER_CTX_free(ctx);
+        return 0;
+}
+
+// --- wolfCrypt AES in ECB mode ---
+int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size) {
+        int ret;
+        Aes aes;
+        const byte *key = "super-secure-key";
+
+        ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+        if (ret) {
+                _log(LOG_ERROR, "wc_AesInit error\n");
+        }
+
+        ret = wc_AesSetKey(&aes, key, BLOCK_SIZE_AES, NULL, AES_ENCRYPTION);
+        if (ret) {
+                _log(LOG_ERROR, "wc_AesSetKey error\n");
+        }
+
+        byte *last = in + size;
+        for (; in < last; in += BLOCK_SIZE_AES, out += BLOCK_SIZE_AES) {
+                ret = wc_AesEncryptDirect(&aes, out, in);
+                if (ret) {
+                        _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
+                }
+        }
+
+        wc_AesFree(&aes);
+        return 0;
+}
+
+// NOTE: Conflicting enum naming force us to implement Kravatte-WBC and
+// Xoofff-WBC in separate files
+
 // *** MIXCTR FUNCTIONS ***
 
 // --- WolfSSL ---
@@ -540,76 +610,6 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
         }
         return 0;
 }
-
-// *** SYMMETRIC CIPHER FUNCTIONS ***
-
-// --- OpenSSL AES in ECB mode ---
-int openssl_aes_ecb(byte *in, byte *out, size_t size) {
-        const unsigned char *key = "super-secure-key";
-        size_t remaining_size;
-        size_t curr_size;
-        int outl;
-
-        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        if (!ctx) {
-                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
-        }
-
-        if (!EVP_EncryptInit(ctx, EVP_aes_128_ecb(), key, NULL)) {
-                _log(LOG_ERROR, "EVP_EncryptInit error\n");
-        }
-
-        EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
-
-        // EVP_EncryptUpdate works up to sizes of 2^31 - 1. Bigger keys require
-        // to call the function multiple times.
-        remaining_size = size;
-        while (remaining_size) {
-                curr_size = MIN(remaining_size, MAX_BATCH_SIZE);
-                if (!EVP_EncryptUpdate(ctx, out, &outl, in, curr_size)) {
-                        _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
-                }
-                remaining_size -= curr_size;
-        }
-
-        // if (!EVP_EncryptFinal(ctx, out, &outl)) {
-        //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
-        // }
-
-        EVP_CIPHER_CTX_free(ctx);
-        return 0;
-}
-
-// --- wolfCrypt AES in ECB mode ---
-int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size) {
-        int ret;
-        Aes aes;
-        const byte *key = "super-secure-key";
-
-        ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-        if (ret) {
-                _log(LOG_ERROR, "wc_AesInit error\n");
-        }
-
-        ret = wc_AesSetKey(&aes, key, BLOCK_SIZE_AES, NULL, AES_ENCRYPTION);
-        if (ret) {
-                _log(LOG_ERROR, "wc_AesSetKey error\n");
-        }
-
-        byte *last = in + size;
-        for (; in < last; in += BLOCK_SIZE_AES, out += BLOCK_SIZE_AES) {
-                ret = wc_AesEncryptDirect(&aes, out, in);
-                if (ret) {
-                        _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
-                }
-        }
-
-        wc_AesFree(&aes);
-        return 0;
-}
-
-// NOTE: Conflicting enum naming force us to implement Kravatte-WBC and
-// Xoofff-WBC in separate files
 
 // *** COMPLETE LIST OF MIX FUNCTIONS ***
 
