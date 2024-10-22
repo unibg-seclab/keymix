@@ -22,14 +22,14 @@ size_t get_file_size(FILE *fp) {
         return (size_t)res;
 }
 
-void derive_thread_numbers(uint8_t *internal_threads, uint8_t *external_threads, uint8_t fanout,
-                           uint8_t threads) {
+void derive_thread_numbers(enc_mode_t enc_mode, uint8_t *internal_threads,
+                           uint8_t *external_threads, uint8_t fanout, uint8_t threads) {
         uint8_t ithr, ethr;
         ithr = 1;
         while (threads % (ithr * fanout) == 0)
                 ithr *= fanout;
 
-        ethr = threads / ithr;
+        ethr = (enc_mode == CTR ? threads / ithr : 0);
 
         *internal_threads = ithr;
         *external_threads = ethr;
@@ -40,7 +40,8 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
 
         // First, separate threads into internals and externals correctly,
         // since internals must be a power of fanout
-        derive_thread_numbers(&internal_threads, &external_threads, ctx->fanout, threads);
+        derive_thread_numbers(ctx->enc_mode, &internal_threads, &external_threads, ctx->fanout,
+                              threads);
 
         // Then, we encrypt the input resource in a "streamed" manner:
         // that is, we read `external_threads` groups, each one of size
@@ -80,7 +81,8 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
 int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
         uint8_t internal_threads, external_threads;
 
-        derive_thread_numbers(&internal_threads, &external_threads, ctx->fanout, threads);
+        derive_thread_numbers(ctx->enc_mode, &internal_threads, &external_threads, ctx->fanout,
+                              threads);
 
         size_t buffer_size = external_threads * ctx->key_size;
         byte *buffer       = malloc(buffer_size);

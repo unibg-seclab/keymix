@@ -8,6 +8,11 @@
 #include "types.h"
 
 typedef enum {
+        CTR,
+        OFB,
+} enc_mode_t;
+
+typedef enum {
         CTX_ERR_NOMIXCTR = 1,
         CTX_ERR_KEYSIZE  = 2,
 } ctx_err_t;
@@ -45,13 +50,25 @@ typedef struct {
 
         // Input/output size of the mixing primitive.
         block_size_t block_size;
+
+        // Encryption mode.
+        enc_mode_t enc_mode;
+
+        // The mix type of the one-way pass
+        mix_t one_way_mix;
+
+        // One-way mix pass implementation.
+        mix_func_t one_way_mixpass;
+
+        // Input/output size of the one-way pass mixing primitive.
+        block_size_t one_way_block_size;
 } ctx_t;
 
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
-int ctx_encrypt_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint128_t iv,
-                     uint8_t fanout);
+int ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_mix, byte *key, size_t size,
+                     uint128_t iv, uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
 int ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout);
@@ -68,5 +85,13 @@ void ctx_enable_iv_counter(ctx_t *ctx, uint128_t iv);
 
 // Updates the context `ctx` to disable the application of IV and counter to the key.
 void ctx_disable_iv_counter(ctx_t *ctx);
+
+// Other utilities
+
+// Get encryption mode name given its type.
+char *get_enc_mode_name(enc_mode_t enc_mode);
+
+// Get encryption mode type given its name.
+enc_mode_t get_enc_mode_type(char* name);
 
 #endif

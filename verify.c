@@ -336,7 +336,7 @@ int verify_keymix_t(mix_t mix_type, size_t fanout, uint8_t level) {
         return err;
 }
 
-int verify_enc(mix_t mix_type, size_t fanout, uint8_t level) {
+int verify_enc(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type, size_t fanout, uint8_t level) {
         mix_func_t mix;
         block_size_t block_size;
 
@@ -360,22 +360,18 @@ int verify_enc(mix_t mix_type, size_t fanout, uint8_t level) {
         byte *out2 = setup(resource_size, false);
         byte *out3 = setup(resource_size, false);
 
-        size_t keymix_out_size = CEILDIV(resource_size, key_size) * key_size;
-        // size_t keymix_out_size = key_size;
-        byte *outman = setup(keymix_out_size, false);
-
         ctx_t ctx;
-        ctx_encrypt_init(&ctx, mix_type, key, key_size, iv, fanout);
-
+        ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, iv, fanout);
         encrypt(&ctx, in, out1, resource_size);
-        encrypt_t(&ctx, in, out2, resource_size, 2, 1);
-        encrypt_t(&ctx, in, out3, resource_size, 3, 1);
+        if (enc_mode == CTR) {
+                encrypt_t(&ctx, in, out2, resource_size, 2, 1);
+                encrypt_t(&ctx, in, out3, resource_size, 3, 1);
 
-        err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (2thr)\n");
-        err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
-        err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
+                err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (2thr)\n");
+                err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
+                err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
+        }
 
-        ctx_encrypt_init(&ctx, mix_type, key, key_size, iv, fanout);
         encrypt_t(&ctx, in, out2, resource_size, 1, fanout);
         encrypt_t(&ctx, in, out3, resource_size, 1, fanout * fanout);
         err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
@@ -384,22 +380,14 @@ int verify_enc(mix_t mix_type, size_t fanout, uint8_t level) {
         err += COMPARE(out2, out3, resource_size, "Encrypt (%d int-thr) != Encrypt (%d int-thr)\n",
                        fanout, fanout * fanout);
 
-        ctx_keymix_init(&ctx, mix_type, key, key_size, fanout);
-        ctx_enable_iv_counter(&ctx, iv);
-        keymix_t(&ctx, outman, keymix_out_size, 1, 1);
-        memxor(outman, in, outman, resource_size);
-
-        err += COMPARE(outman, out1, resource_size, "Encrypt != Keymix+XOR\n");
-
         free(key);
         free(out1);
         free(out2);
         free(out3);
-        free(outman);
         return err;
 }
 
-int custom_checks(mix_t mix_type) {
+int custom_checks(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type) {
         mix_func_t mix;
         block_size_t block_size;
 
@@ -419,7 +407,7 @@ int custom_checks(mix_t mix_type) {
         byte *dec = setup(size, false);
 
         ctx_t ctx;
-        ctx_encrypt_init(&ctx, mix_type, key, block_size, iv, fanout);
+        ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, block_size, iv, fanout);
         encrypt(&ctx, in, enc, size);
         encrypt(&ctx, enc, dec, size);
 
@@ -472,7 +460,8 @@ int main() {
                 mix_type = MIX_TYPES[i];
                 fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS, fanouts);
 
-                CHECKED(custom_checks(mix_type));
+                CHECKED(custom_checks(CTR, mix_type, 0));
+                CHECKED(custom_checks(OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128));
 
                 for (uint8_t j = 0; j < fanouts_count; j++) {
                         uint8_t fanout = fanouts[j];
@@ -482,7 +471,8 @@ int main() {
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_multithreaded_keymix(mix_type, fanout, l));
                                 CHECKED(verify_keymix_t(mix_type, fanout, l));
-                                CHECKED(verify_enc(mix_type, fanout, l));
+                                CHECKED(verify_enc(CTR, mix_type, 0, fanout, l));
+                                CHECKED(verify_enc(OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
                         }
                         _log(LOG_INFO, "\n");
                 }

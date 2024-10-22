@@ -117,6 +117,54 @@ void *w_keymix(void *a) {
         return NULL;
 }
 
+void *w_keymix_ofb(void *a) {
+        worker_args_t *args = (worker_args_t *)a;
+        ctx_t *ctx          = args->ctx;
+        byte *curr_key      = ctx->key;
+        byte *next_key      = malloc(ctx->key_size);
+
+        // If we are encrypting, then we have to consider one thing: the
+        // keymix always spits out a key_size, so what happens if we have
+        // a resource (or a piece of a resource) to encrypt that is smaller than the key?
+        // We write out of bounds. So, if we are encrypting, we have to save
+        // the result of keymix somewhere, and then do the xor only on the
+        // corresponding part.
+        byte *outbuffer = args->out;
+        if (ctx->encrypt) {
+                outbuffer = malloc(ctx->key_size);
+        }
+
+        byte *in              = args->in;
+        byte *out             = args->out;
+        size_t remaining_size = args->resource_size;
+        uint64_t nof_macros;
+        size_t remaining_one_way_size;
+
+        for (uint64_t i = 0; i < args->keys_to_do; i++) {
+                keymix(ctx->mix, curr_key, next_key, ctx->key_size, ctx->fanout,
+                       args->internal_threads);
+                nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
+                remaining_one_way_size = ctx->one_way_block_size * nof_macros;
+                (*ctx->one_way_mixpass)(next_key, outbuffer, MIN(remaining_one_way_size, ctx->key_size));
+                if (ctx->encrypt) {
+                        memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
+                        in += ctx->key_size;
+                }
+
+                curr_key = next_key;
+                out += ctx->key_size;
+                if (!ctx->encrypt)
+                        outbuffer = out;
+                if (remaining_size >= ctx->key_size)
+                        remaining_size -= ctx->key_size;
+        }
+
+        free(next_key);
+        if (ctx->encrypt)
+                free(outbuffer);
+        return NULL;
+}
+
 int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
                     uint8_t internal_threads, uint128_t starting_counter) {
         pthread_t threads[external_threads];
@@ -131,15 +179,19 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t extern
 
         if (external_threads == 1) {
                 worker_args_t arg = {
-                    .ctx              = ctx,
-                    .keys_to_do       = keys_to_do,
-                    .in               = in,
-                    .resource_size    = remaining_size,
-                    .out              = out,
-                    .counter          = counter,
-                    .internal_threads = internal_threads,
+                        .ctx              = ctx,
+                        .keys_to_do       = keys_to_do,
+                        .in               = in,
+                        .resource_size    = remaining_size,
+                        .out              = out,
+                        .counter          = counter,
+                        .internal_threads = internal_threads,
                 };
-                w_keymix(&arg);
+                if (ctx->enc_mode == CTR) {
+                        w_keymix(&arg);
+                } else {
+                        w_keymix_ofb(&arg);
+                }
                 return 0;
         }
 

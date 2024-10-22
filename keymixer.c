@@ -34,17 +34,21 @@ typedef struct {
         const char *key;
         uint128_t iv;
         uint8_t fanout;
+        enc_mode_t enc_mode;
         mix_t mix;
+        mix_t one_way_mix;
         uint8_t threads;
         bool verbose;
 } cli_args_t;
 
 enum args_key {
-        ARG_KEY_OUTPUT    = 'o',
-        ARG_KEY_PRIMITIVE = 'p',
-        ARG_KEY_THREADS   = 't',
-        ARG_KEY_VERBOSE   = 'v',
-        ARG_KEY_IV        = 'i',
+        ARG_KEY_ENC_MODE          = 'e',
+        ARG_KEY_IV                = 'i',
+        ARG_KEY_ONE_WAY_PRIMITIVE = 0x100,
+        ARG_KEY_OUTPUT            = 'o',
+        ARG_KEY_PRIMITIVE         = 'p',
+        ARG_KEY_THREADS           = 't',
+        ARG_KEY_VERBOSE           = 'v',
 };
 
 const char *argp_program_version     = "1.0.0";
@@ -58,10 +62,14 @@ static char args_doc[]               = "KEYFILE [INPUT]";
 // - some flags, always zero for us
 // - help description
 static struct argp_option options[] = {
-    {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
+    {"enc-mode", ARG_KEY_ENC_MODE, "STRING", 0, "Encryption mode (default: ctr)"},
     {"iv", ARG_KEY_IV, "STRING", 0,
      "16-Byte initialization vector in hexadecimal format (default: 0)"},
-    {"primitive", ARG_KEY_PRIMITIVE, "STRING", 0, "One of the mixing primitive available (default: xkcp-tuboshake-128)"},
+    {"one-way-primitive", ARG_KEY_ONE_WAY_PRIMITIVE, "STRING", 0,
+     "One of the mixing primitive available (default: none)"},
+    {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
+    {"primitive", ARG_KEY_PRIMITIVE, "STRING", 0,
+     "One of the mixing primitive available (default: xkcp-tuboshake-128)"},
     {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default: 1)"},
     {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
@@ -117,10 +125,20 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 if (parse_hex(&(arguments->iv), arg))
                         argp_error(state, "IV must consist of valid hex characters");
                 break;
+        case ARG_KEY_ENC_MODE:
+                arguments->enc_mode = get_enc_mode_type(arg);
+                if (arguments->enc_mode == -1)
+                        argp_error(state, "encryption mode must be one of ctr, ofb");
+                break;
         case ARG_KEY_PRIMITIVE:
                 arguments->mix = get_mix_type(arg);
                 if (arguments->mix == -1)
                         argp_error(state, "primitive must be one of the available ones");
+                break;
+        case ARG_KEY_ONE_WAY_PRIMITIVE:
+                arguments->one_way_mix = get_mix_type(arg);
+                if (arguments->one_way_mix == -1)
+                        argp_error(state, "one-way primitive must be one of the available ones ");
                 break;
         case ARG_KEY_THREADS:
                 arguments->threads = strtoul(arg, NULL, 10);
@@ -166,34 +184,44 @@ int main(int argc, char **argv) {
         int err = 0;
 
         // Setup defaults
-        args.input   = NULL;
-        args.output  = NULL;
-        args.key     = NULL;
-        args.iv      = 0;
-        args.mix     = XKCP_TURBOSHAKE_128;
-        args.threads = 1;
-        args.verbose = false;
+        args.input       = NULL;
+        args.output      = NULL;
+        args.key         = NULL;
+        args.iv          = 0;
+        args.enc_mode    = CTR;
+        args.mix         = XKCP_TURBOSHAKE_128;
+        args.one_way_mix = -1;
+        args.threads     = 1;
+        args.verbose     = false;
 
         // Start parsing
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
                 return EXIT_FAILURE;
 
-        // Setup fanout
-        if(get_fanouts_from_mix_type(args.mix, 1, (uint8_t*)&args.fanout) <= 0)
+        // Check that one-way primitive is set with OFB encryption mode
+        if (args.enc_mode == OFB && args.one_way_mix == -1) {
+                errmsg("cannot use ofb encryption mode without a one-way primitive");
                 return EXIT_FAILURE;
+        }
+
+        // Setup fanout
+        get_fanouts_from_mix_type(args.mix, 1, (uint8_t*)&args.fanout);
 
         if (args.verbose) {
                 printf("===============\n");
                 printf("KEYMIXER CONFIG\n");
                 printf("===============\n");
-                printf("resource:  %s\n", args.input);
-                printf("output:    %s\n", args.output);
-                printf("key:       %s\n", args.key);
-                printf("iv:        [redacted]\n");
+                printf("resource:          %s\n", args.input);
+                printf("output:            %s\n", args.output);
+                printf("key:               %s\n", args.key);
+                printf("iv:                [redacted]\n");
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
-                printf("primitive: %s", get_mix_name(args.mix));
-                printf("fanout:    %d\n", args.fanout);
-                printf("threads:   %d\n", args.threads);
+                printf("enc mode:          %s", get_enc_mode_name(args.enc_mode));
+                printf("primitive:         %s", get_mix_name(args.mix));
+                if (args.enc_mode == OFB)
+                        printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
+                printf("fanout:            %d\n", args.fanout);
+                printf("threads:           %d\n", args.threads);
                 printf("===============\n");
         }
 
@@ -229,7 +257,9 @@ int main(int argc, char **argv) {
 
         // Do the encryption
         ctx_t ctx;
-        switch (ctx_encrypt_init(&ctx, args.mix, key, key_size, args.iv, args.fanout)) {
+        err = ctx_encrypt_init(&ctx, args.enc_mode, args.mix, args.one_way_mix, key, key_size,
+                               args.iv, args.fanout);
+        switch (err) {
         case CTX_ERR_NOMIXCTR:
                 errmsg("no implementation found");
                 err = ERR_NOMIXCTR;
