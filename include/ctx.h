@@ -13,8 +13,11 @@ typedef enum {
 } enc_mode_t;
 
 typedef enum {
-        CTX_ERR_NOMIXCTR = 1,
-        CTX_ERR_KEYSIZE  = 2,
+        CTX_ERR_NONE,
+        CTX_ERR_UNKNOWN_MIX,
+        CTX_ERR_UNKNOWN_ONE_WAY_MIX,
+        CTX_ERR_MISSING_ONE_WAY_MIX,
+        CTX_ERR_KEYSIZE,
 } ctx_err_t;
 
 // The context for keymix operations. It houses all shared information that
@@ -67,11 +70,11 @@ typedef struct {
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
-int ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_mix, byte *key, size_t size,
-                     uint128_t iv, uint8_t fanout);
+ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_mix,
+                           byte *key, size_t size, uint128_t iv, uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
-int ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout);
+ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout);
 
 // Updates the context `ctx` to enable the XOR operation after doing the keymix.
 void ctx_enable_encryption(ctx_t *ctx);

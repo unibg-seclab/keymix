@@ -460,7 +460,7 @@ int main() {
                 mix_type = MIX_TYPES[i];
                 fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS, fanouts);
 
-                CHECKED(custom_checks(ENC_MODE_CTR, mix_type, 0));
+                CHECKED(custom_checks(ENC_MODE_CTR, mix_type, NONE));
                 CHECKED(custom_checks(ENC_MODE_OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128));
 
                 for (uint8_t j = 0; j < fanouts_count; j++) {
@@ -471,7 +471,7 @@ int main() {
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_multithreaded_keymix(mix_type, fanout, l));
                                 CHECKED(verify_keymix_t(mix_type, fanout, l));
-                                CHECKED(verify_enc(ENC_MODE_CTR, mix_type, 0, fanout, l));
+                                CHECKED(verify_enc(ENC_MODE_CTR, mix_type, NONE, fanout, l));
                                 CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
                                                    OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
                         }

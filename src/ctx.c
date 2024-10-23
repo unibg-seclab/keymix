@@ -5,9 +5,9 @@
 
 #include "utils.h"
 
-int ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout) {
+ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout) {
         if (get_mix_func(mix, &ctx->mixpass, &ctx->block_size)) {
-                return CTX_ERR_NOMIXCTR;
+                return CTX_ERR_UNKNOWN_MIX;
         }
 
         size_t num_macros = size / ctx->block_size;
@@ -23,18 +23,30 @@ int ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanou
         ctx_disable_encryption(ctx);
         ctx_disable_iv_counter(ctx);
 
-        return 0;
+        return CTX_ERR_NONE;
 }
 
-int ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_mix, byte *key,
-                     size_t size, uint128_t iv, uint8_t fanout) {
+ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_mix,
+                           byte *key, size_t size, uint128_t iv, uint8_t fanout) {
         int err = ctx_keymix_init(ctx, mix, key, size, fanout);
         if (err) {
                 return err;
         }
 
         if (get_mix_func(one_way_mix, &ctx->one_way_mixpass, &ctx->one_way_block_size)) {
-                return CTX_ERR_NOMIXCTR;
+                return CTX_ERR_UNKNOWN_ONE_WAY_MIX;
+        }
+
+        // Ensure the one-way mixing primitive is specified with the OFB
+        // encryption mode
+        if (enc_mode == ENC_MODE_OFB && one_way_mix == NONE) {
+                return CTX_ERR_MISSING_ONE_WAY_MIX;
+        }
+
+        // Ensure the block size of the one-way mixing primitive is a divisor
+        // of the key size
+        if (one_way_mix != NONE && size % ctx->one_way_block_size) {
+                return CTX_ERR_KEYSIZE;
         }
 
         ctx->enc_mode    = enc_mode;
@@ -42,7 +54,7 @@ int ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_m
         ctx_enable_encryption(ctx);
         ctx_enable_iv_counter(ctx, iv);
 
-        return 0;
+        return CTX_ERR_NONE;
 }
 
 inline void ctx_enable_encryption(ctx_t *ctx) { ctx->encrypt = true; }
@@ -61,12 +73,17 @@ inline void ctx_disable_iv_counter(ctx_t *ctx) {
 char *ENC_NAMES[] = { "ctr", "ofb" };
 
 char *get_enc_mode_name(enc_mode_t enc_mode) {
+        uint8_t n = sizeof(ENC_NAMES) / sizeof(*ENC_NAMES);
+        if (enc_mode < 0 || enc_mode >= n) {
+                return NULL;
+        }
+
         return ENC_NAMES[enc_mode];
 }
 
 enc_mode_t get_enc_mode_type(char* name) {
         for (int8_t i = 0; i < sizeof(ENC_NAMES) / sizeof(*ENC_NAMES); i++)
-        if (strcmp(name, ENC_NAMES[i]) == 0)
-                return (enc_mode_t)i;
+                if (strcmp(name, ENC_NAMES[i]) == 0)
+                        return (enc_mode_t)i;
         return -1;
 }

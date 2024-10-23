@@ -63,7 +63,7 @@ void csv_line(size_t key_size, size_t size, uint8_t internal_threads, uint8_t ex
         fprintf(fout, "%d,", external_threads);
         fprintf(fout, "%s,", (enc_mode != -1 ? get_enc_mode_name(enc_mode) : "none"));
         fprintf(fout, "%s,", get_mix_name(implementation));
-        fprintf(fout, "%s,", (one_way_mix_type != -1 ? get_mix_name(one_way_mix_type) : "none"));
+        fprintf(fout, "%s,", get_mix_name(one_way_mix_type));
         fprintf(fout, "%d,", fanout);
         fprintf(fout, "%.2f\n", time);
         fflush(fout);
@@ -154,7 +154,7 @@ void test_keymix(ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE(keymix_t(ctx, out, size, external_threads, internal_threads));
-                csv_line(ctx->key_size, size, internal_threads, external_threads, -1, ctx->mix, -1,
+                csv_line(ctx->key_size, size, internal_threads, external_threads, -1, ctx->mix, NONE,
                          ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
@@ -373,7 +373,7 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        do_encryption_tests(ENC_MODE_CTR, XKCP_TURBOSHAKE_128, -1);
+        do_encryption_tests(ENC_MODE_CTR, XKCP_TURBOSHAKE_128, NONE);
         do_encryption_tests(ENC_MODE_OFB, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
 
         fclose(fout);

@@ -14,7 +14,9 @@
 #define ERR_ENC 100
 #define ERR_KEY_SIZE 101
 #define ERR_KEY_READ 102
-#define ERR_NOMIXCTR 103
+#define ERR_UNKNOWN_MIX 103
+#define ERR_UNKNOWN_ONE_WAY_MIX 104
+#define ERR_MISSING_ONE_WAY_MIX 105
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -158,7 +160,7 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARG_KEY_ONE_WAY_PRIMITIVE:
                 arguments->one_way_mix = get_mix_type(arg);
                 if (arguments->one_way_mix == -1)
-                        argp_error(state, "one-way primitive must be one of the available ones ");
+                        argp_error(state, "one-way primitive must be one of the available ones");
                 break;
         case ARG_KEY_THREADS:
                 if (parse_threads(&arguments->threads, &arguments->blocks, arg)) {
@@ -210,7 +212,7 @@ int main(int argc, char **argv) {
             .iv          = 0,
             .enc_mode    = ENC_MODE_CTR,
             .mix         = XKCP_TURBOSHAKE_128,
-            .one_way_mix = -1,
+            .one_way_mix = NONE,
             .threads     = 1,
             .blocks      = 1,
             .verbose     = false,
@@ -226,7 +228,7 @@ int main(int argc, char **argv) {
         }
 
         // Check that one-way primitive is set with OFB encryption mode
-        if (args.enc_mode == ENC_MODE_OFB && args.one_way_mix == -1) {
+        if (args.enc_mode == ENC_MODE_OFB && args.one_way_mix == NONE) {
                 errmsg("cannot use ofb encryption mode without a one-way primitive");
                 return EXIT_FAILURE;
         }
@@ -287,12 +289,21 @@ int main(int argc, char **argv) {
         err = ctx_encrypt_init(&ctx, args.enc_mode, args.mix, args.one_way_mix, key, key_size,
                                args.iv, args.fanout);
         switch (err) {
-        case CTX_ERR_NOMIXCTR:
-                errmsg("no implementation found");
-                err = ERR_NOMIXCTR;
+        case CTX_ERR_UNKNOWN_MIX:
+                errmsg("no mix primitive implementation found");
+                err = ERR_UNKNOWN_MIX;
+                goto cleanup;
+        case CTX_ERR_UNKNOWN_ONE_WAY_MIX:
+                errmsg("no one-way mix primitive implementation found");
+                err = ERR_UNKNOWN_ONE_WAY_MIX;
+                goto cleanup;
+        case CTX_ERR_MISSING_ONE_WAY_MIX:
+                errmsg("cannot use ofb encryption mode without a one-way primitive");
+                err = ERR_MISSING_ONE_WAY_MIX;
                 goto cleanup;
         case CTX_ERR_KEYSIZE:
-                errmsg("the number of blocks of the key is not a power of the fanout (%d)",
+                errmsg("size of the key must be multiple of the block size of the mixing "
+                       "primitives and the number of blocks must be a power of the fanout (%d)",
                        args.fanout);
                 err = ERR_KEY_SIZE;
                 goto cleanup;

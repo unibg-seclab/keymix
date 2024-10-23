@@ -10,6 +10,7 @@
 
 // Accepted types of mix implementations.
 typedef enum {
+        NONE,
         // Fixed-output functions
         // 128-bit block size
         OPENSSL_AES_128,
@@ -60,13 +61,13 @@ typedef enum {
         BLOCK_SIZE_SHA3_256 = 32,
         BLOCK_SIZE_BLAKE2S = 32,
         BLOCK_SIZE_BLAKE3 = 32,
-        BLOCK_SIZE_MIXCTR = 48,
+        BLOCK_SIZE_MIXCTR = BLOCKS_PER_MACRO * BLOCK_SIZE_AES,
         BLOCK_SIZE_SHA3_512 = 64,
         BLOCK_SIZE_BLAKE2B = 64,
         // Extendable-output functions (XOFs)
         // We pick the biggest block size that does not exceed the internal
         // state of the permutation function and brings the best performance
-        BLOCK_SIZE_XOODYAK = BLOCKS_PER_MACRO * BLOCK_SIZE_AES, // 384-bit internal state
+        BLOCK_SIZE_XOODYAK = 48, // 384-bit internal state
         BLOCK_SIZE_XOOFFF_WBC = 48, // 384-bit internal state
         BLOCK_SIZE_SHAKE256 = 128, // 1600-bit internal state: r=1088, c=512
         BLOCK_SIZE_TURBOSHAKE256 = 128, // 1600-bit internal state: r=1088, c=512

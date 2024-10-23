@@ -615,6 +615,7 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
 
 mix_function_t MIX_FUNCTIONS[] = {
         // name, function, block size
+        {"none", NULL, 0},
         {"openssl-aes-128", &openssl_aes_ecb, BLOCK_SIZE_AES},
         {"openssl-davies-meyer", &openssl_davies_meyer, BLOCK_SIZE_AES},
         {"openssl-matyas-meyer-oseas", &openssl_matyas_meyer_oseas, BLOCK_SIZE_AES},
@@ -659,6 +660,11 @@ int get_mix_func(mix_t mix_type, mix_func_t *func, block_size_t *block_size) {
 }
 
 char *get_mix_name(mix_t mix_type) {
+        uint8_t n = sizeof(MIX_FUNCTIONS) / sizeof(*MIX_FUNCTIONS);
+        if (mix_type < 0 || mix_type >= n) {
+                return NULL;
+        }
+
         return MIX_FUNCTIONS[mix_type].name;
 }
 
