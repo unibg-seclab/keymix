@@ -22,26 +22,9 @@ size_t get_file_size(FILE *fp) {
         return (size_t)res;
 }
 
-void derive_thread_numbers(enc_mode_t enc_mode, uint8_t *internal_threads,
-                           uint8_t *external_threads, uint8_t fanout, uint8_t threads) {
-        uint8_t ithr, ethr;
-        ithr = 1;
-        while (threads % (ithr * fanout) == 0)
-                ithr *= fanout;
-
-        ethr = (enc_mode == ENC_MODE_CTR ? threads / ithr : 0);
-
-        *internal_threads = ithr;
-        *external_threads = ethr;
-}
-
-int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
-        uint8_t internal_threads, external_threads;
-
-        // First, separate threads into internals and externals correctly,
-        // since internals must be a power of fanout
-        derive_thread_numbers(ctx->enc_mode, &internal_threads, &external_threads, ctx->fanout,
-                              threads);
+int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t blocks) {
+        uint8_t internal_threads = threads;
+        uint8_t external_threads = blocks;
 
         // Then, we encrypt the input resource in a "streamed" manner:
         // that is, we read `external_threads` groups, each one of size
@@ -78,11 +61,9 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
 // One thing of note: this code does one extr keymix when the file is an exact
 // multiple of external_threads * key_size, because we read after doing the keymix
 // and hence we don't check if the file has ended before.
-int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
-        uint8_t internal_threads, external_threads;
-
-        derive_thread_numbers(ctx->enc_mode, &internal_threads, &external_threads, ctx->fanout,
-                              threads);
+int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t blocks) {
+        uint8_t internal_threads = threads;
+        uint8_t external_threads = blocks;
 
         size_t buffer_size = external_threads * ctx->key_size;
         byte *buffer       = malloc(buffer_size);

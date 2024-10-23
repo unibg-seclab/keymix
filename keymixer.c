@@ -4,7 +4,6 @@
 #include <time.h>
 
 #include "ctx.h"
-#include "enc.h"
 #include "file.h"
 #include "keymix.h"
 #include "types.h"
@@ -38,6 +37,7 @@ typedef struct {
         mix_t mix;
         mix_t one_way_mix;
         uint8_t threads;
+        uint8_t blocks;
         bool verbose;
 } cli_args_t;
 
@@ -70,7 +70,8 @@ static struct argp_option options[] = {
     {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
     {"primitive", ARG_KEY_PRIMITIVE, "STRING", 0,
      "One of the mixing primitive available (default: xkcp-tuboshake-128)"},
-    {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads available (default: 1)"},
+    {"threads", ARG_KEY_THREADS, "UINT[xUINT]", 0,
+     "Number of threads per keymix (default 1x1), times the number of blocks done in parallel"},
     {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
 };
@@ -110,6 +111,25 @@ inline int parse_hex(uint128_t *valp, char *hex) {
         return 0;
 }
 
+inline int parse_threads(uint8_t *threads, uint8_t *blocks, char *str) {
+        *threads  = 1;
+        *blocks   = 1;
+        int count = 0;
+        for (char *p = strtok(str, "x"); p != NULL; p = strtok(NULL, "x")) {
+                switch (count++) {
+                case 0:
+                        *threads = (uint8_t)atoi(p);
+                        break;
+                case 1:
+                        *blocks = (uint8_t)atoi(p);
+                        break;
+                }
+        }
+        if (count > 2)
+                return 1;
+        return 0;
+}
+
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
         cli_args_t *arguments = state->input;
         switch (key) {
@@ -141,9 +161,9 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         argp_error(state, "one-way primitive must be one of the available ones ");
                 break;
         case ARG_KEY_THREADS:
-                arguments->threads = strtoul(arg, NULL, 10);
-                if (arguments->threads == 0)
-                        argp_error(state, "threads must be a positive number");
+                if (parse_threads(&arguments->threads, &arguments->blocks, arg)) {
+                        argp_error(state, "invalid threads, use UINTxUINT or UINT");
+                }
                 break;
         case ARGP_KEY_ARG:
                 // We accept only 2 input argument, the key and (possibly) the file
@@ -180,23 +200,30 @@ int checked_fopen(FILE **fp, const char *resource, char *mode, FILE *default_fp)
 };
 
 int main(int argc, char **argv) {
-        cli_args_t args;
         int err = 0;
 
         // Setup defaults
-        args.input       = NULL;
-        args.output      = NULL;
-        args.key         = NULL;
-        args.iv          = 0;
-        args.enc_mode    = ENC_MODE_CTR;
-        args.mix         = XKCP_TURBOSHAKE_128;
-        args.one_way_mix = -1;
-        args.threads     = 1;
-        args.verbose     = false;
+        cli_args_t args = {
+            .input       = NULL,
+            .output      = NULL,
+            .key         = NULL,
+            .iv          = 0,
+            .enc_mode    = ENC_MODE_CTR,
+            .mix         = XKCP_TURBOSHAKE_128,
+            .one_way_mix = -1,
+            .threads     = 1,
+            .blocks      = 1,
+            .verbose     = false,
+        };
 
         // Start parsing
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
                 return EXIT_FAILURE;
+
+        if (!ISPOWEROF(args.threads, args.fanout)) {
+                errmsg("invalid number of threads, must be a power of fanout (%d)", args.fanout);
+                return EXIT_FAILURE;
+        }
 
         // Check that one-way primitive is set with OFB encryption mode
         if (args.enc_mode == ENC_MODE_OFB && args.one_way_mix == -1) {
@@ -205,7 +232,7 @@ int main(int argc, char **argv) {
         }
 
         // Setup fanout
-        get_fanouts_from_mix_type(args.mix, 1, (uint8_t*)&args.fanout);
+        get_fanouts_from_mix_type(args.mix, 1, (uint8_t *)&args.fanout);
 
         if (args.verbose) {
                 printf("===============\n");
@@ -221,7 +248,7 @@ int main(int argc, char **argv) {
                 if (args.enc_mode == ENC_MODE_OFB)
                         printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
                 printf("fanout:            %d\n", args.fanout);
-                printf("threads:           %d\n", args.threads);
+                printf("threads:           %dx%d\n", args.threads, args.blocks);
                 printf("===============\n");
         }
 
@@ -271,7 +298,7 @@ int main(int argc, char **argv) {
                 goto cleanup;
         }
 
-        if (stream_encrypt(fout, fin, &ctx, args.threads))
+        if (stream_encrypt(fout, fin, &ctx, args.threads, args.blocks))
                 err = ERR_ENC;
 
         // ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
