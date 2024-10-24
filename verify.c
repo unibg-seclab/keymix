@@ -298,6 +298,7 @@ int verify_keymix_t(mix_t mix_type, size_t fanout, uint8_t level) {
 
         _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
 
+        int  err         = 0;
         byte *in         = setup(size, true);
         byte *out_simple = setup(size, false);
         byte *out1       = setup(size, false);
@@ -310,7 +311,11 @@ int verify_keymix_t(mix_t mix_type, size_t fanout, uint8_t level) {
         uint8_t internal_threads = 1;
 
         ctx_t ctx;
-        ctx_keymix_init(&ctx, mix_type, in, size, fanout);
+        err = ctx_keymix_init(&ctx, mix_type, in, size, fanout);
+        if (err) {
+                _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
+                exit(EXIT_FAILURE);
+        }
 
         keymix(mix_type, in, out_simple, size, fanout, 1);
         keymix_t(&ctx, out1, size, 1, internal_threads);
@@ -320,7 +325,6 @@ int verify_keymix_t(mix_t mix_type, size_t fanout, uint8_t level) {
         keymix_t(&ctx, out3_thr1, 3 * size, 1, internal_threads);
         keymix_t(&ctx, out3_thr2, 3 * size, 2, internal_threads);
 
-        int err = 0;
         err += COMPARE(out_simple, out1, size, "Keymix T (x1, 1thr) != Keymix\n");
         err += COMPARE(out2_thr1, out2_thr2, size, "Keymix T (x2, 1thr) != Keymix T (x2, 2thr)\n");
         err += COMPARE(out3_thr1, out3_thr2, size, "Keymix T (x3, 1thr) != Keymix T (x3, 2thr)\n");
@@ -361,7 +365,11 @@ int verify_enc(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type, size_t f
         byte *out3 = setup(resource_size, false);
 
         ctx_t ctx;
-        ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, iv, fanout);
+        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, iv, fanout);
+        if (err) {
+                _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
+                exit(EXIT_FAILURE);
+        }
         encrypt(&ctx, in, out1, resource_size);
         if (enc_mode == ENC_MODE_CTR) {
                 encrypt_t(&ctx, in, out2, resource_size, 2, 1);
@@ -402,16 +410,20 @@ int custom_checks(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type) {
         uint128_t fanout = 2;
         size_t size      = (rand() & 10) * block_size + (rand() % block_size);
 
-        byte *in = setup(size, true);
+        int err   = 0;
+        byte *in  = setup(size, true);
         byte *enc = setup(size, false);
         byte *dec = setup(size, false);
 
         ctx_t ctx;
-        ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, block_size, iv, fanout);
+        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, block_size, iv, fanout);
+        if (err) {
+                _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
+                exit(EXIT_FAILURE);
+        }
         encrypt(&ctx, in, enc, size);
         encrypt(&ctx, enc, dec, size);
 
-        int err = 0;
         err += COMPARE(in, dec, size, "Enc != INV(Dec)\n");
 
         free(key);
