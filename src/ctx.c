@@ -41,6 +41,12 @@ ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one
                 return CTX_ERR_UNKNOWN_ONE_WAY_MIX;
         }
 
+        // Ensure the one-way mixing primitive is indeed a one-way primitive
+        bool is_one_way = *get_is_one_way(one_way_mix);
+        if (!is_one_way) {
+                return CTX_ERR_NOT_ONE_WAY;
+        }
+
         // Ensure the one-way mixing primitive is specified with the OFB
         // encryption mode
         if (enc_mode == ENC_MODE_OFB && one_way_mix == NONE) {

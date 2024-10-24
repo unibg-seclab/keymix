@@ -18,6 +18,7 @@ typedef enum {
         CTX_ERR_MISSING_MIX,
         CTX_ERR_UNKNOWN_ONE_WAY_MIX,
         CTX_ERR_MISSING_ONE_WAY_MIX,
+        CTX_ERR_NOT_ONE_WAY,
         CTX_ERR_KEYSIZE,
 } ctx_err_t;
 

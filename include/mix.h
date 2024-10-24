@@ -3,6 +3,7 @@
 
 #include "types.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 // Number of AES execution in the MixCTR implementations
@@ -135,6 +136,9 @@ int get_mix_func(mix_t mix_type, mix_func_t *func, block_size_t *block_size);
 
 // Get the mix name given its mix type.
 char *get_mix_name(mix_t mix_type);
+
+// See if the mix type is a one-way primitive.
+bool *get_is_one_way(mix_t mix_type);
 
 // Get the mix type given its name.
 mix_t get_mix_type(char *name);

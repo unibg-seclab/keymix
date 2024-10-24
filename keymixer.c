@@ -18,6 +18,7 @@
 #define ERR_MISSING_MIX 104
 #define ERR_UNKNOWN_ONE_WAY_MIX 105
 #define ERR_MISSING_ONE_WAY_MIX 106
+#define ERR_NOT_ONE_WAY 107
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -299,6 +300,11 @@ int main(int argc, char **argv) {
         case CTX_ERR_MISSING_ONE_WAY_MIX:
                 errmsg("cannot use ofb encryption mode without a one-way primitive");
                 err = ERR_MISSING_ONE_WAY_MIX;
+                goto cleanup;
+        case CTX_ERR_NOT_ONE_WAY:
+                errmsg("expected a one-way primitive, but a symmetric mixing primitive was "
+                       "provided");
+                err = ERR_NOT_ONE_WAY;
                 goto cleanup;
         case CTX_ERR_KEYSIZE:
                 mix_func_t mix_function;
