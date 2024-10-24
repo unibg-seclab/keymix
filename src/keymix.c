@@ -153,7 +153,6 @@ void keymix_inner(mix_func_t mixpass, byte *in, byte *out, size_t size, block_si
 
 void *w_thread_keymix(void *a) {
         thr_keymix_t *args = (thr_keymix_t *)a;
-        int8_t nof_threads = args->total_size / args->chunk_size;
 
         // No need to sync among other threads here
         keymix_inner(args->mixpass, args->in, args->out, args->chunk_size, args->block_size,
@@ -162,6 +161,21 @@ void *w_thread_keymix(void *a) {
         _log(LOG_DEBUG, "thread %d finished the layers without coordination\n", args->id);
 
         // Synchronized layers
+
+        int8_t nof_threads = args->total_size / args->chunk_size;
+
+        spread_chunks_args_t thrdata = {
+                .thread_id       = args->id,
+                .buffer          = args->out,
+                .buffer_abs      = args->abs_out,
+                .buffer_abs_size = args->total_size,
+                .buffer_size     = args->chunk_size,
+                .thread_levels   = args->thread_levels,
+                .total_levels    = args->total_levels,
+                .fanout          = args->fanout,
+                .block_size      = args->block_size,
+        };
+
         for (uint8_t l = args->thread_levels; l < args->total_levels; l++) {
                 _log(LOG_DEBUG, "thread %d notified the coordinator after encryption\n", args->id);
                 // Wait for all threads to finish the encryption step
@@ -172,18 +186,7 @@ void *w_thread_keymix(void *a) {
                 }
 
                 _log(LOG_DEBUG, "thread %d: sychronized swap (level %d)\n", args->id, l - 1);
-                spread_chunks_args_t thrdata = {
-                    .thread_id       = args->id,
-                    .buffer          = args->out,
-                    .buffer_abs      = args->abs_out,
-                    .buffer_abs_size = args->total_size,
-                    .buffer_size     = args->chunk_size,
-                    .thread_levels   = args->thread_levels,
-                    .total_levels    = args->total_levels,
-                    .fanout          = args->fanout,
-                    .level           = l,
-                    .block_size      = args->block_size,
-                };
+                thrdata.level = l;
                 spread_chunks(&thrdata);
 
                 // Wait for all threads to finish the swap step
