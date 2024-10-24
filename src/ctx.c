@@ -10,6 +10,10 @@ ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t
                 return CTX_ERR_UNKNOWN_MIX;
         }
 
+        if (mix == NONE) {
+                return CTX_ERR_MISSING_MIX;
+        }
+
         size_t num_macros = size / ctx->block_size;
         if (size % ctx->block_size != 0 || !ISPOWEROF(num_macros, fanout)) {
                 return CTX_ERR_KEYSIZE;

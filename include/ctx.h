@@ -15,6 +15,7 @@ typedef enum {
 typedef enum {
         CTX_ERR_NONE,
         CTX_ERR_UNKNOWN_MIX,
+        CTX_ERR_MISSING_MIX,
         CTX_ERR_UNKNOWN_ONE_WAY_MIX,
         CTX_ERR_MISSING_ONE_WAY_MIX,
         CTX_ERR_KEYSIZE,

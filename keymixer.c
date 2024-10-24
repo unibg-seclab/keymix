@@ -15,8 +15,9 @@
 #define ERR_KEY_SIZE 101
 #define ERR_KEY_READ 102
 #define ERR_UNKNOWN_MIX 103
-#define ERR_UNKNOWN_ONE_WAY_MIX 104
-#define ERR_MISSING_ONE_WAY_MIX 105
+#define ERR_MISSING_MIX 104
+#define ERR_UNKNOWN_ONE_WAY_MIX 105
+#define ERR_MISSING_ONE_WAY_MIX 106
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -292,6 +293,10 @@ int main(int argc, char **argv) {
         case CTX_ERR_UNKNOWN_MIX:
                 errmsg("no mix primitive implementation found");
                 err = ERR_UNKNOWN_MIX;
+                goto cleanup;
+        case CTX_ERR_MISSING_MIX:
+                errmsg("cannot encrypt without a mix primitive");
+                err = ERR_MISSING_MIX;
                 goto cleanup;
         case CTX_ERR_UNKNOWN_ONE_WAY_MIX:
                 errmsg("no one-way mix primitive implementation found");
