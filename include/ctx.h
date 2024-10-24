@@ -19,6 +19,8 @@ typedef enum {
         CTX_ERR_UNKNOWN_ONE_WAY_MIX,
         CTX_ERR_MISSING_ONE_WAY_MIX,
         CTX_ERR_NOT_ONE_WAY,
+        CTX_ERR_INCOMPATIBLE_PRIMITIVES,
+        CTX_ERR_EQUAL_PRIMITIVES,
         CTX_ERR_KEYSIZE,
 } ctx_err_t;
 
@@ -32,7 +34,7 @@ typedef struct {
         size_t key_size;
 
         // The mix type to consider.
-        mix_t mix;
+        mix_impl_t mix;
 
         // The mix implementation.
         mix_func_t mixpass;
@@ -60,7 +62,7 @@ typedef struct {
         enc_mode_t enc_mode;
 
         // The mix type of the one-way pass
-        mix_t one_way_mix;
+        mix_impl_t one_way_mix;
 
         // One-way mix pass implementation.
         mix_func_t one_way_mixpass;
@@ -72,11 +74,11 @@ typedef struct {
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
-ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_mix,
+ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_impl_t one_way_mix,
                            byte *key, size_t size, uint128_t iv, uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
-ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout);
+ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_impl_t mix, byte *key, size_t size, uint8_t fanout);
 
 // Updates the context `ctx` to enable the XOR operation after doing the keymix.
 void ctx_enable_encryption(ctx_t *ctx);

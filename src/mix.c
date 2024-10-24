@@ -24,13 +24,6 @@
 // Maximum size of the OpenSSL encryption batch multiple of the AES block size
 #define MAX_BATCH_SIZE 2147483520
 
-typedef struct {
-        char *name;
-        mix_func_t function;
-        block_size_t block_size;
-        bool is_one_way;
-} mix_function_t;
-
 // *** SYMMETRIC CIPHER FUNCTIONS ***
 
 // --- OpenSSL AES in ECB mode ---
@@ -614,42 +607,42 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
 
 // *** COMPLETE LIST OF MIX FUNCTIONS ***
 
-mix_function_t MIX_FUNCTIONS[] = {
-        // name, function, block size, one-way flag
-        {"none", NULL, 0, true},
-        {"openssl-aes-128", &openssl_aes_ecb, BLOCK_SIZE_AES, false},
-        {"openssl-davies-meyer", &openssl_davies_meyer, BLOCK_SIZE_AES, true},
-        {"openssl-matyas-meyer-oseas", &openssl_matyas_meyer_oseas, BLOCK_SIZE_AES, true},
-        {"wolfcrypt-aes-128", &wolfcrypt_aes_ecb, BLOCK_SIZE_AES, false},
-        {"wolfcrypt-davies-meyer", &wolfcrypt_davies_meyer, BLOCK_SIZE_AES, true},
-        {"wolfcrypt-matyas-meyer-oseas", &wolfcrypt_matyas_meyer_oseas, BLOCK_SIZE_AES, true},
-        {"openssl-sha3-256", &openssl_sha3_256_hash, BLOCK_SIZE_SHA3_256, true},
-        {"openssl-blake2s", &openssl_blake2s_hash, BLOCK_SIZE_BLAKE2S, true},
-        {"wolfcrypt-sha3-256", &wolfcrypt_sha3_256_hash, BLOCK_SIZE_SHA3_256, true},
-        {"wolfcrypt-blake2s", &wolfcrypt_blake2s_hash, BLOCK_SIZE_BLAKE2S, true},
-        {"blake3-blake3", &blake3_blake3_hash, BLOCK_SIZE_BLAKE3, true},
-        {"aes-ni-mixctr", &aesni, BLOCK_SIZE_MIXCTR, true},
-        {"openssl-mixctr", &openssl, BLOCK_SIZE_MIXCTR, true},
-        {"wolfcrypt-mixctr", &wolfssl, BLOCK_SIZE_MIXCTR, true},
-        {"openssl-sha3-512", &openssl_sha3_512_hash, BLOCK_SIZE_SHA3_512, true},
-        {"openssl-blake2b", &openssl_blake2b_hash, BLOCK_SIZE_BLAKE2B, true},
-        {"wolfcrypt-sha3-512", &wolfcrypt_sha3_512_hash, BLOCK_SIZE_SHA3_512, true},
-        {"wolfcrypt-blake2b", &wolfcrypt_blake2b_hash, BLOCK_SIZE_BLAKE2B, true},
-        {"xkcp-xoodyak", &xkcp_xoodyak_hash, BLOCK_SIZE_XOODYAK, true},
-        {"xkcp-xoofff-wbc", &xkcp_xoofff_wbc_ecb, BLOCK_SIZE_XOOFFF_WBC, false},
-        {"openssl-shake256", &openssl_shake256_hash, BLOCK_SIZE_SHAKE256, true},
-        {"wolfcrypt-shake256", &wolfcrypt_shake256_hash, BLOCK_SIZE_SHAKE256, true},
-        {"xkcp-turboshake256", &xkcp_turboshake256_hash, BLOCK_SIZE_SHAKE256, true},
-        {"openssl-shake128", &openssl_shake128_hash, BLOCK_SIZE_SHAKE128, true},
-        {"wolfcrypt-shake128", &wolfcrypt_shake128_hash, BLOCK_SIZE_SHAKE128, true},
-        {"xkcp-turboshake128", &xkcp_turboshake128_hash, BLOCK_SIZE_TURBOSHAKE128, true},
-        {"xkcp-kangarootwelve", &xkcp_kangarootwelve_hash, BLOCK_SIZE_KANGAROOTWELVE, true},
-        {"xkcp-kravette-wbc", &xkcp_kravette_wbc_ecb, BLOCK_SIZE_KRAVETTE_WBC, false},
+mix_info_t MIX_FUNCTIONS[] = {
+        // name, function, primitive, block size, one-way flag
+        {"none", NULL, MIX_NONE, 0, true},
+        {"openssl-aes-128", &openssl_aes_ecb, MIX_AES, BLOCK_SIZE_AES, false},
+        {"openssl-davies-meyer", &openssl_davies_meyer, MIX_DAVIES_MEYER, BLOCK_SIZE_AES, true},
+        {"openssl-matyas-meyer-oseas", &openssl_matyas_meyer_oseas, MIX_MATYAS_MEYER_OSEAS, BLOCK_SIZE_AES, true},
+        {"wolfcrypt-aes-128", &wolfcrypt_aes_ecb, MIX_AES, BLOCK_SIZE_AES, false},
+        {"wolfcrypt-davies-meyer", &wolfcrypt_davies_meyer, MIX_DAVIES_MEYER, BLOCK_SIZE_AES, true},
+        {"wolfcrypt-matyas-meyer-oseas", &wolfcrypt_matyas_meyer_oseas, MIX_MATYAS_MEYER_OSEAS, BLOCK_SIZE_AES, true},
+        {"openssl-sha3-256", &openssl_sha3_256_hash, MIX_SHA3_256, BLOCK_SIZE_SHA3_256, true},
+        {"openssl-blake2s", &openssl_blake2s_hash, MIX_BLAKE2S, BLOCK_SIZE_BLAKE2S, true},
+        {"wolfcrypt-sha3-256", &wolfcrypt_sha3_256_hash, MIX_SHA3_256, BLOCK_SIZE_SHA3_256, true},
+        {"wolfcrypt-blake2s", &wolfcrypt_blake2s_hash, MIX_BLAKE2S, BLOCK_SIZE_BLAKE2S, true},
+        {"blake3-blake3", &blake3_blake3_hash, MIX_BLAKE3, BLOCK_SIZE_BLAKE3, true},
+        {"aes-ni-mixctr", &aesni, MIX_MIXCTR, BLOCK_SIZE_MIXCTR, true},
+        {"openssl-mixctr", &openssl, MIX_MIXCTR, BLOCK_SIZE_MIXCTR, true},
+        {"wolfcrypt-mixctr", &wolfssl, MIX_MIXCTR, BLOCK_SIZE_MIXCTR, true},
+        {"openssl-sha3-512", &openssl_sha3_512_hash, MIX_SHA3_512, BLOCK_SIZE_SHA3_512, true},
+        {"openssl-blake2b", &openssl_blake2b_hash, MIX_BLAKE2B, BLOCK_SIZE_BLAKE2B, true},
+        {"wolfcrypt-sha3-512", &wolfcrypt_sha3_512_hash, MIX_SHA3_512, BLOCK_SIZE_SHA3_512, true},
+        {"wolfcrypt-blake2b", &wolfcrypt_blake2b_hash, MIX_BLAKE2B, BLOCK_SIZE_BLAKE2B, true},
+        {"xkcp-xoodyak", &xkcp_xoodyak_hash, MIX_XOODYAK, BLOCK_SIZE_XOODYAK, true},
+        {"xkcp-xoofff-wbc", &xkcp_xoofff_wbc_ecb, MIX_XOOFFF_WBC, BLOCK_SIZE_XOOFFF_WBC, false},
+        {"openssl-shake256", &openssl_shake256_hash, MIX_SHAKE256, BLOCK_SIZE_SHAKE256, true},
+        {"wolfcrypt-shake256", &wolfcrypt_shake256_hash, MIX_SHAKE256, BLOCK_SIZE_SHAKE256, true},
+        {"xkcp-turboshake256", &xkcp_turboshake256_hash, MIX_SHAKE256, BLOCK_SIZE_SHAKE256, true},
+        {"openssl-shake128", &openssl_shake128_hash, MIX_SHAKE128, BLOCK_SIZE_SHAKE128, true},
+        {"wolfcrypt-shake128", &wolfcrypt_shake128_hash, MIX_SHAKE128, BLOCK_SIZE_SHAKE128, true},
+        {"xkcp-turboshake128", &xkcp_turboshake128_hash, MIX_TURBOSHAKE128, BLOCK_SIZE_TURBOSHAKE128, true},
+        {"xkcp-kangarootwelve", &xkcp_kangarootwelve_hash, MIX_KANGAROOTWELVE, BLOCK_SIZE_KANGAROOTWELVE, true},
+        {"xkcp-kravette-wbc", &xkcp_kravette_wbc_ecb, MIX_KRAVETTE_WBC, BLOCK_SIZE_KRAVETTE_WBC, false},
 };
 
 // *** GET IMPLEMENTATION BY NAME ***
 
-int get_mix_func(mix_t mix_type, mix_func_t *func, block_size_t *block_size) {
+int get_mix_func(mix_impl_t mix_type, mix_func_t *func, block_size_t *block_size) {
         uint8_t n = sizeof(MIX_FUNCTIONS) / sizeof(*MIX_FUNCTIONS);
         if (mix_type < 0 || mix_type >= n) {
                 return 1;
@@ -660,7 +653,7 @@ int get_mix_func(mix_t mix_type, mix_func_t *func, block_size_t *block_size) {
         return 0;
 }
 
-char *get_mix_name(mix_t mix_type) {
+char *get_mix_name(mix_impl_t mix_type) {
         uint8_t n = sizeof(MIX_FUNCTIONS) / sizeof(*MIX_FUNCTIONS);
         if (mix_type < 0 || mix_type >= n) {
                 return NULL;
@@ -669,19 +662,19 @@ char *get_mix_name(mix_t mix_type) {
         return MIX_FUNCTIONS[mix_type].name;
 }
 
-bool *get_is_one_way(mix_t mix_type) {
+mix_info_t *get_mix_info(mix_impl_t mix_type) {
         uint8_t n = sizeof(MIX_FUNCTIONS) / sizeof(*MIX_FUNCTIONS);
         if (mix_type < 0 || mix_type >= n) {
                 return NULL;
         }
 
-        return &MIX_FUNCTIONS[mix_type].is_one_way;
+        return &MIX_FUNCTIONS[mix_type];
 }
 
-mix_t get_mix_type(char* name) {
-        uint8_t n = sizeof(MIX_FUNCTIONS) / sizeof(mix_function_t);
+mix_impl_t get_mix_type(char* name) {
+        uint8_t n = sizeof(MIX_FUNCTIONS) / sizeof(*MIX_FUNCTIONS);
         for (int8_t i = 0; i < n; i++)
                 if (strcmp(name, MIX_FUNCTIONS[i].name) == 0)
-                        return (mix_t)i;
+                        return (mix_impl_t)i;
         return -1;
 }

@@ -53,6 +53,41 @@ typedef enum {
         XKCP_KANGAROOTWELVE,
         // 1600-bit internal state
         XKCP_KRAVETTE_WBC,
+} mix_impl_t;
+
+// A function that implements mix on a series of blocks.
+// Here `size` must be a multiple of `BLOCK_SIZE`.
+typedef int (*mix_func_t)(byte *in, byte *out, size_t size);
+
+typedef enum {
+        MIX_NONE,
+        // Fixed-output functions
+        // 128-bit block size
+        MIX_AES,
+        MIX_DAVIES_MEYER,
+        MIX_MATYAS_MEYER_OSEAS,
+        // 256-bit block size
+        MIX_SHA3_256,
+        MIX_BLAKE2S,
+        MIX_BLAKE3,
+        // 384-bit block size
+        MIX_MIXCTR,
+        // 512-bit block size
+        MIX_SHA3_512,
+        MIX_BLAKE2B,
+        // Extendable-output functions (XOFs)
+        // 384-bit internal state
+        MIX_XOODYAK,
+        MIX_XOOFFF_WBC,
+        // 1600-bit internal state: r=1088, c=512
+        MIX_SHAKE256,
+        MIX_TURBOSHAKE256,
+        // 1600-bit internal state: r=1344, c=256
+        MIX_SHAKE128,
+        MIX_TURBOSHAKE128,
+        MIX_KANGAROOTWELVE,
+        // 1600-bit internal state
+        MIX_KRAVETTE_WBC,
 } mix_t;
 
 typedef enum {
@@ -78,7 +113,15 @@ typedef enum {
         BLOCK_SIZE_KRAVETTE_WBC = 192, // 1600-bit internal state
 } block_size_t;
 
-const static mix_t MIX_TYPES[] = {
+typedef struct {
+        char *name;
+        mix_func_t function;
+        mix_t primitive;
+        block_size_t block_size;
+        bool is_one_way;
+} mix_info_t;
+
+const static mix_impl_t MIX_TYPES[] = {
         // 128-bit block size
         OPENSSL_AES_128,
         WOLFCRYPT_AES_128,
@@ -127,20 +170,16 @@ const static block_size_t BLOCK_SIZES[] = {
         BLOCK_SIZE_KRAVETTE_WBC,
 };
 
-// A function that implements mix on a series of blocks.
-// Here `size` must be a multiple of `BLOCK_SIZE`.
-typedef int (*mix_func_t)(byte *in, byte *out, size_t size);
-
 // Get the mix function given its mix type.
-int get_mix_func(mix_t mix_type, mix_func_t *func, block_size_t *block_size);
+int get_mix_func(mix_impl_t mix_type, mix_func_t *func, block_size_t *block_size);
 
 // Get the mix name given its mix type.
-char *get_mix_name(mix_t mix_type);
+char *get_mix_name(mix_impl_t mix_type);
 
-// See if the mix type is a one-way primitive.
-bool *get_is_one_way(mix_t mix_type);
+// Get mix info from the mix type.
+mix_info_t *get_mix_info(mix_impl_t mix_type);
 
 // Get the mix type given its name.
-mix_t get_mix_type(char *name);
+mix_impl_t get_mix_type(char *name);
 
 #endif

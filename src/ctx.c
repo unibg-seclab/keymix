@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t fanout) {
+ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_impl_t mix, byte *key, size_t size, uint8_t fanout) {
         if (get_mix_func(mix, &ctx->mixpass, &ctx->block_size)) {
                 return CTX_ERR_UNKNOWN_MIX;
         }
@@ -30,7 +30,7 @@ ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_t mix, byte *key, size_t size, uint8_t
         return CTX_ERR_NONE;
 }
 
-ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one_way_mix,
+ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_impl_t one_way_mix,
                            byte *key, size_t size, uint128_t iv, uint8_t fanout) {
         int err = ctx_keymix_init(ctx, mix, key, size, fanout);
         if (err) {
@@ -41,16 +41,31 @@ ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_t mix, mix_t one
                 return CTX_ERR_UNKNOWN_ONE_WAY_MIX;
         }
 
+        mix_info_t mix_info = *get_mix_info(mix);
+        mix_info_t one_way_mix_info = *get_mix_info(one_way_mix);
+
         // Ensure the one-way mixing primitive is indeed a one-way primitive
-        bool is_one_way = *get_is_one_way(one_way_mix);
-        if (!is_one_way) {
+        if (!one_way_mix_info.is_one_way) {
                 return CTX_ERR_NOT_ONE_WAY;
         }
 
-        // Ensure the one-way mixing primitive is specified with the OFB
+        // Ensure the one-way mixing implementation is specified with the OFB
         // encryption mode
         if (enc_mode == ENC_MODE_OFB && one_way_mix == NONE) {
                 return CTX_ERR_MISSING_ONE_WAY_MIX;
+        }
+
+        // Ensure compatibility between mixing and one-way primitive
+        block_size_t big   = MAX(ctx->block_size, ctx->one_way_block_size);
+        block_size_t small = MIN(ctx->block_size, ctx->one_way_block_size);
+        if (small && big % small) {
+                return CTX_ERR_INCOMPATIBLE_PRIMITIVES;
+        }
+
+        // Ensure the mixing primitive are not the same with the OFB encryption mode.
+        // Indeed, this would compromise the security of the encryption
+        if (enc_mode == ENC_MODE_OFB && mix_info.primitive == one_way_mix_info.primitive) {
+                return CTX_ERR_EQUAL_PRIMITIVES;
         }
 
         // Ensure the block size of the one-way mixing primitive is a divisor

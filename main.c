@@ -31,7 +31,7 @@ void print_buffer_hex(byte *buf, size_t size, char *descr) {
         printf("|\n");
 }
 
-int run_keymix(size_t desired_key_size, mix_t mix_type, uint8_t nof_threads) {
+int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads) {
         mix_func_t func;
         block_size_t block_size;
         uint8_t chunk_size;
@@ -108,8 +108,8 @@ int main() {
                 run_keymix(KEY_SIZE, MIX_TYPE, threads[t]);
         }
 
-        printf("[*] Single-threaded keymix with varying mixing primitives\n\n");
-        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_t); i++) {
+        printf("[*] Single-threaded keymix with varying mixing implementations\n\n");
+        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_impl_t); i++) {
                 printf("[+] %s mixing...\n", get_mix_name(MIX_TYPES[i]));
                 run_keymix(KEY_SIZE, MIX_TYPES[i], 1);
         }

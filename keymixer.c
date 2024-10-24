@@ -19,6 +19,8 @@
 #define ERR_UNKNOWN_ONE_WAY_MIX 105
 #define ERR_MISSING_ONE_WAY_MIX 106
 #define ERR_NOT_ONE_WAY 107
+#define ERR_INCOMPATIBLE_PRIMITIVES 108
+#define ERR_EQUAL_PRIMITIVES 109
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -38,8 +40,8 @@ typedef struct {
         uint128_t iv;
         uint8_t fanout;
         enc_mode_t enc_mode;
-        mix_t mix;
-        mix_t one_way_mix;
+        mix_impl_t mix;
+        mix_impl_t one_way_mix;
         uint8_t threads;
         uint8_t blocks;
         bool verbose;
@@ -305,6 +307,15 @@ int main(int argc, char **argv) {
                 errmsg("expected a one-way primitive, but a symmetric mixing primitive was "
                        "provided");
                 err = ERR_NOT_ONE_WAY;
+                goto cleanup;
+        case CTX_ERR_INCOMPATIBLE_PRIMITIVES:
+                errmsg("the mix primitive and one-way primitive selected do not have a compatible "
+                       "block size");
+                err = ERR_INCOMPATIBLE_PRIMITIVES;
+                goto cleanup;
+        case CTX_ERR_EQUAL_PRIMITIVES:
+                errmsg("cannot use ofb encryption mode with the same mix and one-way primitive");
+                err = ERR_EQUAL_PRIMITIVES;
                 goto cleanup;
         case CTX_ERR_KEYSIZE:
                 mix_func_t mix_function;

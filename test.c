@@ -48,15 +48,15 @@ void csv_header() {
                 "internal_threads,");       // Number of internal threads
         fprintf(fout, "external_threads,"); // Number of threads to generate the different Ts
         fprintf(fout, "enc_mode,");         // Encryption mode (none, ctr, ofb)
-        fprintf(fout, "implementation,");   // Mixing primitive implementation
-        fprintf(fout, "one_way_mix_type,"); // Mixing primitive used for the one-way transformation
+        fprintf(fout, "implementation,");   // Mixing implementation
+        fprintf(fout, "one_way_mix_type,"); // One-way mixing implementation
         fprintf(fout, "fanout,");           // Fanout
         fprintf(fout, "time\n");            // Time in ms
         fflush(fout);
 }
 void csv_line(size_t key_size, size_t size, uint8_t internal_threads, uint8_t external_threads,
-              enc_mode_t enc_mode, mix_t implementation, mix_t one_way_mix_type, uint8_t fanout,
-              double time) {
+              enc_mode_t enc_mode, mix_impl_t implementation, mix_impl_t one_way_mix_type,
+              uint8_t fanout, double time) {
         fprintf(fout, "%zu,", key_size);
         fprintf(fout, "%zu,", size);
         fprintf(fout, "%d,", internal_threads);
@@ -163,7 +163,7 @@ void test_keymix(ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
 
 void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
               uint8_t external_threads) {
-        _log(LOG_INFO, "[TEST (i=%d, e=%d)] mode %s, main primitive %s, one-way primitive %s, "
+        _log(LOG_INFO, "[TEST (i=%d, e=%d)] mode %s, main impl %s, one-way impl %s, "
              "fanout %d, expansion %zu: ", internal_threads, external_threads,
              get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
              get_mix_name(ctx->one_way_mix), ctx->fanout, CEILDIV(size, ctx->key_size));
@@ -180,7 +180,7 @@ void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_thr
 
 void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
                      uint8_t external_threads) {
-        _log(LOG_INFO, "[TEST (i=%d, e=%d)] mode %s, main primitive %s, one-way primitive %s, "
+        _log(LOG_INFO, "[TEST (i=%d, e=%d)] mode %s, main impl %s, one-way impl %s, "
              "fanout %d, expansion %zu: ", internal_threads, external_threads,
              get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
              get_mix_name(ctx->one_way_mix), ctx->fanout, CEILDIV(size, ctx->key_size));
@@ -209,7 +209,7 @@ void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t inter
         _log(LOG_INFO, "\n");
 }
 
-void do_encryption_tests(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_mix_type) {
+void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_mix_type) {
         int err;
         byte *key;
         byte *out;
@@ -236,7 +236,7 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_mix_
 
         err = get_mix_func(mix_type, &mixpass, &block_size);
         if (err) {
-                _log(LOG_ERROR, "Unknown mixing primitive\n");
+                _log(LOG_ERROR, "Unknown mixing implementation\n");
                 exit(EXIT_FAILURE);
         }
 
@@ -292,8 +292,8 @@ int main(int argc, char *argv[]) {
         char *out_keymix = "data/out.csv";
         char *out_enc    = "data/enc.csv";
 
-        const mix_t *mix_types = MIX_TYPES;
-        uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mix_t);
+        const mix_impl_t *mix_types = MIX_TYPES;
+        uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mix_impl_t);
 
         uint8_t fanouts[NUM_OF_FANOUTS];
         uint8_t fanouts_count;
@@ -325,12 +325,12 @@ int main(int argc, char *argv[]) {
         csv_header();
 
         FOR_EVERY(mix_type_p, mix_types, mix_types_count) {
-                mix_t mix_type = *mix_type_p;
+                mix_impl_t mix_type = *mix_type_p;
                 mix_func_t mix;
                 block_size_t block_size;
 
                 if (get_mix_func(mix_type, &mix, &block_size)) {
-                        _log(LOG_ERROR, "Unknown mixing primitive\n");
+                        _log(LOG_ERROR, "Unknown mixing implementation\n");
                 }
 
                 fanouts_count = get_fanouts_from_block_size(block_size, NUM_OF_FANOUTS, fanouts);

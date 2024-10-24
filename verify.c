@@ -180,7 +180,7 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
         byte *in     = setup(size, true);
         byte *out[2] = { setup(size, false), setup(size, false) };
 
-        mix_t groups[2][2];
+        mix_impl_t groups[2][2];
         mix_func_t funcs[2];
         block_size_t block_sizes[2];
         int nof_groups = 0;
@@ -244,12 +244,12 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
 
 // Verify the equivalence of the results when using single-threaded and
 // multi-threaded encryption with a varying number of threads
-int verify_multithreaded_keymix(mix_t mix_type, size_t fanout, uint8_t level) {
+int verify_multithreaded_keymix(mix_impl_t mix_type, size_t fanout, uint8_t level) {
         mix_func_t mix;
         block_size_t block_size;
 
         if (get_mix_func(mix_type, &mix, &block_size)) {
-                _log(LOG_ERROR, "Unknown mixing primitive\n");
+                _log(LOG_ERROR, "Unknown mixing implementation\n");
                 exit(EXIT_FAILURE);
         }
 
@@ -285,12 +285,12 @@ int verify_multithreaded_keymix(mix_t mix_type, size_t fanout, uint8_t level) {
         return err;
 }
 
-int verify_keymix_t(mix_t mix_type, size_t fanout, uint8_t level) {
+int verify_keymix_t(mix_impl_t mix_type, size_t fanout, uint8_t level) {
         mix_func_t mix;
         block_size_t block_size;
 
         if (get_mix_func(mix_type, &mix, &block_size)) {
-                _log(LOG_ERROR, "Unknown mixing primitive\n");
+                _log(LOG_ERROR, "Unknown mixing implementation\n");
                 exit(EXIT_FAILURE);
         }
 
@@ -340,12 +340,13 @@ int verify_keymix_t(mix_t mix_type, size_t fanout, uint8_t level) {
         return err;
 }
 
-int verify_enc(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type, size_t fanout, uint8_t level) {
+int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type, size_t fanout,
+               uint8_t level) {
         mix_func_t mix;
         block_size_t block_size;
 
         if (get_mix_func(mix_type, &mix, &block_size)) {
-                _log(LOG_ERROR, "Unknown mixing primitive\n");
+                _log(LOG_ERROR, "Unknown mixing implementation\n");
                 exit(EXIT_FAILURE);
         }
 
@@ -395,12 +396,12 @@ int verify_enc(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type, size_t f
         return err;
 }
 
-int custom_checks(enc_mode_t enc_mode, mix_t mix_type, mix_t one_way_type) {
+int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type) {
         mix_func_t mix;
         block_size_t block_size;
 
         if (get_mix_func(mix_type, &mix, &block_size)) {
-                _log(LOG_ERROR, "Unknown mixing primitive\n");
+                _log(LOG_ERROR, "Unknown mixing implementation\n");
                 exit(EXIT_FAILURE);
         }
 
@@ -444,7 +445,8 @@ int main() {
 
         int err = 0;
         block_size_t block_size;
-        mix_t mix_type;
+        mix_impl_t mix_type;
+        mix_info_t mix_info;
         uint8_t fanouts[NUM_OF_FANOUTS];
         uint8_t fanouts_count;
         uint8_t fanout;
@@ -467,25 +469,31 @@ int main() {
                 }
         }
 
-        _log(LOG_INFO, "[*] Verifying keymix and encryption with varying mixing primitives and fanouts\n\n");
-        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_t); i++) {
+        _log(LOG_INFO, "[*] Verifying keymix and encryption with varying mixing implementations and fanouts\n\n");
+        for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_impl_t); i++) {
                 mix_type = MIX_TYPES[i];
+                mix_info = *get_mix_info(mix_type);
                 fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS, fanouts);
 
                 CHECKED(custom_checks(ENC_MODE_CTR, mix_type, NONE));
-                CHECKED(custom_checks(ENC_MODE_OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128));
+
+                if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
+                        CHECKED(custom_checks(ENC_MODE_OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128));
+                }
 
                 for (uint8_t j = 0; j < fanouts_count; j++) {
                         uint8_t fanout = fanouts[j];
 
-                        _log(LOG_INFO, "Verifying with mixing primitive %s and fanout %zu\n",
+                        _log(LOG_INFO, "Verifying with mixing implementation %s and fanout %zu\n",
                              get_mix_name(mix_type), fanout);
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_multithreaded_keymix(mix_type, fanout, l));
                                 CHECKED(verify_keymix_t(mix_type, fanout, l));
                                 CHECKED(verify_enc(ENC_MODE_CTR, mix_type, NONE, fanout, l));
-                                CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
-                                                   OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
+                                if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
+                                        CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
+                                                           OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
+                                }
                         }
                         _log(LOG_INFO, "\n");
                 }

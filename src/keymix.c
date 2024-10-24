@@ -124,7 +124,7 @@ int get_fanouts_from_block_size(block_size_t block_size, uint8_t n, uint8_t *fan
         return count;
 }
 
-int get_fanouts_from_mix_type(mix_t mix_type, uint8_t n, uint8_t *fanouts) {
+int get_fanouts_from_mix_type(mix_impl_t mix_type, uint8_t n, uint8_t *fanouts) {
         mix_func_t mix_func;
         block_size_t block_size;
 
@@ -205,7 +205,8 @@ thread_exit:
         return NULL;
 }
 
-int keymix(mix_t mix_type, byte *in, byte *out, size_t size, uint8_t fanout, uint8_t nof_threads) {
+int keymix(mix_impl_t mix_type, byte *in, byte *out, size_t size, uint8_t fanout,
+           uint8_t nof_threads) {
         if (!ISPOWEROF(nof_threads, fanout) || nof_threads == 0) {
                 _log(LOG_DEBUG, "Unsupported number of threads, use a power of %u\n", fanout);
                 return 1;
