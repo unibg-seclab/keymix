@@ -223,19 +223,13 @@ int main(int argc, char **argv) {
         if (argp_parse(&argp, argc, argv, 0, 0, &args))
                 return EXIT_FAILURE;
 
+        // Setup fanout
+        get_fanouts_from_mix_type(args.mix, 1, (uint8_t *)&args.fanout);
+
         if (!ISPOWEROF(args.threads, args.fanout)) {
                 errmsg("invalid number of threads, must be a power of fanout (%d)", args.fanout);
                 return EXIT_FAILURE;
         }
-
-        // Check that one-way primitive is set with OFB encryption mode
-        if (args.enc_mode == ENC_MODE_OFB && args.one_way_mix == NONE) {
-                errmsg("cannot use ofb encryption mode without a one-way primitive");
-                return EXIT_FAILURE;
-        }
-
-        // Setup fanout
-        get_fanouts_from_mix_type(args.mix, 1, (uint8_t *)&args.fanout);
 
         if (args.verbose) {
                 printf("===============\n");
@@ -307,9 +301,25 @@ int main(int argc, char **argv) {
                 err = ERR_MISSING_ONE_WAY_MIX;
                 goto cleanup;
         case CTX_ERR_KEYSIZE:
-                errmsg("size of the key must be multiple of the block size of the mixing "
-                       "primitives and the number of blocks must be a power of the fanout (%d)",
-                       args.fanout);
+                mix_func_t mix_function;
+                mix_func_t one_way_function;
+                block_size_t block_size;
+                block_size_t one_way_block_size;
+
+                get_mix_func(args.mix, &mix_function, &block_size);
+                if (args.enc_mode == ENC_MODE_CTR) {
+                        errmsg("size of the key must be: size = block_size * fanout^n, with "
+                               "%s mixing primitive block_size = %d and fanout = %d",
+                               get_mix_name(args.mix), block_size, args.fanout);
+                } else {
+                        get_mix_func(args.one_way_mix, &one_way_function, &one_way_block_size);
+                        errmsg("size of the key must be: size = block_size * fanout^n, with %s "
+                               "mixing primitive block_size = %d and fanout = %d, but also "
+                               "it must be a multiple of the one_way_block_size, with %s one-way "
+                               "primitive one_way_block_size = %d", get_mix_name(args.mix),
+                               block_size, get_mix_name(args.one_way_mix), one_way_block_size,
+                               args.fanout);
+                }
                 err = ERR_KEY_SIZE;
                 goto cleanup;
         }
