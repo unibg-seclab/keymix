@@ -17,7 +17,7 @@ int keymix_t(ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
 // - `internal_threads` indicates how many threads to use internally for
 //   the keymix function. Must be a power of `ctx->fanout`.
 int keymix_ex(ctx_t *ctx, byte *out, size_t size, uint8_t external_threads,
-              uint8_t internal_threads, uint128_t starting_counter);
+              uint8_t internal_threads, uint32_t starting_counter);
 
 // Same as `encrypt_ex` but with `starting_counter` set to 0 and no threads
 int encrypt(ctx_t *ctx, byte *in, byte *out, size_t size);
@@ -33,6 +33,6 @@ int encrypt_t(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_thr
 // - `internal_threads` indicates how many threads to use internally for
 //   the keymix function. Must be a power of `ctx->fanout`.
 int encrypt_ex(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
-               uint8_t internal_threads, uint128_t starting_counter);
+               uint8_t internal_threads, uint32_t starting_counter);
 
 #endif

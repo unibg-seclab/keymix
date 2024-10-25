@@ -307,7 +307,6 @@ int verify_keymix_t(mix_impl_t mix_type, size_t fanout, uint8_t level) {
         byte *out3_thr1  = setup(3 * size, 0);
         byte *out3_thr2  = setup(3 * size, 0);
 
-        uint128_t iv             = rand() % (1 << sizeof(uint128_t));
         uint8_t internal_threads = 1;
 
         ctx_t ctx;
@@ -355,7 +354,7 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
 
         _log(LOG_INFO, "> Verifying encryption for key size %.2f MiB\n", MiB(key_size));
 
-        uint128_t iv = rand() % (1 << sizeof(uint128_t));
+        byte iv[KEYMIX_IV_SIZE] = {rand()};
 
         int err   = 0;
         byte *key = setup(key_size, true);
@@ -407,9 +406,9 @@ int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_t
 
         byte *key = setup(block_size, false);
 
-        uint128_t iv     = 0;
-        uint128_t fanout = 2;
-        size_t size      = (rand() & 10) * block_size + (rand() % block_size);
+        byte iv[KEYMIX_IV_SIZE] = {0};
+        uint8_t fanout          = 2;
+        size_t size             = (rand() & 10) * block_size + (rand() % block_size);
 
         int err   = 0;
         byte *in  = setup(size, true);

@@ -21,20 +21,17 @@ typedef struct {
 
         byte *out;
 
-        // uint128_t iv;
-        uint128_t counter;
+        // byte iv[KEYMIX_IV_SIZE];
+        uint32_t counter;
 
         // mix_func_t mixpass;
         // uint8_t fanout;
         uint8_t internal_threads;
 } worker_args_t;
 
-// Note: this two functions are currently unused, because we increment directly
-// using a cast to uint128_t. If we want to not have endianness stuff, we can
-// just switch to these.
-inline void _reverse128bits(uint128_t *x) {
+inline void _reverse32bits(uint32_t *x) {
         byte *data  = (byte *)x;
-        size_t size = sizeof(uint128_t);
+        size_t size = sizeof(*x);
         for (size_t i = 0; i < size / 2; i++) {
                 byte temp          = data[i];
                 data[i]            = data[size - 1 - i];
@@ -43,7 +40,7 @@ inline void _reverse128bits(uint128_t *x) {
 }
 
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
-#define __correct_endianness(...) _reverse128bits(__VA_ARGS_)
+#define __correct_endianness(...) _reverse32bits(__VA_ARGS_)
 #else
 #define __correct_endianness(...)
 #endif
@@ -71,20 +68,15 @@ void *w_keymix(void *a) {
         }
 
         // The key gets modified as follows
-        // First block -> XOR with (unchanging) IV
-        // Second block -> incremented
-
-        uint128_t *key_as_blocks = (uint128_t *)tmpkey;
-
+        // XOR IV with 1st 96 bits of the key
+        // Sum counter to the following 32 bits of the key
+        uint32_t *counter = (uint32_t*)(tmpkey + KEYMIX_IV_SIZE);
         if (ctx->do_iv_counter) {
-                __correct_endianness(&key_as_blocks[0]);
-                __correct_endianness(&key_as_blocks[1]);
+                memxor(tmpkey, tmpkey, ctx->iv, KEYMIX_IV_SIZE);
 
-                key_as_blocks[0] ^= ctx->iv;
-                key_as_blocks[1] += args->counter;
-
-                __correct_endianness(&key_as_blocks[0]);
-                __correct_endianness(&key_as_blocks[1]);
+                __correct_endianness(counter);
+                *counter += args->counter;
+                __correct_endianness(counter);
         }
 
         byte *in              = args->in;
@@ -100,7 +92,7 @@ void *w_keymix(void *a) {
                 }
                 if (ctx->do_iv_counter) {
                         __correct_endianness(&key_as_blocks[1]);
-                        key_as_blocks[1]++;
+                        (*counter)++;
                         __correct_endianness(&key_as_blocks[1]);
                 }
 
@@ -166,12 +158,12 @@ void *w_keymix_ofb(void *a) {
 }
 
 int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
-                    uint8_t internal_threads, uint128_t starting_counter) {
+                    uint8_t internal_threads, uint32_t starting_counter) {
         pthread_t threads[external_threads];
         worker_args_t args[external_threads];
 
         uint64_t keys_to_do   = CEILDIV(size, ctx->key_size);
-        uint128_t counter     = starting_counter;
+        uint32_t counter      = starting_counter;
         size_t remaining_size = size;
 
         uint64_t offset         = 0;
@@ -241,7 +233,7 @@ int keymix_t(ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
 }
 
 int keymix_ex(ctx_t *ctx, byte *buffer, size_t size, uint8_t external_threads,
-              uint8_t internal_threads, uint128_t starting_counter) {
+              uint8_t internal_threads, uint32_t starting_counter) {
         assert(!ctx->encrypt && "You can't use an encryption context with keymix");
         return keymix_internal(ctx, NULL, buffer, size, external_threads, internal_threads,
                                starting_counter);
@@ -257,7 +249,7 @@ int encrypt_t(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_thr
 }
 
 int encrypt_ex(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t external_threads,
-               uint8_t internal_threads, uint128_t starting_counter) {
+               uint8_t internal_threads, uint32_t starting_counter) {
         assert(ctx->encrypt && ctx->do_iv_counter &&
                "You must use an encryption context with encrypt");
         return keymix_internal(ctx, in, out, size, external_threads, internal_threads,

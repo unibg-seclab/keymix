@@ -187,7 +187,7 @@ void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t inter
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE({
-                        uint128_t counter     = 0;
+                        uint32_t counter      = 0;
                         size_t buffer_size    = external_threads * ctx->key_size;
                         size_t remaining_size = size;
 

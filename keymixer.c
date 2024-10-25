@@ -37,7 +37,7 @@ typedef struct {
         const char *input;
         const char *output;
         const char *key;
-        uint128_t iv;
+        byte iv[KEYMIX_IV_SIZE];
         uint8_t fanout;
         enc_mode_t enc_mode;
         mix_impl_t mix;
@@ -89,31 +89,12 @@ static struct argp argp = {options, parse_opt, args_doc,
 
 // ------------------------------------------------------------------ Argument parsing
 
-// I know about `strtol` and all the other stuff, but we need a 16-B unsigned
-// integer, and `strtol` does a signed long :(
-// Adapted from https://stackoverflow.com/questions/10156409/convert-hex-string-char-to-int
-inline int parse_hex(uint128_t *valp, char *hex) {
-        // Work on a local copy (less pointer headaches is better)
-        uint128_t val = 0;
-        while (*hex) {
-                byte byte = tolower(*hex);
-                // transform hex character to the 4bit equivalent number, using the ascii table
-                // indexes
-                if (byte >= '0' && byte <= '9')
-                        byte = byte - '0';
-                else if (byte >= 'a' && byte <= 'f')
-                        byte = byte - 'a' + 10;
-                else
-                        return 1; // Invalid character detected
-
-                // shift 4 to make space for new digit, and add the 4 bits of the new digit
-                val = (val << 4) | (byte & 0xF);
-
-                // go to next byte
-                hex++;
+inline int parse_hex(byte *bytes, size_t len, char *hex) {
+        for (int i = 0; *hex && i < len; i++) {
+                if (sscanf(hex + 2*i, "%2hhx", bytes + i) <= 0) {
+                        return 1;
+                }
         }
-        // Everything is good, update the value
-        *valp = val;
         return 0;
 }
 
@@ -146,9 +127,9 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->verbose = true;
                 break;
         case ARG_KEY_IV:
-                if (strlen(arg) != 16)
-                        argp_error(state, "IV must be 16-B long");
-                if (parse_hex(&(arguments->iv), arg))
+                if (strlen(arg) != 2 * KEYMIX_IV_SIZE)
+                        argp_error(state, "IV must be %d-B long", KEYMIX_IV_SIZE);
+                if (parse_hex(arguments->iv, KEYMIX_IV_SIZE,  arg))
                         argp_error(state, "IV must consist of valid hex characters");
                 break;
         case ARG_KEY_ENC_MODE:

@@ -33,7 +33,7 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t b
         size_t buffer_size = external_threads * ctx->key_size;
         byte *buffer       = malloc(buffer_size);
 
-        uint128_t counter = 0;
+        uint32_t counter = 0;
         size_t read       = 0;
 
         do {
@@ -75,7 +75,7 @@ int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t 
         size_t fbuf_size = ctx->key_size;
         byte *fbuf       = malloc(fbuf_size);
 
-        uint128_t counter = 0;
+        uint32_t counter = 0;
         size_t read       = 0;
         do {
                 byte *bp = buffer;
