@@ -1,12 +1,14 @@
 #include "enc.h"
 
-#include "assert.h"
-#include "keymix.h"
-#include "types.h"
-#include "utils.h"
+#include <assert.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "keymix.h"
+#include "log.h"
+#include "types.h"
+#include "utils.h"
 
 // ---------------------------------------------- Keymix internals
 
@@ -54,7 +56,8 @@ void *w_keymix(void *a) {
         // memory area while other threads are trying to read it and modify it
         // themselves
         byte *tmpkey = malloc(ctx->key_size);
-        memcpy(tmpkey, ctx->key, ctx->key_size);
+        byte *src    = (ctx->enc_mode == ENC_MODE_CTR ? ctx->key : ctx->state);
+        memcpy(tmpkey, src, ctx->key_size);
 
         // If we are encrypting, then we have to consider one thing: the
         // keymix always spits out a key_size, so what happens if we have
@@ -84,8 +87,7 @@ void *w_keymix(void *a) {
         size_t remaining_size = args->resource_size;
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
-                keymix(ctx->mix, tmpkey, outbuffer, ctx->key_size, ctx->fanout,
-                       args->internal_threads);
+                keymix(ctx, tmpkey, outbuffer, ctx->key_size, args->internal_threads);
                 if (ctx->encrypt) {
                         memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
                         in += ctx->key_size;
@@ -133,8 +135,7 @@ void *w_keymix_ofb(void *a) {
         size_t remaining_one_way_size;
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
-                keymix(ctx->mix, curr_key, next_key, ctx->key_size, ctx->fanout,
-                       args->internal_threads);
+                keymix(ctx, curr_key, next_key, ctx->key_size, args->internal_threads);
                 nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
                 remaining_one_way_size = ctx->one_way_block_size * nof_macros;
                 (*ctx->one_way_mixpass)(next_key, outbuffer, MIN(remaining_one_way_size, ctx->key_size));
@@ -169,6 +170,12 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t extern
         uint64_t offset         = 0;
         uint8_t started_threads = 0;
 
+        if (ctx->enc_mode == ENC_MODE_CTR_OPT && internal_threads != 1) {
+                _log(LOG_ERROR, "Internal parallelization of the optimized ctr encryption is not "
+                     "implemented yet");
+                return 1;
+        }
+
         if (external_threads == 1) {
                 worker_args_t arg = {
                         .ctx              = ctx,
@@ -179,12 +186,22 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t extern
                         .counter          = counter,
                         .internal_threads = internal_threads,
                 };
-                if (ctx->enc_mode == ENC_MODE_CTR) {
+
+                switch (ctx->enc_mode) {
+                case ENC_MODE_CTR:
+                case ENC_MODE_CTR_OPT:
                         w_keymix(&arg);
-                } else {
+                        break;
+                case ENC_MODE_OFB:
                         w_keymix_ofb(&arg);
+                        break;
                 }
                 return 0;
+        }
+
+        if (ctx->enc_mode == ENC_MODE_OFB) {
+                _log(LOG_ERROR, "cannot use external parallelization of the ofb encryption");
+                return 1;
         }
 
         for (uint8_t t = 0; t < external_threads; t++) {

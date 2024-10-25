@@ -77,11 +77,18 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
                 print_buffer_hex(out, key_size, "out");
         }
 
-        time = MEASURE({ err = keymix(mix_type, key, out, key_size, fanout, nof_threads); }); // all layers
+        ctx_t ctx;
+        err = ctx_keymix_init(&ctx, mix_type, key, key_size, fanout);
+        if (err) {
+                _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
+                goto ctx_cleanup;
+        }
+
+        time = MEASURE({ err = keymix(&ctx, key, out, key_size, nof_threads); }); // all layers
         // time = MEASURE({ err = (*func)(key, out, key_size); }); // single layer
         if (err) {
                 printf("Error occured while encrypting");
-                goto cleanup;
+                goto ctx_cleanup;
         }
 
         readable_size = (double)key_size / SIZE_1MiB;
@@ -92,6 +99,8 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
         explicit_bzero(key, key_size);
         explicit_bzero(out, key_size);
 
+ctx_cleanup:
+        ctx_free(&ctx);
 cleanup:
         free(key);
         free(out);

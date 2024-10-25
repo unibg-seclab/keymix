@@ -225,7 +225,7 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
         uint8_t internal_threads_count;
 
         uint8_t external_threads_enc[] = {1, 2, 3, 4, 5, 6, 7, 8};
-        uint8_t external_threads_count = (enc_mode == ENC_MODE_CTR ? 8 : 1); // use one thread for
+        uint8_t external_threads_count = (enc_mode != ENC_MODE_OFB ? 8 : 1); // use one thread for
                                                                              // OFB encryption mode
 
         size_t file_sizes[]     = {SIZE_1MiB, 10 * SIZE_1MiB, 100 * SIZE_1MiB,

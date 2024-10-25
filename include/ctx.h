@@ -11,6 +11,7 @@
 
 typedef enum {
         ENC_MODE_CTR,
+        ENC_MODE_CTR_OPT,
         ENC_MODE_OFB,
 } enc_mode_t;
 
@@ -71,6 +72,10 @@ typedef struct {
 
         // Input/output size of the one-way pass mixing primitive.
         block_size_t one_way_block_size;
+
+        // Precomputation of the internal state to optimize execution of the
+        // ctr encryption mode
+        byte *state;
 } ctx_t;
 
 // Context initialization
@@ -94,6 +99,12 @@ void ctx_enable_iv_counter(ctx_t *ctx, byte *iv);
 
 // Updates the context `ctx` to disable the application of IV and counter to the key.
 void ctx_disable_iv_counter(ctx_t *ctx);
+
+// Precompute internal state to optimize execution of the ctr encryption mode.
+void ctx_precompute_state(ctx_t *ctx);
+
+// Free `ctx` state.
+void ctx_free(ctx_t *ctx);
 
 // Other utilities
 

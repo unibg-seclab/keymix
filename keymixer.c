@@ -135,7 +135,7 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARG_KEY_ENC_MODE:
                 arguments->enc_mode = get_enc_mode_type(arg);
                 if (arguments->enc_mode == -1)
-                        argp_error(state, "encryption mode must be one of ctr, ofb");
+                        argp_error(state, "encryption mode must be one of ctr, ctr-opt, ofb");
                 break;
         case ARG_KEY_PRIMITIVE:
                 arguments->mix = get_mix_type(arg);
@@ -305,11 +305,14 @@ int main(int argc, char **argv) {
                 block_size_t one_way_block_size;
 
                 get_mix_func(args.mix, &mix_function, &block_size);
-                if (args.enc_mode == ENC_MODE_CTR) {
+                switch (args.enc_mode) {
+                case ENC_MODE_CTR:
+                case ENC_MODE_CTR_OPT:
                         errmsg("size of the key must be: size = block_size * fanout^n, with "
                                "%s mixing primitive block_size = %d and fanout = %d",
                                get_mix_name(args.mix), block_size, args.fanout);
-                } else {
+                        break;
+                case ENC_MODE_OFB:
                         get_mix_func(args.one_way_mix, &one_way_function, &one_way_block_size);
                         errmsg("size of the key must be: size = block_size * fanout^n, with %s "
                                "mixing primitive block_size = %d and fanout = %d, but also "
@@ -317,6 +320,7 @@ int main(int argc, char **argv) {
                                "primitive one_way_block_size = %d", get_mix_name(args.mix),
                                block_size, get_mix_name(args.one_way_mix), one_way_block_size,
                                args.fanout);
+                        break;
                 }
                 err = ERR_KEY_SIZE;
                 goto cleanup;

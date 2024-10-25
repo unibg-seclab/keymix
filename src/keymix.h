@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "ctx.h"
 #include "mix.h"
 #include "types.h"
 
@@ -14,12 +15,14 @@ int get_fanouts_from_block_size(block_size_t block_size, uint8_t n, uint8_t *fan
 // primitive type and satisfy the size of the chunk (from bigger to smaller)
 int get_fanouts_from_mix_type(mix_impl_t mix_type, uint8_t n, uint8_t *fanouts);
 
+// Get number of encryption levels in the keymix computation
+uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout);
+
 // The Keymix primitive.
 // Applies mix as defined by `mixpass` to `in`, putting the result in `out`.
 // Here `size` is the size of both input and output, and must be a multiple
 // of `block_size`.
 // Accepts a positive number of threads, which must be a power of `fanout`.
-int keymix(mix_impl_t mix_type, byte *in, byte *out, size_t size, uint8_t fanout,
-           uint8_t nof_threads);
+int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads);
 
 #endif
