@@ -45,36 +45,40 @@ void *_run_thr(void *arg) {
 
 void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, block_size_t block_size,
                            uint8_t fanout, uint8_t nof_threads) {
+        assert(size % block_size == 0);
+
         if (nof_threads > (size / block_size))
                 nof_threads = fanout;
 
-        uint8_t thread_levels = level - LOGBASE(nof_threads, fanout); // only accurate when the
-                                                                      // nof_threads is a power of
-                                                                      // fanout
-
         pthread_t threads[nof_threads];
         spread_chunks_args_t thread_args[nof_threads];
+        size_t thread_chunk_size;
+        uint64_t tot_macros;
+        uint128_t macros;
+        byte *offset;
 
-        size_t thread_chunk_size = size / nof_threads;
-
-        assert(size % nof_threads == 0);
-        assert(thread_chunk_size % block_size == 0);
+        tot_macros = size / block_size;
+        offset = buffer;
 
         for (uint8_t t = 0; t < nof_threads; t++) {
                 spread_chunks_args_t *arg = thread_args + t;
 
+                macros = tot_macros / nof_threads + (t < tot_macros % nof_threads);
+                thread_chunk_size = block_size * macros;
+
                 arg->thread_id       = t;
-                arg->buffer          = buffer + t * thread_chunk_size;
+                arg->nof_threads     = nof_threads;
+                arg->buffer          = offset;
                 arg->buffer_abs      = buffer;
                 arg->buffer_abs_size = size;
                 arg->buffer_size     = thread_chunk_size;
                 arg->fanout          = fanout;
-                arg->thread_levels   = 1 + thread_levels;
-                arg->total_levels    = 1 + level;
                 arg->level           = level;
                 arg->block_size      = block_size;
 
                 pthread_create(&threads[t], NULL, _run_thr, arg);
+
+                offset += thread_chunk_size;
         }
 
         for (uint8_t t = 0; t < nof_threads; t++) {
@@ -114,7 +118,7 @@ int verify_shuffles(block_size_t block_size, size_t fanout, uint8_t level) {
                 }
 
                 if (err) {
-                        _log(LOG_INFO, "Error at level %d/%d (with %d threads)", l, level,
+                        _log(LOG_INFO, "Error at level %d/%d (with %d threads)\n", l, level,
                              nof_threads);
                         break;
                 }
@@ -139,33 +143,22 @@ int verify_shuffles_with_varying_threads(block_size_t block_size, size_t fanout,
 
         byte *out1 = setup(size, false);
         byte *out2 = setup(size, false);
-        byte *out3 = setup(size, false);
 
         // The following functions work inplace. So to avoid overwriting the input we copy it
         memcpy(out1, in, size);
-        memcpy(out2, in, size);
-        memcpy(out3, in, size);
-        // Note, we are not testing spread_chunks with one thread because it is meant to be
-        // used only with multiple threads
-        spread(out1, size, level, block_size, fanout);
-        emulate_spread_chunks(out2, size, level, block_size, fanout, fanout);
-        emulate_spread_chunks(out3, size, level, block_size, fanout, fanout * fanout);
 
         int err = 0;
-
-        err += COMPARE(out1, out2, size,
-                       "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
-        err += COMPARE(out2, out3, size,
-                       "%zu thr (spread chunks inplace) != %zu thr (spread chunks inplace)\n",
-                       fanout, fanout * fanout);
-        err +=
-            COMPARE(out3, out1, size, "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n",
-                    fanout * fanout);
+        spread(out1, size, level, block_size, fanout);
+        for (int nof_threads = 1; nof_threads < fanout * fanout; nof_threads++) {
+                memcpy(out2, in, size);
+                emulate_spread_chunks(out2, size, level, block_size, fanout, nof_threads);
+                err += COMPARE(out1, out2, size,
+                               "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
+        }
 
         free(in);
         free(out1);
         free(out2);
-        free(out3);
 
         return err;
 }

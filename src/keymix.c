@@ -28,6 +28,7 @@ typedef struct {
         ctx_t *ctx;
         size_t total_size;
         size_t chunk_size;
+        uint8_t nof_threads;
         uint8_t thread_levels;
         uint8_t total_levels;
         mix_func_t mixpass;
@@ -187,12 +188,11 @@ void *w_thread_keymix(void *a) {
 
         spread_chunks_args_t thrdata = {
                 .thread_id       = args->id,
+                .nof_threads     = args->nof_threads,
                 .buffer          = args->out,
                 .buffer_abs      = args->abs_out,
                 .buffer_abs_size = args->total_size,
                 .buffer_size     = args->chunk_size,
-                .thread_levels   = args->thread_levels,
-                .total_levels    = args->total_levels,
                 .fanout          = args->fanout,
                 .block_size      = args->block_size,
         };
@@ -276,6 +276,7 @@ int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {
         for (uint8_t t = 0; t < nof_threads; t++) {
                 thr_keymix_t *a = args + t;
                 a->id           = t;
+                a->nof_threads  = nof_threads;
                 a->in           = in + t * thread_chunk_size;
                 a->out          = out + t * thread_chunk_size;
                 a->barrier      = &barrier;

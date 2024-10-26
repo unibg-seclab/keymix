@@ -14,6 +14,9 @@ typedef struct {
         // The (progressive) number of the thread, starting from 0.
         uint8_t thread_id;
 
+        // Total number of threads.
+        uint8_t nof_threads;
+
         // A pointero to the buffer portion on which to operate.
         byte *buffer;
         // The Thread portion size.
@@ -23,12 +26,6 @@ typedef struct {
         byte *buffer_abs;
         // The actual size of the whole buffer.
         size_t buffer_abs_size;
-
-        // How many levels of mixing can be done by the threads without synchronization.
-        uint8_t thread_levels;
-
-        // The total number of mixing levels.
-        uint8_t total_levels;
 
         // Block size of the mixing primitive
         block_size_t block_size;
@@ -43,5 +40,9 @@ typedef struct {
 // Implements the spread algorithm in-place and can be called by a single
 // thread without the need to synchronize.
 void spread_chunks(spread_chunks_args_t *args);
+
+// Implements the spread algorithm in-place and can be called by multiple
+// threads working on different windows.
+void spread_chunks_without_constraints(spread_chunks_args_t *args);
 
 #endif
