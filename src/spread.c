@@ -6,58 +6,11 @@
 #include "mix.h"
 #include "utils.h"
 
-// This function spreads the output of the encryption produced by
-// the single thread across multiple slabs inplace.
-void spread(byte *buffer, size_t size, uint8_t level, block_size_t block_size,
-            uint8_t fanout) {
-        if (DEBUG) {
-                assert(level > 0);
-        }
-
-        byte *in  = buffer;
-        byte *out = buffer;
-
-        size_t mini_size = block_size / fanout;
-
-        uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
-        uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size        = prev_macros_in_slab * block_size;
-        size_t slab_size             = macros_in_slab * block_size;
-
-        byte *last = out + size;
-        uint64_t in_mini_offset, out_macro_offset, out_mini_offset;
-
-        while (out < last) {
-                // With inplace swap we never have to look back on the previous
-                // slab parts. Moreover, when we get to the last slab part we
-                // have nothing to do, previous swap operations have already
-                // managed to set this last slab part right.
-                in_mini_offset = 0;
-                for (uint8_t prev_slab = 0; prev_slab < fanout - 1; prev_slab++) {
-                        out_macro_offset = 0;
-                        for (uint64_t macro = 0; macro < prev_macros_in_slab; macro++) {
-                                in_mini_offset += (prev_slab + 1) * mini_size;
-                                out_mini_offset =
-                                    (prev_slab + 1) * prev_slab_size + prev_slab * mini_size;
-                                for (uint8_t mini = prev_slab + 1; mini < fanout; mini++) {
-                                        memswap(out + out_macro_offset + out_mini_offset,
-                                                in + in_mini_offset, mini_size);
-                                        in_mini_offset += mini_size;
-                                        out_mini_offset += prev_slab_size;
-                                }
-                                out_macro_offset += block_size;
-                        }
-                }
-                in += slab_size;
-                out += slab_size;
-        }
-}
-
 // Spread the output of the encryption owned by the current thread to the
 // following threads belonging to the same slab. The operation despite being
 // done inplace is thread-safe since there is no overlap between the read and
 // write operations of the threads.
-void spread_chunks(spread_chunks_args_t *args) {
+void spread(spread_args_t *args) {
         uint64_t tot_macros;
         uint64_t offset;
         bool extra_macro;

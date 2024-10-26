@@ -144,9 +144,20 @@ inline uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout) 
 }
 
 void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, uint8_t levels) {
+        spread_args_t args = {
+                .thread_id       = 0,
+                .nof_threads     = 1,
+                .buffer          = out,
+                .buffer_abs      = out,
+                .buffer_abs_size = size,
+                .buffer_size     = size,
+                .fanout          = ctx->fanout,
+                .block_size      = ctx->block_size,
+        };
+
         (*ctx->mixpass)(in, out, size);
-        for (uint8_t l = 1; l < levels; l++) {
-                spread(out, size, l, ctx->block_size, ctx->fanout);
+        for (args.level = 1; args.level < levels; args.level++) {
+                spread(&args);
                 (*ctx->mixpass)(out, out, size);
         }
 }
@@ -160,14 +171,27 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, uint8_t levels) 
 void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, uint8_t levels) {
         size_t curr_size = ctx->block_size;
 
+        spread_args_t args = {
+                .thread_id       = 0,
+                .nof_threads     = 1,
+                .buffer          = out,
+                .buffer_abs      = out,
+                .buffer_abs_size = size,
+                .buffer_size     = size,
+                .fanout          = ctx->fanout,
+                .block_size      = ctx->block_size,
+        };
+
         if (in != out) {
                 memcpy(out, in, size);
         }
 
         (*ctx->mixpass)(in, out, curr_size);
-        for (uint8_t l = 1; l < levels; l++) {
+        for (args.level = 1; args.level < levels; args.level++) {
                 curr_size *= ctx->fanout;
-                spread(out, curr_size, l, ctx->block_size, ctx->fanout);
+                args.buffer_abs_size = curr_size;
+                args.buffer_size     = curr_size;
+                spread(&args);
                 (*ctx->mixpass)(out, out, curr_size);
         }
 }
@@ -186,7 +210,7 @@ void *w_thread_keymix(void *a) {
 
         int8_t nof_threads = args->total_size / args->chunk_size;
 
-        spread_chunks_args_t thrdata = {
+        spread_args_t thrdata = {
                 .thread_id       = args->id,
                 .nof_threads     = args->nof_threads,
                 .buffer          = args->out,
@@ -208,7 +232,7 @@ void *w_thread_keymix(void *a) {
 
                 _log(LOG_DEBUG, "thread %d: sychronized swap (level %d)\n", args->id, l - 1);
                 thrdata.level = l;
-                spread_chunks(&thrdata);
+                spread(&thrdata);
 
                 // Wait for all threads to finish the swap step
                 err = barrier(args->barrier, nof_threads);

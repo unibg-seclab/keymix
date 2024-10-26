@@ -6,9 +6,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-// Implements the spread algorithm in-place.
-void spread(byte *buffer, size_t size, uint8_t level, block_size_t block_size, uint8_t fanout);
-
 // Data needed by the in-place `spread` algorithm.
 typedef struct {
         // The (progressive) number of the thread, starting from 0.
@@ -35,14 +32,10 @@ typedef struct {
 
         // The current level at which to apply the spread.
         uint8_t level;
-} spread_chunks_args_t;
-
-// Implements the spread algorithm in-place and can be called by a single
-// thread without the need to synchronize.
-void spread_chunks(spread_chunks_args_t *args);
+} spread_args_t;
 
 // Implements the spread algorithm in-place and can be called by multiple
 // threads working on different windows.
-void spread_chunks_without_constraints(spread_chunks_args_t *args);
+void spread(spread_args_t *args);
 
 #endif

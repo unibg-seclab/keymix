@@ -117,23 +117,35 @@ void ctx_precompute_state(ctx_t *ctx) {
         curr_size  = ctx->block_size;
         levels = get_levels(ctx->key_size, ctx->block_size, ctx->fanout);
 
-        // Keymix to compute only the internal state that is kept equal across
-        // all iv and counter values
-
         // Copy key changed with iv and counter
         memcpy(curr, ctx->key, ctx->block_size);
         curr += ctx->block_size;
 
+        // Keymix to compute only the internal state that is kept equal across
+        // all iv and counter values
+
+        spread_args_t args = {
+                .thread_id       = 0,
+                .nof_threads     = 1,
+                .fanout          = ctx->fanout,
+                .block_size      = ctx->block_size,
+        };
+
         (*ctx->mixpass)(ctx->key + ctx->block_size, curr, ctx->key_size - curr_size);
 
-        for (uint8_t l = 1; l < levels; l++) {
+        for (args.level = 1; args.level < levels; args.level++) {
                 // Keep internal state not yet affected by iv and counter that
                 // will be affected at the current layer
                 prev_size = curr_size;
                 curr_size = ctx->fanout * prev_size;
                 curr += curr_size - prev_size;
 
-                spread(curr, ctx->key_size - curr_size, l, ctx->block_size, ctx->fanout);
+                args.buffer          = curr;
+                args.buffer_abs      = curr;
+                args.buffer_abs_size = ctx->key_size - curr_size,
+                args.buffer_size     = ctx->key_size - curr_size,
+
+                spread(&args);
                 (*ctx->mixpass)(curr, curr, ctx->key_size - curr_size);
         }
 }
