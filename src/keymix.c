@@ -30,7 +30,7 @@ typedef struct {
         byte *abs_out;
         size_t chunk_size;
         size_t total_size;
-        uint8_t sync_levels;
+        uint8_t unsync_levels;
         uint8_t total_levels;
 } thr_keymix_t;
 
@@ -199,10 +199,8 @@ void *w_thread_keymix(void *a) {
         thr_keymix_t *thr     = (thr_keymix_t *)a;
         ctx_t *ctx            = thr->ctx;
 
-        uint8_t unsync_levels = thr->total_levels - thr->sync_levels;
-
         // No need to sync among other threads here
-        keymix_inner(thr->ctx, thr->in, thr->out, thr->chunk_size, unsync_levels);
+        keymix_inner(thr->ctx, thr->in, thr->out, thr->chunk_size, thr->unsync_levels);
         _log(LOG_DEBUG, "t=%d: finished layers without coordination\n", thr->id);
 
         // Synchronized layers
@@ -216,7 +214,7 @@ void *w_thread_keymix(void *a) {
                 .buffer_size     = thr->chunk_size,
                 .fanout          = ctx->fanout,
                 .block_size      = ctx->block_size,
-                .level           = unsync_levels,
+                .level           = thr->unsync_levels,
         };
 
         for (; args.level < thr->total_levels; args.level++) {
@@ -256,7 +254,7 @@ int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {
         uint64_t tot_macros;
         uint64_t macros;
         uint8_t levels;
-        uint8_t sync_levels;
+        uint8_t unsync_levels;
         size_t thread_chunk_size;
         byte *offset;
 
@@ -280,16 +278,23 @@ int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {
                 return 0;
         }
 
-        // If the #threads is a power of the fanout, the threads won't write in
-        // other threads memory up to the last few levels, so they can
-        // initially run without syncronization and only then be syncronized on
-        // the last few levels.
-        // NOTE: The 1st layer of encryption can always be done unsyncronized.
-        sync_levels = levels - 1;
-        if (ISPOWEROF(nof_threads, ctx->fanout)) {
-                sync_levels = LOGBASE(nof_threads, ctx->fanout);
+        // If the #threads divides the #macros and #macros per thread is a
+        // multiple of a fanout power, the threads won't write in other threads
+        // memory up to the level exceeding that fanout power. So the threads
+        // can initially run without syncronization and only then be
+        // syncronized on the last few levels
+        // NOTE: The 1st layer of encryption can always be done unsyncronized
+        unsync_levels = 1;
+        if (tot_macros % nof_threads == 0) {
+                thread_chunk_size = tot_macros / nof_threads;
+                macros = 1;
+                unsync_levels = 0;
+                while (thread_chunk_size % macros == 0) {
+                        macros *= ctx->fanout;
+                        unsync_levels += 1;
+                }
         }
-        _log(LOG_DEBUG, "sync levels:\t%d\n", sync_levels);
+        _log(LOG_DEBUG, "unsync levels:\t%d\n", unsync_levels);
 
         pthread_t threads[nof_threads];
         thr_keymix_t args[nof_threads];
@@ -311,17 +316,17 @@ int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {
                 macros = tot_macros / nof_threads + (t < tot_macros % nof_threads);
                 thread_chunk_size = ctx->block_size * macros;
 
-                a->id           = t;
-                a->nof_threads  = nof_threads;
-                a->barrier      = &barrier;
-                a->ctx          = ctx;
-                a->in           = in;
-                a->abs_out      = out;
-                a->out          = offset;
-                a->chunk_size   = thread_chunk_size;
-                a->total_size   = size;
-                a->sync_levels  = sync_levels;
-                a->total_levels = levels;
+                a->id            = t;
+                a->nof_threads   = nof_threads;
+                a->barrier       = &barrier;
+                a->ctx           = ctx;
+                a->in            = in;
+                a->abs_out       = out;
+                a->out           = offset;
+                a->chunk_size    = thread_chunk_size;
+                a->total_size    = size;
+                a->unsync_levels = unsync_levels;
+                a->total_levels  = levels;
 
                 pthread_create(&threads[t], NULL, w_thread_keymix, a);
 
