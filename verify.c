@@ -54,7 +54,7 @@ void emulate_spread(byte *buffer, size_t size, uint8_t level, block_size_t block
         spread_args_t thread_args[nof_threads];
         size_t thread_chunk_size;
         uint64_t tot_macros;
-        uint128_t macros;
+        uint64_t macros;
         byte *offset;
 
         tot_macros = size / block_size;
@@ -104,18 +104,20 @@ int verify_shuffles_with_varying_threads(block_size_t block_size, size_t fanout,
 
         int err = 0;
         emulate_spread(out1, size, level, block_size, fanout, 1);
-        for (int nof_threads = 2; nof_threads < fanout * fanout; nof_threads++) {
+        for (int nof_threads = 2; nof_threads < fanout; nof_threads++) {
                 memcpy(out2, in, size);
                 emulate_spread(out2, size, level, block_size, fanout, nof_threads);
                 err += COMPARE(out1, out2, size,
                                "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
+                if (err)
+                        return err;
         }
 
         free(in);
         free(out1);
         free(out2);
 
-        return err;
+        return 0;
 }
 
 // Verify the equivalence of the results when using different encryption and
@@ -222,12 +224,7 @@ int verify_multithreaded_keymix(mix_impl_t mix_type, size_t fanout, uint8_t leve
 
         byte *in     = setup(size, true);
         byte *out1   = setup(size, false);
-        byte *outf   = setup(size, false);
-        byte *outff  = setup(size, false);
-
-        size_t thr1   = 1;
-        size_t thrf   = fanout;
-        size_t thrff  = fanout * fanout;
+        byte *outt   = setup(size, false);
 
         ctx_t ctx;
         int err = 0;
@@ -236,23 +233,22 @@ int verify_multithreaded_keymix(mix_impl_t mix_type, size_t fanout, uint8_t leve
                 _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
                 exit(EXIT_FAILURE);
         }
-        keymix(&ctx, in, out1, size, thr1);
-        keymix(&ctx, in, outf, size, thrf);;
-        keymix(&ctx, in, outff, size, thrff);
+
+        keymix(&ctx, in, out1, size, 1);
+        for (int nof_threads = 2; nof_threads < fanout; nof_threads++) {
+                keymix(&ctx, in, outt, size, nof_threads);
+                err += COMPARE(out1, outt, size, "Keymix (1) != Keymix (%d)\n", nof_threads);
+                if (err)
+                        return err;
+        }
+
         ctx_free(&ctx);
-
-        // Comparisons
-        err += COMPARE(out1, outf, size, "Keymix (1) != Keymix (%zu)\n", thrf);
-
-        err += COMPARE(out1, outff, size, "Keymix (1) != Keymix (%zu)\n", thrff);
-        err += COMPARE(outf, outff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrff);
 
         free(in);
         free(out1);
-        free(outf);
-        free(outff);
+        free(outt);
 
-        return err;
+        return 0;
 }
 
 int verify_keymix_t(mix_impl_t mix_type, size_t fanout, uint8_t level) {

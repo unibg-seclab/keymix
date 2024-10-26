@@ -35,6 +35,7 @@ void spread(spread_args_t *args) {
         _log(LOG_DEBUG, "[t=%d] tot_macros = %ld, offset = %ld, macros = %ld\n",
              args->thread_id, tot_macros, offset, macros);
 
+        assert(args->level >= 1);
         prev_slab_macros = intpow(args->fanout, args->level - 1);
         mini_size = args->block_size / args->fanout;
 
