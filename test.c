@@ -105,14 +105,14 @@ void test_keymix(ctx_t *ctx, byte *out, size_t size, uint8_t threads) {
         _log(LOG_INFO, "\n");
 }
 
-void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t threads) {
+void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv, uint8_t threads) {
         _log(LOG_INFO,
              "[TEST (i=%d)] mode %s, main impl %s, one-way impl %s, fanout %d, expansion %zu: ",
              threads, get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
              get_mix_name(ctx->one_way_mix), ctx->fanout, CEILDIV(size, ctx->key_size));
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
-                double time = MEASURE(encrypt_t(ctx, in, out, size, threads));
+                double time = MEASURE(encrypt_t(ctx, in, out, size, iv, threads));
                 csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix,
                          ctx->one_way_mix, ctx->fanout, time);
                 _log(LOG_INFO, ".");
@@ -120,7 +120,7 @@ void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t threads) {
         _log(LOG_INFO, "\n");
 }
 
-void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size,
+void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                      uint8_t threads) {
         _log(LOG_INFO,
              "[TEST (i=%d)] mode %s, main impl %s, one-way impl %s, fanout %d, expansion %zu: ",
@@ -134,7 +134,7 @@ void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size,
 
                         while (remaining_size > 0) {
                                 size_t to_encrypt = MIN(remaining_size, ctx->key_size);
-                                encrypt_ex(ctx, in, out, to_encrypt, threads, counter);
+                                encrypt_ex(ctx, in, out, to_encrypt, iv, counter, threads);
 
                                 if (remaining_size >= to_encrypt)
                                         remaining_size -= to_encrypt;
@@ -161,6 +161,8 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
         uint8_t fanouts_count;
         size_t *key_sizes;
         uint8_t key_sizes_count;
+
+        byte iv[KEYMIX_IV_COUNTER_SIZE] = {0};
 
         uint8_t threads[]     = {4};
         uint8_t threads_count = 1;
@@ -192,16 +194,16 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
                                 size_t size = *sizep;
 
                                 ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_mix_type, key,
-                                                 key_size, 0, fanout);
+                                                 key_size, fanout);
                                 if (size < 100 * SIZE_1GiB) {
                                         out = malloc(size);
                                         in  = out;
-                                        test_enc(&ctx, in, out, size, *thr);
+                                        test_enc(&ctx, in, out, size, iv, *thr);
                                         free(out);
                                 } else {
                                         out = malloc(key_size);
                                         in  = out;
-                                        test_enc_stream(&ctx, in, out, size, *thr);
+                                        test_enc_stream(&ctx, in, out, size, iv, *thr);
                                         free(out);
                                 }
                         }

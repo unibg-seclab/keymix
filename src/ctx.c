@@ -29,13 +29,12 @@ ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_impl_t mix, byte *key, size_t size, ui
         ctx->mix      = mix;
         ctx->fanout   = fanout;
         ctx_disable_encryption(ctx);
-        ctx_disable_iv_counter(ctx);
 
         return CTX_ERR_NONE;
 }
 
 ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_impl_t one_way_mix,
-                           byte *key, size_t size, byte *iv, uint8_t fanout) {
+                           byte *key, size_t size, uint8_t fanout) {
         ctx->state = NULL;
 
         int err = ctx_keymix_init(ctx, mix, key, size, fanout);
@@ -83,7 +82,6 @@ ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_
         ctx->enc_mode    = enc_mode;
         ctx->one_way_mix = one_way_mix;
         ctx_enable_encryption(ctx);
-        ctx_enable_iv_counter(ctx, iv);
 
         if (enc_mode == ENC_MODE_CTR_OPT) {
                 ctx_precompute_state(ctx);
@@ -95,15 +93,6 @@ ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_
 inline void ctx_enable_encryption(ctx_t *ctx) { ctx->encrypt = true; }
 
 inline void ctx_disable_encryption(ctx_t *ctx) { ctx->encrypt = false; }
-
-inline void ctx_enable_iv_counter(ctx_t *ctx, byte *iv) {
-        ctx->do_iv_counter = true;
-        ctx->iv            = iv;
-}
-inline void ctx_disable_iv_counter(ctx_t *ctx) {
-        ctx->do_iv_counter = false;
-        ctx->iv            = NULL;
-}
 
 void ctx_precompute_state(ctx_t *ctx) {
         byte *curr;

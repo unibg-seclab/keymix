@@ -239,8 +239,8 @@ int main(int argc, char **argv) {
 
         // Do the encryption
         ctx_t ctx;
-        err = ctx_encrypt_init(&ctx, args.enc_mode, args.mix, args.one_way_mix, key, key_size,
-                               args.iv, args.fanout);
+        err = ctx_encrypt_init(&ctx, args.enc_mode, args.mix, args.one_way_mix,
+                               key, key_size, args.fanout);
         switch (err) {
         case CTX_ERR_UNKNOWN_MIX:
                 errmsg("no mix primitive implementation found");
@@ -300,12 +300,11 @@ int main(int argc, char **argv) {
                 goto cleanup;
         }
 
-        if (stream_encrypt(fout, fin, &ctx, args.threads))
+        if (stream_encrypt(&ctx, fin, fout, args.iv, args.threads))
                 err = ERR_ENC;
 
         // ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
-        // ctx_enable_iv_counter(&ctx, args.iv);
-        // err = stream_encrypt2(fout, fin, &ctx, args.threads);
+        // err = stream_encrypt2(&ctx, fin, fout, args.iv, args.threads);
 
 cleanup:
         safe_explicit_bzero(key, key_size);

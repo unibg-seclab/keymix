@@ -22,7 +22,8 @@ size_t get_file_size(FILE *fp) {
         return (size_t)res;
 }
 
-int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
+int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
+                   uint8_t threads) {
         // Then, we encrypt the input resource in a "streamed" manner:
         // that is, we read a buffer of `ctx->key_size` size, use encrypt_t on
         // that, and lastly write the result to the output.
@@ -30,7 +31,7 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
         byte *buffer       = malloc(buffer_size);
 
         uint32_t counter = 0;
-        size_t read       = 0;
+        size_t read      = 0;
 
         do {
                 // Read a certain number of bytes
@@ -41,7 +42,7 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
                 if (read == 0)
                         break;
 
-                encrypt_ex(ctx, buffer, buffer, read, threads, counter);
+                encrypt_ex(ctx, buffer, buffer, read, iv, counter, threads);
 
                 fwrite(buffer, read, 1, fout);
                 counter += 1;
@@ -57,7 +58,8 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
 // One thing of note: this code does one extra keymix when the file is an exact
 // multiple of key_size, because we read after doing the keymix and hence we
 // don't check if the file has ended before.
-int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
+int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
+                    uint8_t threads) {
         size_t buffer_size = ctx->key_size;
         byte *buffer       = malloc(buffer_size);
 
@@ -77,7 +79,7 @@ int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
                 if (read == 0)
                         goto while_end;
 
-                keymix_ex(ctx, buffer, buffer_size, threads, counter);
+                keymix_ex(ctx, buffer, buffer_size, iv, counter, threads);
 
                 // We have to XOR the whole buffer (however, we can break away
                 // if we get to the EOF first)
