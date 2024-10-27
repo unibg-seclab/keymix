@@ -43,8 +43,13 @@ void *_run_thr(void *arg) {
         return NULL;
 }
 
+void *_run_thr_opt(void *arg) {
+        spread_opt((spread_args_t *)arg);
+        return NULL;
+}
+
 void emulate_spread(byte *buffer, size_t size, uint8_t level, block_size_t block_size,
-                           uint8_t fanout, uint8_t nof_threads) {
+                    uint8_t fanout, uint8_t nof_threads, bool opt) {
         assert(size % block_size == 0);
 
         if (nof_threads > (size / block_size))
@@ -76,7 +81,10 @@ void emulate_spread(byte *buffer, size_t size, uint8_t level, block_size_t block
                 arg->level           = level;
                 arg->block_size      = block_size;
 
-                pthread_create(&threads[t], NULL, _run_thr, arg);
+                if (!opt)
+                        pthread_create(&threads[t], NULL, _run_thr, arg);
+                else
+                        pthread_create(&threads[t], NULL, _run_thr_opt, arg);
 
                 offset += thread_chunk_size;
         }
@@ -85,6 +93,51 @@ void emulate_spread(byte *buffer, size_t size, uint8_t level, block_size_t block
                 pthread_join(threads[t], NULL);
         }
 }
+
+// Verify equivalence of the shuffling operations for mixing a key of size
+// fanout^level macro blocks.
+int verify_shuffles(block_size_t block_size, size_t fanout, uint8_t level) {
+        size_t size = (size_t)pow(fanout, level) * (size_t) block_size;
+
+        _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
+             MiB(size));
+
+        byte *in                = setup(size, true);
+        byte *out_spread        = setup(size, false);
+        byte *out_spread_chunks = setup(size, false);
+
+        int err = 0;
+        for (uint8_t l = 1; l <= level; l++) {
+                uint8_t nof_threads          = pow(fanout, fmin(l, 2));
+                bool is_shuffle_chunks_level = (level - l < fmin(l, 2));
+
+                // Fill in buffer of the inplace operations
+                memcpy(out_spread, in, size);
+                memcpy(out_spread_chunks, in, size);
+
+                emulate_spread(out_spread, size, l, block_size, fanout, 1, false);
+                if (is_shuffle_chunks_level) {
+                        emulate_spread(out_spread_chunks, size, l, block_size, fanout,
+                                       nof_threads, true);
+
+                        err += COMPARE(out_spread, out_spread_chunks, size,
+                                       "Spread (inplace) != spread (chunks inplace)\n");
+                }
+
+                if (err) {
+                        _log(LOG_INFO, "Error at level %d/%d (with %d threads)\n", l, level,
+                             nof_threads);
+                        break;
+                }
+        }
+
+        free(in);
+        free(out_spread);
+        free(out_spread_chunks);
+
+        return err;
+}
+
 
 // Verify equivalence of the shuffling operations for mixing a key of size
 // fanout^level macro blocks with a varying number of threads.
@@ -103,12 +156,13 @@ int verify_shuffles_with_varying_threads(block_size_t block_size, size_t fanout,
         memcpy(out1, in, size);
 
         int err = 0;
-        emulate_spread(out1, size, level, block_size, fanout, 1);
-        for (int nof_threads = 2; nof_threads < fanout; nof_threads++) {
+
+        emulate_spread(out1, size, level, block_size, fanout, 1, false);
+        for (int nof_threads = 1; nof_threads <= fanout; nof_threads++) {
                 memcpy(out2, in, size);
-                emulate_spread(out2, size, level, block_size, fanout, nof_threads);
+                emulate_spread(out2, size, level, block_size, fanout, nof_threads, true);
                 err += COMPARE(out1, out2, size,
-                               "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
+                               "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", nof_threads);
                 if (err)
                         return err;
         }
@@ -235,7 +289,7 @@ int verify_multithreaded_keymix(mix_impl_t mix_type, size_t fanout, uint8_t leve
         }
 
         keymix(&ctx, in, out1, size, 1);
-        for (int nof_threads = 2; nof_threads < fanout; nof_threads++) {
+        for (int nof_threads = 2; nof_threads <= fanout; nof_threads++) {
                 keymix(&ctx, in, outt, size, nof_threads);
                 err += COMPARE(out1, outt, size, "Keymix (1) != Keymix (%d)\n", nof_threads);
                 if (err)
@@ -491,6 +545,7 @@ int main() {
 
                         _log(LOG_INFO, "Verifying with block size %d and fanout %zu\n", block_size, fanout);
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
+                                CHECKED(verify_shuffles(block_size, fanout, l));
                                 CHECKED(verify_shuffles_with_varying_threads(block_size, fanout, l));
                                 CHECKED(verify_keymix(block_size, fanout, l));
                         }

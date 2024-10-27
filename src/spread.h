@@ -38,4 +38,7 @@ typedef struct {
 // threads working on different windows.
 void spread(spread_args_t *args);
 
+// Optimized version of the spread function.
+void spread_opt(spread_args_t *args);
+
 #endif

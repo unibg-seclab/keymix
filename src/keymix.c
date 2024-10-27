@@ -154,7 +154,7 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, uint8_t levels) 
 
         (*ctx->mixpass)(in, out, size);
         for (args.level = 1; args.level < levels; args.level++) {
-                spread(&args);
+                spread_opt(&args);
                 (*ctx->mixpass)(out, out, size);
         }
 }
@@ -188,7 +188,7 @@ void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, uint8_t leve
                 curr_size *= ctx->fanout;
                 args.buffer_abs_size = curr_size;
                 args.buffer_size     = curr_size;
-                spread(&args);
+                spread_opt(&args);
                 (*ctx->mixpass)(out, out, curr_size);
         }
 }
@@ -228,7 +228,7 @@ void *w_thread_keymix(void *a) {
 
                 _log(LOG_DEBUG, "t=%d: sychronized swap (level %d)\n",
                      thr->id, args.level - 1);
-                spread(&args); // always called with at least 1 level
+                spread_opt(&args); // always called with at least 1 level
 
                 // Wait for all threads to finish the swap step
                 err = barrier(thr->barrier, thr->nof_threads);
@@ -260,7 +260,7 @@ int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {
 
         tot_macros = size / ctx->block_size;
         _log(LOG_DEBUG, "total macros:\t%d\n", tot_macros);
-        levels     = get_levels(size, ctx->block_size, ctx->fanout);
+        levels = get_levels(size, ctx->block_size, ctx->fanout);
         _log(LOG_DEBUG, "total levels:\t%d\n", levels);
 
         // Ensure 1 <= #threads <= #macros
