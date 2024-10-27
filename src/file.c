@@ -22,15 +22,11 @@ size_t get_file_size(FILE *fp) {
         return (size_t)res;
 }
 
-int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t blocks) {
-        uint8_t internal_threads = threads;
-        uint8_t external_threads = blocks;
-
+int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
         // Then, we encrypt the input resource in a "streamed" manner:
-        // that is, we read `external_threads` groups, each one of size
-        // `ctx->key_size`, use encrypt_t on that, and lastly write the result
-        // to the output.
-        size_t buffer_size = external_threads * ctx->key_size;
+        // that is, we read a buffer of `ctx->key_size` size, use encrypt_t on
+        // that, and lastly write the result to the output.
+        size_t buffer_size = ctx->key_size;
         byte *buffer       = malloc(buffer_size);
 
         uint32_t counter = 0;
@@ -45,10 +41,10 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t b
                 if (read == 0)
                         break;
 
-                encrypt_ex(ctx, buffer, buffer, read, external_threads, internal_threads, counter);
+                encrypt_ex(ctx, buffer, buffer, read, threads, counter);
 
                 fwrite(buffer, read, 1, fout);
-                counter += external_threads; // We encrypt `external_threads` at a time
+                counter += 1;
         } while (read == buffer_size);
 
         free(buffer);
@@ -58,14 +54,11 @@ int stream_encrypt(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t b
 // Equal to stream_encrypt, but allocates less RAM.
 // Essentially, we first call `keymix_ex` and not `encrypt_ex`, so that we can
 // read smaller chunks from the file and manually XOR them.
-// One thing of note: this code does one extr keymix when the file is an exact
-// multiple of external_threads * key_size, because we read after doing the keymix
-// and hence we don't check if the file has ended before.
-int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t blocks) {
-        uint8_t internal_threads = threads;
-        uint8_t external_threads = blocks;
-
-        size_t buffer_size = external_threads * ctx->key_size;
+// One thing of note: this code does one extra keymix when the file is an exact
+// multiple of key_size, because we read after doing the keymix and hence we
+// don't check if the file has ended before.
+int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads) {
+        size_t buffer_size = ctx->key_size;
         byte *buffer       = malloc(buffer_size);
 
         // We use key_size because it is surely a divisor of buffer_size.
@@ -84,9 +77,9 @@ int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t 
                 if (read == 0)
                         goto while_end;
 
-                keymix_ex(ctx, buffer, buffer_size, external_threads, internal_threads, counter);
+                keymix_ex(ctx, buffer, buffer_size, threads, counter);
 
-                // We have to XOR the whole buffe (however, we can break away
+                // We have to XOR the whole buffer (however, we can break away
                 // if we get to the EOF first)
                 for (; bp < buffer + buffer_size && read > 0; bp += fbuf_size) {
                         memxor(fbuf, fbuf, bp, read);
@@ -99,7 +92,7 @@ int stream_encrypt2(FILE *fout, FILE *fin, ctx_t *ctx, uint8_t threads, uint8_t 
                                 read = fread(fbuf, 1, fbuf_size, fin);
                 }
 
-                counter += external_threads;
+                counter += 1;
         } while (read == fbuf_size);
 
 while_end:

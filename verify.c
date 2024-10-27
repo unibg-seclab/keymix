@@ -305,62 +305,6 @@ int verify_multithreaded_keymix(mix_impl_t mix_type, size_t fanout, uint8_t leve
         return 0;
 }
 
-int verify_keymix_t(mix_impl_t mix_type, size_t fanout, uint8_t level) {
-        mix_func_t mix;
-        block_size_t block_size;
-
-        if (get_mix_func(mix_type, &mix, &block_size)) {
-                _log(LOG_ERROR, "Unknown mixing implementation\n");
-                exit(EXIT_FAILURE);
-        }
-
-        size_t size = (size_t)pow(fanout, level) * block_size;
-
-        _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
-
-        int  err         = 0;
-        byte *in         = setup(size, true);
-        byte *out_simple = setup(size, false);
-        byte *out1       = setup(size, false);
-        byte *out2_thr1  = setup(2 * size, 0);
-        byte *out2_thr2  = setup(2 * size, 0);
-        byte *out3_thr1  = setup(3 * size, 0);
-        byte *out3_thr2  = setup(3 * size, 0);
-
-        uint8_t internal_threads = 1;
-
-        ctx_t ctx;
-        err = ctx_keymix_init(&ctx, mix_type, in, size, fanout);
-        if (err) {
-                _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
-                exit(EXIT_FAILURE);
-        }
-
-        keymix(&ctx, in, out_simple, size, 1);
-        keymix_t(&ctx, out1, size, 1, internal_threads);
-
-        keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);
-        keymix_t(&ctx, out2_thr2, 2 * size, 2, internal_threads);
-        keymix_t(&ctx, out3_thr1, 3 * size, 1, internal_threads);
-        keymix_t(&ctx, out3_thr2, 3 * size, 2, internal_threads);
-
-        ctx_free(&ctx);
-
-        err += COMPARE(out_simple, out1, size, "Keymix T (x1, 1thr) != Keymix\n");
-        err += COMPARE(out2_thr1, out2_thr2, size, "Keymix T (x2, 1thr) != Keymix T (x2, 2thr)\n");
-        err += COMPARE(out3_thr1, out3_thr2, size, "Keymix T (x3, 1thr) != Keymix T (x3, 2thr)\n");
-
-        free(in);
-        free(out_simple);
-        free(out1);
-        free(out2_thr1);
-        free(out2_thr2);
-        free(out3_thr1);
-        free(out3_thr2);
-
-        return err;
-}
-
 int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type, size_t fanout,
                uint8_t level) {
         mix_func_t mix;
@@ -394,22 +338,12 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
         }
 
         encrypt(&ctx, in, out1, resource_size);
-        // Exclude OFB encryption mode from tests with external threads, since
-        // they are not supported
-        if (enc_mode == ENC_MODE_CTR || enc_mode == ENC_MODE_CTR_OPT) {
-                encrypt_t(&ctx, in, out2, resource_size, 2, 1);
-                encrypt_t(&ctx, in, out3, resource_size, 3, 1);
-
-                err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (2thr)\n");
-                err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
-                err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
-        }
 
         // Momentarily exclude optimized CTR mode from tests with internal
         // threads
         if (enc_mode != ENC_MODE_CTR_OPT) {
-                encrypt_t(&ctx, in, out2, resource_size, 1, fanout);
-                encrypt_t(&ctx, in, out3, resource_size, 1, fanout * fanout);
+                encrypt_t(&ctx, in, out2, resource_size, fanout);
+                encrypt_t(&ctx, in, out3, resource_size, fanout * fanout);
                 err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
                 err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (%d int-thr)\n",
                         fanout * fanout);
@@ -572,14 +506,13 @@ int main() {
                              get_mix_name(mix_type), fanout);
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_multithreaded_keymix(mix_type, fanout, l));
-                                CHECKED(verify_keymix_t(mix_type, fanout, l));
                                 CHECKED(verify_enc(ENC_MODE_CTR, mix_type, NONE, fanout, l));
                                 CHECKED(verify_enc(ENC_MODE_CTR_OPT, mix_type, NONE, fanout, l));
                                 if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
                                         CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
                                                            OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
                                 }
-                                CHECKED(verify_enc_ctr_modes(mix_type, NONE, fanout, l)); // no change in the key, but crashes
+                                CHECKED(verify_enc_ctr_modes(mix_type, NONE, fanout, l));
                         }
                         _log(LOG_INFO, "\n");
                 }
