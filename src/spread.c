@@ -13,7 +13,6 @@
 void spread(spread_args_t *args) {
         uint64_t tot_macros;
         uint64_t offset;
-        bool extra_macro;
         uint64_t macros;
         uint64_t prev_slab_macros;
         uint8_t prev_slab;
@@ -28,8 +27,7 @@ void spread(spread_args_t *args) {
         offset = (args->buffer - args->buffer_abs) / args->block_size;
 
         // Current thread window size
-        extra_macro = (args->thread_id < tot_macros % args->nof_threads);
-        macros      = tot_macros / args->nof_threads + extra_macro;
+        macros = args->buffer_size / args->block_size;
 
         _log(LOG_DEBUG, "[t=%d] tot_macros = %ld, offset = %ld, macros = %ld\n",
              args->thread_id, tot_macros, offset, macros);
@@ -61,7 +59,6 @@ void spread_opt(spread_args_t *args) {
         block_size_t block_size;
         uint64_t tot_macros;
         uint64_t offset;
-        bool extra_macro;
         uint64_t macros;
         uint64_t end;
         uint8_t fanout;
@@ -82,8 +79,7 @@ void spread_opt(spread_args_t *args) {
         // Thread window start
         offset = (args->buffer - buffer) / block_size;
         // Thread window size
-        extra_macro = (args->thread_id < tot_macros % args->nof_threads);
-        macros      = tot_macros / args->nof_threads + extra_macro;
+        macros = args->buffer_size / args->block_size;
         // Thread window end
         end = offset + macros;
 

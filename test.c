@@ -303,6 +303,9 @@ int main(int argc, char *argv[]) {
         csv_header();
 
         do_encryption_tests(ENC_MODE_CTR, XKCP_TURBOSHAKE_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR_OPT, XKCP_TURBOSHAKE_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR_OPT, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
         do_encryption_tests(ENC_MODE_OFB, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
 
         fclose(fout);

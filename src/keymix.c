@@ -28,6 +28,7 @@ typedef struct {
         ctx_t *ctx;
         byte *in;
         byte *out;
+        byte *abs_in;
         byte *abs_out;
         size_t chunk_size;
         size_t total_size;
@@ -285,7 +286,6 @@ void *w_thread_keymix(void *a) {
         };
 
         for (; args.level < thr->total_levels; args.level++) {
-                _log(LOG_DEBUG, "t=%d: notified the coordinator\n", thr->id);
                 // Wait for all threads to finish the encryption step
                 int err = barrier(thr->barrier, thr->nof_threads);
                 if (err) {
@@ -295,7 +295,7 @@ void *w_thread_keymix(void *a) {
 
                 _log(LOG_DEBUG, "t=%d: sychronized swap (level %d)\n",
                      thr->id, args.level - 1);
-                spread_opt(&args); // always called with at least 1 level
+                spread_opt(&args);
 
                 // Wait for all threads to finish the swap step
                 err = barrier(thr->barrier, thr->nof_threads);
@@ -317,14 +317,138 @@ thread_exit:
         return NULL;
 }
 
+// The input of the optimized version is not the key itself, but the result of
+// its precomputation.
+// When the operation is requested inplace (i.e., in == out), we overwrite the
+// state, so we expect copies of the original state have been made by the
+// caller. On the other hand, when they are not inplace the input shall not be
+// be changed.
+void *w_thread_keymix_opt(void *a) {
+        uint8_t thread_id;
+        uint8_t nof_threads;
+        uint64_t other_macros;
+        uint8_t extra_macros;
+        uint64_t offset;
+        bool extra_macro;
+        uint64_t macros;
+        uint64_t curr_tot_macros;
+
+        thr_keymix_t *thr = (thr_keymix_t *)a;
+        ctx_t *ctx        = thr->ctx;
+        byte *iv          = (!thr->id ? thr->iv : NULL);
+        uint32_t counter  = (!thr->id ? thr->counter : 0);
+
+        size_t curr_tot_size = thr->chunk_size;
+
+        if (!thr->id) {
+                // At the beginning only the 1st thread performs the keymix
+                // up to a predetermined number of levels
+                keymix_inner_opt(thr->ctx, thr->abs_in, thr->abs_out, curr_tot_size,
+                                 iv, counter, thr->unsync_levels);
+                _log(LOG_DEBUG, "t=%d: finished mixing prefix of internal state\n",
+                     thr->id);
+        } else if (thr->abs_in != thr->abs_out) {
+                // Other threads copy the remaining part of the internal state
+                // to the output buffer so that we are ready to perform the
+                // following levels
+                thread_id = thr->id - 1;
+                nof_threads = thr->nof_threads - 1;
+
+                // #macros not part of the mixing done by the 1st thread
+                other_macros = (thr->total_size - curr_tot_size) / ctx->block_size;
+
+                // Thread window start
+                extra_macros = MIN(other_macros % nof_threads, thread_id);
+                offset       = other_macros / nof_threads * thread_id + extra_macros;
+
+                // Thread window size
+                extra_macro = (thread_id < other_macros % nof_threads);
+                macros      = other_macros / nof_threads + extra_macro;
+
+                memcpy(thr->abs_out + curr_tot_size + ctx->block_size * offset,
+                       thr->abs_in + curr_tot_size + ctx->block_size * offset,
+                       ctx->block_size * macros);
+
+                _log(LOG_DEBUG, "t=%d: finished copying the internal state\n",
+                     thr->id);
+        }
+
+        _log(LOG_DEBUG, "t=%d: finished layers without coordination\n", thr->id);
+
+        // Synchronized layers
+
+        spread_args_t args = {
+                .thread_id   = thr->id,
+                .nof_threads = thr->nof_threads,
+                .buffer_abs  = thr->abs_out,
+                .fanout      = ctx->fanout,
+                .block_size  = ctx->block_size,
+                .level       = thr->unsync_levels,
+        };
+
+        for (; args.level < thr->total_levels; args.level++) {
+                curr_tot_size *= ctx->fanout;
+
+                // #macros to mix at the current level
+                curr_tot_macros = curr_tot_size / ctx->block_size;
+
+                // Thread window start
+                extra_macros = MIN(curr_tot_macros % thr->nof_threads, thr->id);
+                offset       = curr_tot_macros / thr->nof_threads * thr->id + extra_macros;
+
+                // Thread window size
+                extra_macro = (thr->id < curr_tot_macros % thr->nof_threads);
+                macros      = curr_tot_macros / thr->nof_threads + extra_macro;
+
+                // Update spread args accoring to the thread id and the current
+                // size
+                args.buffer          = thr->abs_out + ctx->block_size * offset;
+                args.buffer_abs_size = curr_tot_size;
+                args.buffer_size     = ctx->block_size * macros;
+
+                // Wait for all threads to finish the encryption step
+                int err = barrier(thr->barrier, thr->nof_threads);
+                if (err) {
+                        _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
+                        goto thread_exit;
+                }
+
+                _log(LOG_DEBUG, "t=%d: sychronized swap (level %d)\n", thr->id,
+                     args.level - 1);
+                _log(LOG_DEBUG, "t=%d: curr_tot_macros %ld, offset %ld, macros %ld\n",
+                     thr->id, curr_tot_macros, offset, macros);
+                spread_opt(&args);
+
+                // Wait for all threads to finish the swap step
+                err = barrier(thr->barrier, thr->nof_threads);
+                if (err) {
+                        _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
+                        goto thread_exit;
+                }
+
+                _log(LOG_DEBUG, "t=%d: sychronized encryption (level %d)\n",
+                     thr->id, args.level);
+                err = (*(ctx->mixpass))(args.buffer, args.buffer, args.buffer_size);
+                if (err) {
+                        _log(LOG_ERROR, "t=%d: mixpass error %d\n", thr->id, err);
+                        goto thread_exit;
+                }
+        }
+
+thread_exit:
+        return NULL;
+}
+
 int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
                       uint32_t counter, uint8_t nof_threads) {
         uint64_t tot_macros;
+        bool extra_macro;
         uint64_t macros;
         uint8_t levels;
         uint8_t unsync_levels;
         size_t thread_chunk_size;
-        byte *offset;
+        byte *in_offset;
+        byte *out_offset;
 
         tot_macros = size / ctx->block_size;
         _log(LOG_DEBUG, "total macros:\t%d\n", tot_macros);
@@ -346,18 +470,37 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
                 return 0;
         }
 
-        // If the #threads divides the #macros and #macros per thread is a
-        // multiple of a fanout power, the threads won't write in other threads
-        // memory up to the level exceeding that fanout power. So the threads
-        // can initially run without syncronization and only then be
-        // syncronized on the last few levels
-        // NOTE: The 1st layer of encryption can always be done unsyncronized
-        unsync_levels = 1;
-        if (tot_macros % nof_threads == 0) {
-                thread_chunk_size = tot_macros / nof_threads;
+        if (ctx->enc_mode != ENC_MODE_CTR_OPT) {
+                // If the #threads divides the #macros and #macros per thread
+                // is a multiple of a fanout power, the threads won't write in
+                // other threads memory up to the level exceeding that fanout
+                // power. So the threads can initially run without
+                // syncronization and only then be syncronized on the last few
+                // levels
+                // NOTE: The 1st layer of encryption can always be done
+                // unsyncronized
+                unsync_levels = 1;
+                if (tot_macros % nof_threads == 0) {
+                        thread_chunk_size = tot_macros / nof_threads;
+                        macros = 1;
+                        unsync_levels = 0;
+                        while (thread_chunk_size % macros == 0) {
+                                macros *= ctx->fanout;
+                                unsync_levels += 1;
+                        }
+                }
+        } else {
+                // The optimized version initially runs entirely within the 1st
+                // thread, only then once we have enough blocks to process the
+                // computation can be shared with the entire pull of threads.
+                // Here, we decide the size and #levels done by the 1st thread
+                // based on the #threads available.
+                // TODO: This might cause a lot of syncronization costs,
+                // measure it, and try to minimize it, by letting the first
+                // thread do more work on its own
                 macros = 1;
                 unsync_levels = 0;
-                while (thread_chunk_size % macros == 0) {
+                while (macros <= nof_threads) {
                         macros *= ctx->fanout;
                         unsync_levels += 1;
                 }
@@ -376,21 +519,31 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
                 goto cleanup;
         }
 
-        offset = out;
+        in_offset = in;
+        out_offset = out;
 
         for (uint8_t t = 0; t < nof_threads; t++) {
                 thr_keymix_t *a = args + t;
 
-                macros = tot_macros / nof_threads + (t < tot_macros % nof_threads);
-                thread_chunk_size = ctx->block_size * macros;
+                if (ctx->enc_mode != ENC_MODE_CTR_OPT) {
+                        // #macros done by the current thread
+                        extra_macro = (t < tot_macros % nof_threads);
+                        macros = tot_macros / nof_threads + extra_macro;
+                        thread_chunk_size = ctx->block_size * macros;
+                } else {
+                        // #macros done by the 1st thread
+                        macros = intpow(ctx->fanout, unsync_levels - 1);
+                        thread_chunk_size = ctx->block_size * macros;
+                }
 
                 a->id            = t;
                 a->nof_threads   = nof_threads;
                 a->barrier       = &barrier;
                 a->ctx           = ctx;
-                a->in            = in;
+                a->abs_in        = in;
+                a->in            = in_offset;
                 a->abs_out       = out;
-                a->out           = offset;
+                a->out           = out_offset;
                 a->chunk_size    = thread_chunk_size;
                 a->total_size    = size;
                 a->unsync_levels = unsync_levels;
@@ -398,10 +551,14 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
                 a->iv            = iv;
                 a->counter       = counter;
 
-                pthread_create(&threads[t], NULL, w_thread_keymix, a);
+                if (ctx->enc_mode != ENC_MODE_CTR_OPT) {
+                        pthread_create(&threads[t], NULL, w_thread_keymix, a);
+                } else {
+                        pthread_create(&threads[t], NULL, w_thread_keymix_opt, a);
+                }
 
-                in += thread_chunk_size;
-                offset += thread_chunk_size;
+                in_offset += thread_chunk_size;
+                out_offset += thread_chunk_size;
         }
 
         _log(LOG_DEBUG, "[i] joining the threads...\n");

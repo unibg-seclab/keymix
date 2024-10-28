@@ -327,8 +327,7 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
         byte *in  = setup(resource_size, true);
 
         byte *out1 = setup(resource_size, false);
-        byte *out2 = setup(resource_size, false);
-        byte *out3 = setup(resource_size, false);
+        byte *outt = setup(resource_size, false);
 
         ctx_t ctx;
         err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, fanout);
@@ -338,23 +337,15 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
         }
 
         encrypt(&ctx, in, out1, resource_size, iv);
-
-        // Momentarily exclude optimized CTR mode from tests with internal
-        // threads
-        if (enc_mode != ENC_MODE_CTR_OPT) {
-                encrypt_t(&ctx, in, out2, resource_size, iv, fanout);
-                encrypt_t(&ctx, in, out3, resource_size, iv, fanout * fanout);
-                err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
-                err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (%d int-thr)\n",
-                        fanout * fanout);
-                err += COMPARE(out2, out3, resource_size, "Encrypt (%d int-thr) != Encrypt (%d int-thr)\n",
-                        fanout, fanout * fanout);
+        for (int nof_threads = 2; nof_threads <= fanout; nof_threads++) {
+                encrypt_t(&ctx, in, outt, resource_size, iv, fanout);
+                err += COMPARE(out1, outt, resource_size, "Encrypt != Encrypt (%d int-thr)\n",
+                               nof_threads);
         }
 
         free(key);
         free(out1);
-        free(out2);
-        free(out3);
+        free(outt);
         return err;
 }
 

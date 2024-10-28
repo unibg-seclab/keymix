@@ -114,12 +114,6 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                 return 1;
         }
 
-        if (ctx->enc_mode == ENC_MODE_CTR_OPT && threads != 1) {
-                _log(LOG_ERROR, "Internal parallelization of the optimized "
-                     "ctr encryption is not implemented yet\n");
-                return 1;
-        }
-
         // if (ctx->enc_mode == ENC_MODE_OFB && iv) {
         //         _log(LOG_ERROR, "Reuse of the same key with different IVs for "
         //              "ofb encryption mode is not implemented yet\n");
