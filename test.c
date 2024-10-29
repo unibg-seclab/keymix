@@ -84,7 +84,7 @@ void setup_keys(block_size_t block_size, uint8_t fanout, size_t **key_sizes,
         uint8_t max_x = first_x_that_surpasses(MAX_KEY_SIZE, block_size, fanout);
 
         *key_sizes_count = max_x + 1 - min_x;
-        *key_sizes       = realloc(*key_sizes, *key_sizes_count * sizeof(size_t));
+        *key_sizes       = malloc(*key_sizes_count * sizeof(size_t));
 
         for (uint8_t x = min_x; x <= max_x; x++) {
                 (*key_sizes)[x - min_x] = block_size * pow(fanout, x);
@@ -171,7 +171,7 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
                                    SIZE_1GiB, 10 * SIZE_1GiB, 100 * SIZE_1GiB};
         size_t file_sizes_count = sizeof(file_sizes) / sizeof(size_t);
 
-        fanouts_count = get_fanouts_from_mix_type(enc_mode, NUM_OF_FANOUTS_ENC, fanouts_enc);
+        fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS_ENC, fanouts_enc);
 
         err = get_mix_func(mix_type, &mixpass, &block_size);
         if (err) {
@@ -206,10 +206,13 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
                                         test_enc_stream(&ctx, in, out, size, iv, *thr);
                                         free(out);
                                 }
+                                ctx_free(&ctx);
                         }
 
                         free(key);
                 }
+
+                free(key_sizes);
         }
 }
 
@@ -283,12 +286,15 @@ int main(int argc, char *argv[]) {
 
                                         ctx_keymix_init(&ctx, mix_type, key, key_size, fanout);
                                         test_keymix(&ctx, out, size, *thr);
+                                        ctx_free(&ctx);
 
                                         free(out);
                                 }
 
                                 free(key);
                         }
+
+                        free(key_sizes);
                 }
         }
 
