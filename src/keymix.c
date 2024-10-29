@@ -183,6 +183,38 @@ void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
 
 // --------------------------------------------------------- Multi-threaded keymix
 
+int sync_spread_and_mixpass(thr_keymix_t *thr, spread_args_t *args) {
+        ctx_t *ctx = thr->ctx;
+
+        // Wait for all threads to finish the encryption step
+        int err = barrier(thr->barrier, thr->nof_threads);
+        if (err) {
+                _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
+                return 1;
+        }
+
+        _log(LOG_DEBUG, "t=%d: sychronized swap (level %d)\n", thr->id,
+             args->level - 1);
+        spread_opt(args);
+
+        // Wait for all threads to finish the swap step
+        err = barrier(thr->barrier, thr->nof_threads);
+        if (err) {
+                _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
+                return 1;
+        }
+
+        _log(LOG_DEBUG, "t=%d: sychronized encryption (level %d)\n", thr->id,
+             args->level);
+        err = (*(ctx->mixpass))(args->buffer, args->buffer, args->buffer_size);
+        if (err) {
+                _log(LOG_ERROR, "t=%d: mixpass error %d\n", thr->id, err);
+                return 1;
+        }
+
+        return 0;
+}
+
 void *w_thread_keymix(void *a) {
         thr_keymix_t *thr     = (thr_keymix_t *)a;
         ctx_t *ctx            = thr->ctx;
@@ -209,29 +241,10 @@ void *w_thread_keymix(void *a) {
         };
 
         for (; args.level < thr->total_levels; args.level++) {
-                // Wait for all threads to finish the encryption step
-                int err = barrier(thr->barrier, thr->nof_threads);
+                int err = sync_spread_and_mixpass(thr, &args);
                 if (err) {
-                        _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
-                        goto thread_exit;
-                }
-
-                _log(LOG_DEBUG, "t=%d: sychronized swap (level %d)\n",
-                     thr->id, args.level - 1);
-                spread_opt(&args);
-
-                // Wait for all threads to finish the swap step
-                err = barrier(thr->barrier, thr->nof_threads);
-                if (err) {
-                        _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
-                        goto thread_exit;
-                }
-
-                _log(LOG_DEBUG, "t=%d: sychronized encryption (level %d)\n",
-                     thr->id, args.level);
-                err = (*(ctx->mixpass))(thr->out, thr->out, thr->chunk_size);
-                if (err) {
-                        _log(LOG_ERROR, "t=%d: mixpass error %d\n", thr->id, err);
+                        _log(LOG_ERROR, "t=%d: syncronization error (level %d)\n",
+                             args.level);
                         goto thread_exit;
                 }
         }
@@ -262,6 +275,8 @@ void *w_thread_keymix_opt(void *a) {
         uint32_t counter  = (!thr->id ? thr->counter : 0);
 
         size_t curr_tot_size = thr->chunk_size;
+
+        // No need for syncronization in the 1st layers
 
         if (!thr->id) {
                 // At the beginning only the 1st thread performs the keymix
@@ -329,31 +344,10 @@ void *w_thread_keymix_opt(void *a) {
                 args.buffer_abs_size = curr_tot_size;
                 args.buffer_size     = ctx->block_size * macros;
 
-                // Wait for all threads to finish the encryption step
-                int err = barrier(thr->barrier, thr->nof_threads);
+                int err = sync_spread_and_mixpass(thr, &args);
                 if (err) {
-                        _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
-                        goto thread_exit;
-                }
-
-                _log(LOG_DEBUG, "t=%d: sychronized swap (level %d)\n", thr->id,
-                     args.level - 1);
-                _log(LOG_DEBUG, "t=%d: curr_tot_macros %ld, offset %ld, macros %ld\n",
-                     thr->id, curr_tot_macros, offset, macros);
-                spread_opt(&args);
-
-                // Wait for all threads to finish the swap step
-                err = barrier(thr->barrier, thr->nof_threads);
-                if (err) {
-                        _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
-                        goto thread_exit;
-                }
-
-                _log(LOG_DEBUG, "t=%d: sychronized encryption (level %d)\n",
-                     thr->id, args.level);
-                err = (*(ctx->mixpass))(args.buffer, args.buffer, args.buffer_size);
-                if (err) {
-                        _log(LOG_ERROR, "t=%d: mixpass error %d\n", thr->id, err);
+                        _log(LOG_ERROR, "t=%d: syncronization error (level %d)\n",
+                             args.level);
                         goto thread_exit;
                 }
         }
