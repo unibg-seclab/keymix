@@ -50,8 +50,20 @@ byte *checked_malloc(size_t size);
 // Does `dst = a ^ b` but on memory areas. Size is specified in bytes.
 void memxor(void *dst, void *a, void *b, size_t bytes);
 
+// Get the current thread window start in #macros
+uint64_t get_curr_thread_offset(uint64_t tot_macros, uint8_t thread_id,
+                                uint8_t nof_threads);
+
+// Get the current thread window size in #macros
+uint64_t get_curr_thread_size(uint64_t tot_macros, uint8_t thread_id,
+                              uint8_t nof_threads);
+
+// Same as `memxor` but using multiple threads
+int multi_threaded_memxor(byte *dst, byte *a, byte *b, size_t size,
+                          uint8_t nof_threads);
+
 // Swaps two memory areas.
-void memswap(byte *a, byte *b, size_t bytes);
+void memswap(byte *restrict a, byte *restrict b, size_t bytes);
 
 // Applies `explicit_bzero` to `ptr` if it is not `NULL`.
 void safe_explicit_bzero(void *ptr, size_t size);

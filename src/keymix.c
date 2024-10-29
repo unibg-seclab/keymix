@@ -67,30 +67,6 @@ inline uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout) 
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
-// Get the current thread window start in #macros
-uint64_t get_curr_thread_offset(uint64_t tot_macros, uint8_t thread_id,
-                                uint8_t nof_threads) {
-        uint64_t extra_macros;
-        uint64_t offset;
-
-        extra_macros = MIN(tot_macros % nof_threads, thread_id);
-        offset       = tot_macros / nof_threads * thread_id + extra_macros;
-
-        return offset;
-}
-
-// Get the current thread window size in #macros
-uint64_t get_curr_thread_size(uint64_t tot_macros, uint8_t thread_id,
-                              uint8_t nof_threads) {
-        bool extra_macro;
-        uint64_t macros;
-
-        extra_macro = (thread_id < tot_macros % nof_threads);
-        macros      = tot_macros / nof_threads + extra_macro;
-
-        return macros;
-}
-
 // --------------------------------------------------------- Single-threaded keymix
 
 inline void _reverse32bits(uint32_t *x) {

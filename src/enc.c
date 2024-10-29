@@ -42,9 +42,12 @@ void keymix_ctr_mode(enc_args_t *args) {
 
         for (uint32_t i = 0; i < args->keys_to_do; i++) {
                 keymix_iv_counter(ctx, src, outbuffer, ctx->key_size,
-                                  args->iv, args->starting_counter + i, args->threads);
+                                  args->iv, args->starting_counter + i,
+                                  args->threads);
                 if (ctx->encrypt) {
-                        memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
+                        multi_threaded_memxor(out, outbuffer, in,
+                                              MIN(remaining_size, ctx->key_size),
+                                              args->threads);
                         in += ctx->key_size;
                 }
 
@@ -90,7 +93,9 @@ void keymix_ofb_mode(enc_args_t *args) {
                 (*ctx->one_way_mixpass)(next_key, outbuffer,
                                         MIN(remaining_one_way_size, ctx->key_size));
                 if (ctx->encrypt) {
-                        memxor(out, outbuffer, in, MIN(remaining_size, ctx->key_size));
+                        multi_threaded_memxor(out, outbuffer, in,
+                                              MIN(remaining_size, ctx->key_size),
+                                              args->threads);
                         in += ctx->key_size;
                 }
 
