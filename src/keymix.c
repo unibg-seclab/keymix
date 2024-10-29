@@ -101,13 +101,14 @@ void update_iv_counter_block(ctx_t *ctx, byte *in, byte *out, byte*iv,
         __correct_endianness(counter_ptr);
         (*counter_ptr) += counter;
         __correct_endianness(counter_ptr);
-        (*ctx->mixpass)(block, out, ctx->block_size);
+        (*ctx->mixpass)(block, out, ctx->block_size, MIXPASS_DEFAULT_IV);
 }
 
 void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
                   uint32_t counter, uint8_t levels) {
         byte *out_first   = out;
         size_t size_first = size;
+        byte *mixpass_iv  = MIXPASS_DEFAULT_IV;
 
         spread_args_t args = {
                 .thread_id       = 0,
@@ -121,19 +122,28 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
         };
 
         if (iv) {
-                // Update 1st block with IV and counter on its own
-                update_iv_counter_block(ctx, in, out, iv, counter);
+                if (ctx->enc_mode != ENC_MODE_OFB) {
+                        // Update 1st block with IV and counter on its own
+                        update_iv_counter_block(ctx, in, out, iv, counter);
 
-                // Skip 1st block with 1st encryption level
-                in += ctx->block_size;
-                out_first += ctx->block_size;
-                size_first -= ctx->block_size;
+                        // Skip 1st block with 1st encryption level
+                        in += ctx->block_size;
+                        out_first += ctx->block_size;
+                        size_first -= ctx->block_size;
+                } else {
+                        // No changes to blocks
+                        out_first = out;
+                        size_first = size;
+
+                        // But use user provided IV for the mixpass
+                        mixpass_iv = iv;
+                }
         }
 
-        (*ctx->mixpass)(in, out_first, size_first);
+        (*ctx->mixpass)(in, out_first, size_first, mixpass_iv);
         for (args.level = 1; args.level < levels; args.level++) {
                 spread_opt(&args);
-                (*ctx->mixpass)(out, out, size);
+                (*ctx->mixpass)(out, out, size, mixpass_iv);
         }
 }
 
@@ -168,7 +178,7 @@ void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
                 update_iv_counter_block(ctx, in, out, iv, counter);
         } else {
                 // Encrypt 1st block as is
-                (*ctx->mixpass)(in, out, curr_size);
+                (*ctx->mixpass)(in, out, curr_size, MIXPASS_DEFAULT_IV);
         }
 
         // Other levels
@@ -177,19 +187,26 @@ void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
                 args.buffer_abs_size = curr_size;
                 args.buffer_size     = curr_size;
                 spread_opt(&args);
-                (*ctx->mixpass)(out, out, curr_size);
+                (*ctx->mixpass)(out, out, curr_size, MIXPASS_DEFAULT_IV);
         }
 }
 
 // --------------------------------------------------------- Multi-threaded keymix
 
 int sync_spread_and_mixpass(thr_keymix_t *thr, spread_args_t *args) {
-        ctx_t *ctx = thr->ctx;
+        ctx_t *ctx        = thr->ctx;
+        byte *mixpass_iv  = MIXPASS_DEFAULT_IV;
+
+        // When using ofb encryption mode and the user provides an IV pass it
+        // down to the mixpass
+        if (ctx->enc_mode == ENC_MODE_OFB && thr->iv) {
+                mixpass_iv = thr->iv;
+        }
 
         // Wait for all threads to finish the encryption step
         int err = barrier(thr->barrier, thr->nof_threads);
         if (err) {
-                _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
+                _log(LOG_ERROR, "t=%d: barrier error %d\n", thr->id, err);
                 return 1;
         }
 
@@ -200,13 +217,14 @@ int sync_spread_and_mixpass(thr_keymix_t *thr, spread_args_t *args) {
         // Wait for all threads to finish the swap step
         err = barrier(thr->barrier, thr->nof_threads);
         if (err) {
-                _log(LOG_ERROR, "t=%d: barrier error %d\n", err);
+                _log(LOG_ERROR, "t=%d: barrier error %d\n", thr->id, err);
                 return 1;
         }
 
         _log(LOG_DEBUG, "t=%d: sychronized encryption (level %d)\n", thr->id,
              args->level);
-        err = (*(ctx->mixpass))(args->buffer, args->buffer, args->buffer_size);
+        err = (*(ctx->mixpass))(args->buffer, args->buffer, args->buffer_size,
+                                mixpass_iv);
         if (err) {
                 _log(LOG_ERROR, "t=%d: mixpass error %d\n", thr->id, err);
                 return 1;
@@ -220,6 +238,12 @@ void *w_thread_keymix(void *a) {
         ctx_t *ctx            = thr->ctx;
         byte *iv              = (!thr->id ? thr->iv : NULL);
         uint32_t counter      = (!thr->id ? thr->counter : 0);
+
+        // When using ofb encryption mode give the IV to all threads, so they
+        // can pass it down to the mixpass
+        if (ctx->enc_mode == ENC_MODE_OFB) {
+                iv = thr->iv;
+        }
 
         // No need to sync among other threads here
         keymix_inner(thr->ctx, thr->in, thr->out, thr->chunk_size, iv, counter,
@@ -480,6 +504,11 @@ cleanup:
                 _log(LOG_ERROR, "barrier_destroy error %d\n", err);
 
         return err;
+}
+
+int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
+              uint8_t nof_threads) {
+        return keymix_iv_counter(ctx, in, out, size, iv, 0, nof_threads);
 }
 
 int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {

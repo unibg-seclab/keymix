@@ -7,6 +7,8 @@
 #include "mix.h"
 #include "types.h"
 
+#define MIXPASS_DEFAULT_IV "super_mix_iv"
+
 // Pick highest fanouts that are divisor of the block size and satisfy the size
 // of the chunk (from bigger to smaller)
 int get_fanouts_from_block_size(block_size_t block_size, uint8_t n, uint8_t *fanouts);
@@ -20,6 +22,10 @@ uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout);
 
 // Same as `keymix_iv_counter` but with IV set to NULL and counter set to 0
 int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads);
+
+// Same as `keymix_iv` but with counter set to 0
+int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
+              uint8_t nof_threads);
 
 // The Keymix primitive.
 // Applies mix as defined by `ctx->mixpass` to `in`, putting the result in

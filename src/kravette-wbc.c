@@ -11,11 +11,10 @@
 #include "types.h"
 
 // --- XKCP Kravatte-WBC in ECB mode ---
-int xkcp_kravette_wbc_ecb(byte *in, byte *out, size_t size) {
+int xkcp_kravette_wbc_ecb(byte *in, byte *out, size_t size, byte *iv) {
         Kravatte_Instance kwiEnc;
-        BitSequence key[] = "PobDm0wztgreWn4g33IqBLwl813Is1cj"; // 256 bit key (max 1600 bit)
 
-        int result = Kravatte_WBC_Initialize(&kwiEnc, key, 8 * strlen(key));
+        int result = Kravatte_WBC_Initialize(&kwiEnc, iv, 8 * strlen(iv)); // max 1600 bit key
         if (result) {
                 _log(LOG_ERROR, "Kravatte_WBC_Initialize error %d\n", result);
         }

@@ -83,15 +83,13 @@ void keymix_ofb_mode(enc_args_t *args) {
         size_t remaining_one_way_size;
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
-                // TODO: Support use of IVs to enable the reuse of the same key
-                // for multiple resources. This can only be done on some mixing
-                // primitives (i.e., symmetric ciphers and aes derivative
-                // hashes)
-                keymix(ctx, curr_key, next_key, ctx->key_size, args->threads);
+                keymix_iv(ctx, curr_key, next_key, ctx->key_size, args->iv,
+                          args->threads);
                 nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
                 remaining_one_way_size = ctx->one_way_block_size * nof_macros;
                 (*ctx->one_way_mixpass)(next_key, outbuffer,
-                                        MIN(remaining_one_way_size, ctx->key_size));
+                                        MIN(remaining_one_way_size, ctx->key_size),
+                                        args->iv);
                 if (ctx->encrypt) {
                         multi_threaded_memxor(out, outbuffer, in,
                                               MIN(remaining_size, ctx->key_size),
@@ -119,9 +117,10 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                 return 1;
         }
 
-        // if (ctx->enc_mode == ENC_MODE_OFB && iv) {
-        //         _log(LOG_ERROR, "Reuse of the same key with different IVs for "
-        //              "ofb encryption mode is not implemented yet\n");
+        // mix_info_t mix_info = *get_mix_info(ctx->mix);
+        // if (ctx->enc_mode == ENC_MODE_OFB && mix_info.is_one_way && iv) {
+        //         _log(LOG_ERROR, "ofb encryption mode does not support IVs for "
+        //              "one-way mixing primitives yet\n");
         //         return 1;
         // }
 

@@ -57,7 +57,7 @@ typedef enum {
 
 // A function that implements mix on a series of blocks.
 // Here `size` must be a multiple of `BLOCK_SIZE`.
-typedef int (*mix_func_t)(byte *in, byte *out, size_t size);
+typedef int (*mix_func_t)(byte *in, byte *out, size_t size, byte *iv);
 
 typedef enum {
         MIX_NONE,

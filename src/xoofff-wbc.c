@@ -11,11 +11,10 @@
 #include "types.h"
 
 // --- XKCP Xoofff-WBC in ECB mode ---
-int xkcp_xoofff_wbc_ecb(byte *in, byte *out, size_t size) {
+int xkcp_xoofff_wbc_ecb(byte *in, byte *out, size_t size, byte *iv) {
         Xoofff_Instance xpiEnc;
-        BitSequence key[] = "4mGOOW8zXC7W79tL3vCVq15AEr7wNkb9"; // 256 bit key (max 384 bit)
 
-        int result = XoofffWBC_Initialize(&xpiEnc, key, 8 * strlen(key));
+        int result = XoofffWBC_Initialize(&xpiEnc, iv, 8 * strlen(iv)); // max 384 bit key
         if (result) {
                 _log(LOG_ERROR, "XoofffWBC_Initialize error %d\n", result);
         }

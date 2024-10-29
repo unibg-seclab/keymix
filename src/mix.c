@@ -27,8 +27,7 @@
 // *** SYMMETRIC CIPHER FUNCTIONS ***
 
 // --- OpenSSL AES in ECB mode ---
-int openssl_aes_ecb(byte *in, byte *out, size_t size) {
-        const unsigned char *key = "super-secure-key";
+int openssl_aes_ecb(byte *in, byte *out, size_t size, byte *iv) {
         size_t remaining_size;
         size_t curr_size;
         int outl;
@@ -38,7 +37,7 @@ int openssl_aes_ecb(byte *in, byte *out, size_t size) {
                 _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
         }
 
-        if (!EVP_EncryptInit(ctx, EVP_aes_128_ecb(), key, NULL)) {
+        if (!EVP_EncryptInit(ctx, EVP_aes_128_ecb(), iv, NULL)) {
                 _log(LOG_ERROR, "EVP_EncryptInit error\n");
         }
 
@@ -64,17 +63,16 @@ int openssl_aes_ecb(byte *in, byte *out, size_t size) {
 }
 
 // --- wolfCrypt AES in ECB mode ---
-int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size) {
+int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size, byte *iv) {
         int ret;
         Aes aes;
-        const byte *key = "super-secure-key";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
                 _log(LOG_ERROR, "wc_AesInit error\n");
         }
 
-        ret = wc_AesSetKey(&aes, key, BLOCK_SIZE_AES, NULL, AES_ENCRYPTION);
+        ret = wc_AesSetKey(&aes, iv, BLOCK_SIZE_AES, NULL, AES_ENCRYPTION);
         if (ret) {
                 _log(LOG_ERROR, "wc_AesSetKey error\n");
         }
@@ -98,7 +96,7 @@ int wolfcrypt_aes_ecb(byte *in, byte *out, size_t size) {
 
 // --- WolfSSL ---
 
-int wolfssl(byte *in, byte *out, size_t size) {
+int wolfssl(byte *in, byte *out, size_t size, byte *iv) {
         Aes aes;
         wc_AesInit(&aes, NULL, INVALID_DEVID);
 
@@ -122,7 +120,7 @@ int wolfssl(byte *in, byte *out, size_t size) {
 
 // --- OpenSSL ---
 
-int openssl(byte *in, byte *out, size_t size) {
+int openssl(byte *in, byte *out, size_t size, byte *iv) {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
         EVP_EncryptInit(ctx, EVP_aes_256_ecb(), NULL, NULL);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
@@ -224,18 +222,18 @@ void aes256_enc(__m128i *key_schedule, byte *data, byte *out) {
         _mm_storeu_si128((__m128i *)out, m);
 }
 
-int aesni(byte *in, byte *out, size_t size) {
+int aesni(byte *in, byte *out, size_t size, byte *iv) {
         byte *last = in + size;
         __m128i key_schedule[15];
 
         for (; in < last; in += BLOCK_SIZE_MIXCTR, out += BLOCK_SIZE_MIXCTR) {
-                byte *key         = in;
-                uint128_t iv      = *(uint128_t *)(in + 2 * BLOCK_SIZE_AES);
-                uint128_t data[3] = {iv, iv + 1, iv + 2};
+                byte *key      = in;
+                uint128_t data = *(uint128_t *)(in + 2 * BLOCK_SIZE_AES);
+                uint128_t in[] = {data, data + 1, data + 2};
 
                 aes_256_key_expansion(key, key_schedule);
                 for (int b = 0; b < BLOCKS_PER_MACRO; b++) {
-                        aes256_enc(key_schedule, (byte *)(data + b), out + b * BLOCK_SIZE_AES);
+                        aes256_enc(key_schedule, (byte *)(in + b), out + b * BLOCK_SIZE_AES);
                 }
         }
         return 0;
@@ -278,50 +276,43 @@ int generic_openssl_hash(const EVP_MD *digest, block_size_t block_size,
         return 0;
 }
 
-int openssl_sha3_256_hash(byte *in, byte *out, size_t size) {
-        const EVP_MD *digest =EVP_sha3_256();
+int openssl_sha3_256_hash(byte *in, byte *out, size_t size, byte *iv) {
+        const EVP_MD *digest = EVP_sha3_256();
         int err = generic_openssl_hash(digest, BLOCK_SIZE_SHA3_256, in, out, size, false);
-        // EVP_MD_free(digest);
         return err;
 }
 
-int openssl_sha3_512_hash(byte *in, byte *out, size_t size) {
-        const EVP_MD *digest =EVP_sha3_512();
+int openssl_sha3_512_hash(byte *in, byte *out, size_t size, byte *iv) {
+        const EVP_MD *digest = EVP_sha3_512();
         int err = generic_openssl_hash(digest, BLOCK_SIZE_SHA3_512, in, out, size, false);
-        // EVP_MD_free(digest);
         return err;
 }
 
-int openssl_shake128_hash(byte *in, byte *out, size_t size) {
-        const EVP_MD *digest =EVP_shake128();
+int openssl_shake128_hash(byte *in, byte *out, size_t size, byte *iv) {
+        const EVP_MD *digest = EVP_shake128();
         int err = generic_openssl_hash(digest, BLOCK_SIZE_SHAKE128, in, out, size, true);
-        // EVP_MD_free(digest);
         return err;
 }
 
-int openssl_shake256_hash(byte *in, byte *out, size_t size) {
-        const EVP_MD *digest =EVP_shake256();
+int openssl_shake256_hash(byte *in, byte *out, size_t size, byte *iv) {
+        const EVP_MD *digest = EVP_shake256();
         int err = generic_openssl_hash(digest, BLOCK_SIZE_SHAKE256, in, out, size, true);
-        // EVP_MD_free(digest);
         return err;
 }
 
-int openssl_blake2s_hash(byte *in, byte *out, size_t size) {
-        const EVP_MD *digest =EVP_blake2s256();
+int openssl_blake2s_hash(byte *in, byte *out, size_t size, byte *iv) {
+        const EVP_MD *digest = EVP_blake2s256();
         int err = generic_openssl_hash(digest, BLOCK_SIZE_BLAKE2S, in, out, size, false);
-        // EVP_MD_free(digest);
         return err;
 }
 
-int openssl_blake2b_hash(byte *in, byte *out, size_t size) {
-        const EVP_MD *digest =EVP_blake2b512();
+int openssl_blake2b_hash(byte *in, byte *out, size_t size, byte *iv) {
+        const EVP_MD *digest = EVP_blake2b512();
         int err = generic_openssl_hash(digest, BLOCK_SIZE_BLAKE2B, in, out, size, false);
-        // EVP_MD_free(digest);
         return err;
 }
 
-int openssl_davies_meyer(byte *in, byte *out, size_t size) {
-        unsigned char *iv = "super-secure-key";
+int openssl_davies_meyer(byte *in, byte *out, size_t size, byte *iv) {
         int outl;
 
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -354,11 +345,11 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
+int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size, byte *iv) {
         // To support inplace execution of the function we need avoid
         // overwriting the input
         unsigned char *out_enc = (in == out ? malloc(size) : out);
-        openssl_aes_ecb(in, out_enc, size);
+        openssl_aes_ecb(in, out_enc, size, iv);
         memxor(out, out_enc, in, size);
         if (in == out) {
                 free(out_enc);
@@ -380,15 +371,15 @@ int generic_wolfcrypt_hash(enum wc_HashType hash_type, block_size_t block_size,
         return 0;
 }
 
-int wolfcrypt_sha3_256_hash(byte *in, byte *out, size_t size) {
+int wolfcrypt_sha3_256_hash(byte *in, byte *out, size_t size, byte *iv) {
         return generic_wolfcrypt_hash(WC_HASH_TYPE_SHA3_256, BLOCK_SIZE_SHA3_256, in, out, size);
 }
 
-int wolfcrypt_sha3_512_hash(byte *in, byte *out, size_t size) {
+int wolfcrypt_sha3_512_hash(byte *in, byte *out, size_t size, byte *iv) {
         return generic_wolfcrypt_hash(WC_HASH_TYPE_SHA3_512, BLOCK_SIZE_SHA3_512, in, out, size);
 }
 
-int wolfcrypt_shake128_hash(byte *in, byte *out, size_t size) {
+int wolfcrypt_shake128_hash(byte *in, byte *out, size_t size, byte *iv) {
         wc_Shake shake;
         int ret = wc_InitShake128(&shake, NULL, INVALID_DEVID);
         if (ret) {
@@ -408,7 +399,7 @@ int wolfcrypt_shake128_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-int wolfcrypt_shake256_hash(byte *in, byte *out, size_t size) {
+int wolfcrypt_shake256_hash(byte *in, byte *out, size_t size, byte *iv) {
         wc_Shake shake;
         int ret = wc_InitShake256(&shake, NULL, INVALID_DEVID);
         if (ret) {
@@ -428,7 +419,7 @@ int wolfcrypt_shake256_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-int wolfcrypt_blake2s_hash(byte *in, byte *out, size_t size) {
+int wolfcrypt_blake2s_hash(byte *in, byte *out, size_t size, byte *iv) {
         int ret;
         Blake2s b2s;
         byte *last = in + size;
@@ -449,7 +440,7 @@ int wolfcrypt_blake2s_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
+int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size, byte *iv) {
         int ret;
         Blake2b b2b;
         byte *last = in + size;
@@ -470,10 +461,9 @@ int wolfcrypt_blake2b_hash(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
+int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size, byte *iv) {
         int ret;
         Aes aes;
-        byte *iv = "super-secure-key";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -497,14 +487,13 @@ int wolfcrypt_davies_meyer(byte *in, byte *out, size_t size) {
         return 0;
 }
 
-int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size) {
+int wolfcrypt_matyas_meyer_oseas(byte *in, byte *out, size_t size, byte *iv) {
         int ret;
         Aes aes;
         // To support inplace execution of the function we need avoid
         // overwriting the input
         bool is_inplace = (in == out);
         byte *out_enc = (is_inplace ? malloc(BLOCK_SIZE_AES) : out);
-        byte *iv = "super-secure-key";
 
         ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
         if (ret) {
@@ -555,15 +544,15 @@ int xkcp_generic_turboshake_hash(uint32_t capacity, block_size_t block_size,
         return 0;
 }
 
-int xkcp_turboshake128_hash(byte *in, byte *out, size_t size) {
+int xkcp_turboshake128_hash(byte *in, byte *out, size_t size, byte *iv) {
         return xkcp_generic_turboshake_hash(256, BLOCK_SIZE_TURBOSHAKE128, in, out, size);
 }
 
-int xkcp_turboshake256_hash(byte *in, byte *out, size_t size) {
+int xkcp_turboshake256_hash(byte *in, byte *out, size_t size, byte *iv) {
         return xkcp_generic_turboshake_hash(512, BLOCK_SIZE_TURBOSHAKE256, in, out, size);
 }
 
-int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size) {
+int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size, byte *iv) {
         byte *last = in + size;
         for (; in < last; in += BLOCK_SIZE_KANGAROOTWELVE, out += BLOCK_SIZE_KANGAROOTWELVE) {
                 int result = KangarooTwelve(in, BLOCK_SIZE_KANGAROOTWELVE,
@@ -578,7 +567,7 @@ int xkcp_kangarootwelve_hash(byte *in, byte *out, size_t size) {
 
 // Xoodoo[12]: Xoodoo 384-bit permutations and 12 rounds
 
-int xkcp_xoodyak_hash(byte *in, byte *out, size_t size) {
+int xkcp_xoodyak_hash(byte *in, byte *out, size_t size, byte *iv) {
         Xoodyak_Instance instance;
 
         byte *last = in + size;
@@ -592,7 +581,7 @@ int xkcp_xoodyak_hash(byte *in, byte *out, size_t size) {
 
 // --- BLAKE3 hash function ---
 
-int blake3_blake3_hash(byte *in, byte *out, size_t size) {
+int blake3_blake3_hash(byte *in, byte *out, size_t size, byte *iv) {
         blake3_hasher hasher;
         blake3_hasher_init(&hasher);
 
@@ -608,7 +597,7 @@ int blake3_blake3_hash(byte *in, byte *out, size_t size) {
 // *** COMPLETE LIST OF MIX FUNCTIONS ***
 
 mix_info_t MIX_FUNCTIONS[] = {
-        // name, function, primitive, block size, one-way flag
+        // name, function, primitive, block size, one-way flag, iv support
         {"none", NULL, MIX_NONE, 0, true},
         {"openssl-aes-128", &openssl_aes_ecb, MIX_AES, BLOCK_SIZE_AES, false},
         {"openssl-davies-meyer", &openssl_davies_meyer, MIX_DAVIES_MEYER, BLOCK_SIZE_AES, true},

@@ -104,7 +104,7 @@ void ctx_precompute_state(ctx_t *ctx) {
         curr       = ctx->state;
         prev_size  = 1;
         curr_size  = ctx->block_size;
-        levels = get_levels(ctx->key_size, ctx->block_size, ctx->fanout);
+        levels     = get_levels(ctx->key_size, ctx->block_size, ctx->fanout);
 
         // Copy key changed with iv and counter
         memcpy(curr, ctx->key, ctx->block_size);
@@ -120,7 +120,8 @@ void ctx_precompute_state(ctx_t *ctx) {
                 .block_size      = ctx->block_size,
         };
 
-        (*ctx->mixpass)(ctx->key + ctx->block_size, curr, ctx->key_size - curr_size);
+        (*ctx->mixpass)(ctx->key + ctx->block_size, curr,
+                        ctx->key_size - curr_size, MIXPASS_DEFAULT_IV);
 
         for (args.level = 1; args.level < levels; args.level++) {
                 // Keep internal state not yet affected by iv and counter that
@@ -135,7 +136,8 @@ void ctx_precompute_state(ctx_t *ctx) {
                 args.buffer_size     = ctx->key_size - curr_size,
 
                 spread(&args);
-                (*ctx->mixpass)(curr, curr, ctx->key_size - curr_size);
+                (*ctx->mixpass)(curr, curr, ctx->key_size - curr_size,
+                                MIXPASS_DEFAULT_IV);
         }
 }
 
