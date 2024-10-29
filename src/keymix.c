@@ -67,6 +67,30 @@ inline uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout) 
         return 1 + LOGBASE(nof_macros, fanout);
 }
 
+// Get the current thread window start in #macros
+uint64_t get_curr_thread_offset(uint64_t tot_macros, uint8_t thread_id,
+                                uint8_t nof_threads) {
+        uint64_t extra_macros;
+        uint64_t offset;
+
+        extra_macros = MIN(tot_macros % nof_threads, thread_id);
+        offset       = tot_macros / nof_threads * thread_id + extra_macros;
+
+        return offset;
+}
+
+// Get the current thread window size in #macros
+uint64_t get_curr_thread_size(uint64_t tot_macros, uint8_t thread_id,
+                              uint8_t nof_threads) {
+        bool extra_macro;
+        uint64_t macros;
+
+        extra_macro = (thread_id < tot_macros % nof_threads);
+        macros      = tot_macros / nof_threads + extra_macro;
+
+        return macros;
+}
+
 // --------------------------------------------------------- Single-threaded keymix
 
 inline void _reverse32bits(uint32_t *x) {
@@ -260,12 +284,8 @@ thread_exit:
 // caller. On the other hand, when they are not inplace the input shall not be
 // be changed.
 void *w_thread_keymix_opt(void *a) {
-        uint8_t thread_id;
-        uint8_t nof_threads;
         uint64_t other_macros;
-        uint8_t extra_macros;
         uint64_t offset;
-        bool extra_macro;
         uint64_t macros;
         uint64_t curr_tot_macros;
 
@@ -289,19 +309,15 @@ void *w_thread_keymix_opt(void *a) {
                 // Other threads copy the remaining part of the internal state
                 // to the output buffer so that we are ready to perform the
                 // following levels
-                thread_id = thr->id - 1;
-                nof_threads = thr->nof_threads - 1;
 
                 // #macros not part of the mixing done by the 1st thread
                 other_macros = (thr->total_size - curr_tot_size) / ctx->block_size;
-
                 // Thread window start
-                extra_macros = MIN(other_macros % nof_threads, thread_id);
-                offset       = other_macros / nof_threads * thread_id + extra_macros;
-
+                offset = get_curr_thread_offset(other_macros, thr->id - 1,
+                                                thr->nof_threads - 1);
                 // Thread window size
-                extra_macro = (thread_id < other_macros % nof_threads);
-                macros      = other_macros / nof_threads + extra_macro;
+                macros = get_curr_thread_size(other_macros, thr->id - 1,
+                                              thr->nof_threads - 1);
 
                 memcpy(thr->abs_out + curr_tot_size + ctx->block_size * offset,
                        thr->abs_in + curr_tot_size + ctx->block_size * offset,
@@ -329,14 +345,12 @@ void *w_thread_keymix_opt(void *a) {
 
                 // #macros to mix at the current level
                 curr_tot_macros = curr_tot_size / ctx->block_size;
-
                 // Thread window start
-                extra_macros = MIN(curr_tot_macros % thr->nof_threads, thr->id);
-                offset       = curr_tot_macros / thr->nof_threads * thr->id + extra_macros;
-
+                offset = get_curr_thread_offset(curr_tot_macros, thr->id,
+                                                thr->nof_threads);
                 // Thread window size
-                extra_macro = (thr->id < curr_tot_macros % thr->nof_threads);
-                macros      = curr_tot_macros / thr->nof_threads + extra_macro;
+                macros = get_curr_thread_size(curr_tot_macros, thr->id,
+                                              thr->nof_threads);
 
                 // Update spread args accoring to the thread id and the current
                 // size
@@ -359,7 +373,6 @@ thread_exit:
 int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
                       uint32_t counter, uint8_t nof_threads) {
         uint64_t tot_macros;
-        bool extra_macro;
         uint64_t macros;
         uint8_t levels;
         uint8_t unsync_levels;
@@ -444,8 +457,7 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
 
                 if (ctx->enc_mode != ENC_MODE_CTR_OPT) {
                         // #macros done by the current thread
-                        extra_macro = (t < tot_macros % nof_threads);
-                        macros = tot_macros / nof_threads + extra_macro;
+                        macros = get_curr_thread_size(tot_macros, t, nof_threads);
                         thread_chunk_size = ctx->block_size * macros;
                 } else {
                         // #macros done by the 1st thread
