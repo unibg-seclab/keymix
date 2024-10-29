@@ -422,12 +422,10 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
         } else {
                 // The optimized version initially runs entirely within the 1st
                 // thread, only then once we have enough blocks to process the
-                // computation can be shared with the entire pull of threads.
-                // Here, we decide the size and #levels done by the 1st thread
-                // based on the #threads available.
-                // TODO: This might cause a lot of syncronization costs,
-                // measure it, and try to minimize it, by letting the first
-                // thread do more work on its own
+                // computation can be shared with the entire pull of threads
+
+                // Set the size and #levels done by the 1st thread based on the
+                // #threads available.
                 macros = 1;
                 unsync_levels = 0;
                 while (macros <= nof_threads) {
