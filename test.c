@@ -162,7 +162,10 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
         size_t *key_sizes;
         uint8_t key_sizes_count;
 
-        byte iv[KEYMIX_IV_COUNTER_SIZE] = {0};
+        byte iv[KEYMIX_IV_SIZE];
+        for (uint8_t i = 0; i < KEYMIX_IV_SIZE; i++) {
+                iv[i] = 0;
+        }
 
         uint8_t threads[]     = {4};
         uint8_t threads_count = 1;

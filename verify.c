@@ -320,7 +320,7 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
 
         _log(LOG_INFO, "> Verifying encryption for key size %.2f MiB\n", MiB(key_size));
 
-        byte iv[KEYMIX_IV_SIZE] = {rand()};
+        byte *iv = setup(KEYMIX_IV_SIZE, true);
 
         int err   = 0;
         byte *key = setup(key_size, true);
@@ -343,6 +343,7 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
                                nof_threads);
         }
 
+        free(iv);
         free(key);
         free(out1);
         free(outt);
@@ -365,7 +366,7 @@ int verify_enc_ctr_modes(mix_impl_t mix_type, mix_impl_t one_way_type, size_t fa
         _log(LOG_INFO, "> Verifying equivalence of encryption ctr modes for key size %.2f MiB\n",
              MiB(key_size));
 
-        byte iv[KEYMIX_IV_SIZE] = {rand()};
+        byte *iv = setup(KEYMIX_IV_SIZE, true);
 
         int err   = 0;
         byte *key = setup(key_size, true);
@@ -373,10 +374,6 @@ int verify_enc_ctr_modes(mix_impl_t mix_type, mix_impl_t one_way_type, size_t fa
 
         byte *out1 = setup(resource_size, false);
         byte *out2 = setup(resource_size, false);
-
-        int cmp = 0;
-        byte *original = malloc(key_size);
-        memcpy(original, key, key_size);
 
         ctx_t ctx;
         err = ctx_encrypt_init(&ctx, ENC_MODE_CTR, mix_type, one_way_type, key, key_size, fanout);
@@ -395,10 +392,9 @@ int verify_enc_ctr_modes(mix_impl_t mix_type, mix_impl_t one_way_type, size_t fa
         encrypt(&ctx, in, out2, resource_size, iv);
         ctx_free(&ctx);
 
-        free(original);
-
         err += COMPARE(out1, out2, resource_size, "Encrypt (ctr) != Encrypt (ctr-opt)\n");
 
+        free(iv);
         free(key);
         free(out1);
         free(out2);
@@ -416,9 +412,9 @@ int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_t
 
         byte *key = setup(block_size, false);
 
-        byte iv[KEYMIX_IV_SIZE] = {0};
-        uint8_t fanout          = 2;
-        size_t size             = (rand() & 10) * block_size + (rand() % block_size);
+        byte *iv       = setup(KEYMIX_IV_SIZE, false);
+        uint8_t fanout = 2;
+        size_t size    = (rand() & 10) * block_size + (rand() % block_size);
 
         int err   = 0;
         byte *in  = setup(size, true);
@@ -437,6 +433,7 @@ int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_t
         err += COMPARE(in, dec, size, "Enc != INV(Dec)\n");
 
         free(key);
+        free(iv);
         free(in);
         free(enc);
         free(dec);
