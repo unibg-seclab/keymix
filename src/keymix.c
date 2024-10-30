@@ -90,25 +90,32 @@ inline void _reverse32bits(uint32_t *x) {
 // - Sum counter to the following 32 bits of the key
 // Then, encrypt the 1st block size, this is done to preserve the key and avoid
 // allocating extra memory
-void update_iv_counter_block(ctx_t *ctx, byte *in, byte *out, byte*iv,
+void update_iv_counter_block(mix_func_t mixpass, byte *in, byte *out,
+                             block_size_t block_size, byte *iv,
                              uint32_t counter) {
-        byte block[ctx->block_size];
+        byte block[block_size];
         uint32_t *counter_ptr;
 
-        memcpy(block, in, ctx->block_size);
+        memcpy(block, in, block_size);
         memxor(block, block, iv, KEYMIX_IV_SIZE);
         counter_ptr = (uint32_t *)(block + KEYMIX_IV_SIZE);
         __correct_endianness(counter_ptr);
         (*counter_ptr) += counter;
         __correct_endianness(counter_ptr);
-        (*ctx->mixpass)(block, out, ctx->block_size, MIXPASS_DEFAULT_IV);
+        (*mixpass)(block, out, block_size, MIXPASS_DEFAULT_IV);
 }
 
 void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
-                  uint32_t counter, uint8_t levels) {
-        byte *out_first   = out;
-        size_t size_first = size;
-        byte *mixpass_iv  = MIXPASS_DEFAULT_IV;
+                  uint32_t counter, uint8_t levels, uint8_t tot_levels) {
+        mix_func_t mixpass = ctx->mixpass;
+        byte *out_first    = out;
+        size_t size_first  = size;
+        byte *mixpass_iv   = MIXPASS_DEFAULT_IV;
+
+        // If the enc mode is ctr/ctr-opt and a one-way mixing function is
+        // specified, we do a one-way pass at the last level
+        bool do_one_way_mixpass = (ctx->enc_mode != ENC_MODE_OFB &&
+                                   ctx->one_way_mix != NONE);
 
         spread_args_t args = {
                 .thread_id       = 0,
@@ -121,10 +128,15 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
                 .block_size      = ctx->block_size,
         };
 
+        if (do_one_way_mixpass && tot_levels == 1) {
+                mixpass = ctx->one_way_mixpass;
+        }
+
         if (iv) {
                 if (ctx->enc_mode != ENC_MODE_OFB) {
                         // Update 1st block with IV and counter on its own
-                        update_iv_counter_block(ctx, in, out, iv, counter);
+                        update_iv_counter_block(mixpass, in, out,
+                                                ctx->block_size, iv, counter);
 
                         // Skip 1st block with 1st encryption level
                         in += ctx->block_size;
@@ -140,10 +152,13 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
                 }
         }
 
-        (*ctx->mixpass)(in, out_first, size_first, mixpass_iv);
+        (*mixpass)(in, out_first, size_first, mixpass_iv);
         for (args.level = 1; args.level < levels; args.level++) {
                 spread_opt(&args);
-                (*ctx->mixpass)(out, out, size, mixpass_iv);
+                if (do_one_way_mixpass && args.level == tot_levels - 1) {
+                        mixpass = ctx->one_way_mixpass;
+                }
+                (*mixpass)(out, out, size, mixpass_iv);
         }
 }
 
@@ -154,8 +169,13 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
 // caller. On the other hand, when they are not inplace the input shall not be
 // be changed.
 void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
-                      uint32_t counter, uint8_t levels) {
-        size_t curr_size = ctx->block_size;
+                      uint32_t counter, uint8_t levels, uint8_t tot_levels) {
+        size_t curr_size   = ctx->block_size;
+        mix_func_t mixpass = ctx->mixpass;
+
+        // If the enc mode is ctr/ctr-opt and a one-way mixing function is
+        // specified, we do a one-way pass at the last level
+        bool do_one_way_mixpass = (ctx->one_way_mix != NONE);
 
         spread_args_t args = {
                 .thread_id       = 0,
@@ -172,13 +192,18 @@ void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
                 memcpy(out, in, size);
         }
 
+        if (do_one_way_mixpass && tot_levels == 1) {
+                mixpass = ctx->one_way_mixpass;
+        }
+
         // 1st level
         if (iv) {
                 // Update 1st block with IV and counter on its own
-                update_iv_counter_block(ctx, in, out, iv, counter);
+                update_iv_counter_block(mixpass, in, out, ctx->block_size, iv,
+                                        counter);
         } else {
                 // Encrypt 1st block as is
-                (*ctx->mixpass)(in, out, curr_size, MIXPASS_DEFAULT_IV);
+                (*mixpass)(in, out, curr_size, MIXPASS_DEFAULT_IV);
         }
 
         // Other levels
@@ -187,15 +212,26 @@ void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
                 args.buffer_abs_size = curr_size;
                 args.buffer_size     = curr_size;
                 spread_opt(&args);
-                (*ctx->mixpass)(out, out, curr_size, MIXPASS_DEFAULT_IV);
+
+                if (do_one_way_mixpass && args.level == tot_levels - 1) {
+                        mixpass = ctx->one_way_mixpass;
+                }
+
+                (*mixpass)(out, out, curr_size, MIXPASS_DEFAULT_IV);
         }
 }
 
 // --------------------------------------------------------- Multi-threaded keymix
 
 int sync_spread_and_mixpass(thr_keymix_t *thr, spread_args_t *args) {
-        ctx_t *ctx        = thr->ctx;
-        byte *mixpass_iv  = MIXPASS_DEFAULT_IV;
+        ctx_t *ctx         = thr->ctx;
+        mix_func_t mixpass = ctx->mixpass;
+        byte *mixpass_iv   = MIXPASS_DEFAULT_IV;
+
+        // If the enc mode is ctr/ctr-opt and a one-way mixing function is
+        // specified, we do a one-way pass at the last level
+        bool do_one_way_mixpass = (ctx->enc_mode != ENC_MODE_OFB &&
+                                   ctx->one_way_mix != NONE && args->level == thr->total_levels - 1);
 
         // When using ofb encryption mode and the user provides an IV pass it
         // down to the mixpass
@@ -223,8 +259,15 @@ int sync_spread_and_mixpass(thr_keymix_t *thr, spread_args_t *args) {
 
         _log(LOG_DEBUG, "t=%d: sychronized encryption (level %d)\n", thr->id,
              args->level);
-        err = (*(ctx->mixpass))(args->buffer, args->buffer, args->buffer_size,
-                                mixpass_iv);
+        // If the enc mode is ctr/ctr-opt, a one-way mixing function is
+        // specified, and the current level is the last one, we do a one-way
+        // pass
+        if (ctx->enc_mode != ENC_MODE_OFB && ctx->one_way_mix != NONE &&
+            args->level == thr->total_levels - 1) {
+                mixpass = ctx->one_way_mixpass;
+        }
+        err = (*(mixpass))(args->buffer, args->buffer, args->buffer_size,
+                           mixpass_iv);
         if (err) {
                 _log(LOG_ERROR, "t=%d: mixpass error %d\n", thr->id, err);
                 return 1;
@@ -247,7 +290,7 @@ void *w_thread_keymix(void *a) {
 
         // No need to sync among other threads here
         keymix_inner(thr->ctx, thr->in, thr->out, thr->chunk_size, iv, counter,
-                     thr->unsync_levels);
+                     thr->unsync_levels, thr->total_levels);
         _log(LOG_DEBUG, "t=%d: finished layers without coordination\n", thr->id);
 
         // Synchronized layers
@@ -301,8 +344,9 @@ void *w_thread_keymix_opt(void *a) {
         if (!thr->id) {
                 // At the beginning only the 1st thread performs the keymix
                 // up to a predetermined number of levels
-                keymix_inner_opt(thr->ctx, thr->abs_in, thr->abs_out, curr_tot_size,
-                                 iv, counter, thr->unsync_levels);
+                keymix_inner_opt(thr->ctx, thr->abs_in, thr->abs_out,
+                                 curr_tot_size, iv, counter,
+                                 thr->unsync_levels, thr->total_levels);
                 _log(LOG_DEBUG, "t=%d: finished mixing prefix of internal state\n",
                      thr->id);
         } else if (thr->abs_in != thr->abs_out) {
@@ -393,9 +437,11 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
                 if (ctx->enc_mode != ENC_MODE_CTR_OPT) {
-                        keymix_inner(ctx, in, out, size, iv, counter, levels);
+                        keymix_inner(ctx, in, out, size, iv, counter, levels,
+                                     levels);
                 } else {
-                        keymix_inner_opt(ctx, in, out, size, iv, counter, levels);
+                        keymix_inner_opt(ctx, in, out, size, iv, counter, levels,
+                                         levels);
                 }
                 return 0;
         }

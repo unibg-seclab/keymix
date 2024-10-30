@@ -200,8 +200,7 @@ int main(int argc, char **argv) {
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
                 printf("enc mode:          %s", get_enc_mode_name(args.enc_mode));
                 printf("primitive:         %s", get_mix_name(args.mix));
-                if (args.enc_mode == ENC_MODE_OFB)
-                        printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
+                printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
                 printf("fanout:            %d\n", args.fanout);
                 printf("threads:           %d\n", args.threads);
                 printf("===============\n");

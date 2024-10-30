@@ -23,11 +23,12 @@ ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_impl_t mix, byte *key, size_t size, ui
                 return CTX_ERR_KEYSIZE;
         }
 
-        ctx->enc_mode = ENC_MODE_CTR;
-        ctx->key      = key;
-        ctx->key_size = size;
-        ctx->mix      = mix;
-        ctx->fanout   = fanout;
+        ctx->enc_mode    = ENC_MODE_CTR;
+        ctx->key         = key;
+        ctx->key_size    = size;
+        ctx->mix         = mix;
+        ctx->one_way_mix = NONE;
+        ctx->fanout      = fanout;
         ctx_disable_encryption(ctx);
 
         return CTX_ERR_NONE;
