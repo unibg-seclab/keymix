@@ -15,7 +15,7 @@ def export_legend(legend, filename):
     bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
-def pltlegend(plt, labels, x0=0, width=1, is_with_legend=True):
+def pltlegend(plt, labels, x0=0, width=1, is_with_legend=True, ncol=3):
     if not is_with_legend:
         return
 
@@ -25,7 +25,7 @@ def pltlegend(plt, labels, x0=0, width=1, is_with_legend=True):
                         frameon=False,
                         mode='expand',
                         bbox_to_anchor=(x0, y0, width, height),
-                        ncol=3,
+                        ncol=ncol,
                         handlelength=1.5,
                         loc="lower left")
     for handle in legend.legend_handles:
