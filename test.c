@@ -120,8 +120,8 @@ void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv, uint8_t th
         _log(LOG_INFO, "\n");
 }
 
-void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
-                     uint8_t threads) {
+void test_ctr_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
+                         uint8_t threads) {
         _log(LOG_INFO,
              "[TEST (i=%d)] mode %s, main impl %s, one-way impl %s, fanout %d, expansion %zu: ",
              threads, get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
@@ -141,6 +141,53 @@ void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                                 // Don't need to forward in/out
                                 counter += 1;
                         }
+                });
+                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
+                         ctx->fanout, time);
+                _log(LOG_INFO, ".");
+        }
+        _log(LOG_INFO, "\n");
+}
+
+void test_ofb_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
+                         uint8_t threads) {
+        byte *curr_key;
+        byte *next_key;
+        byte *outbuffer;
+        size_t remaining_size;
+        uint64_t keys_to_do;
+        uint64_t nof_macros;
+        size_t remaining_one_way_size;
+        
+        _log(LOG_INFO,
+             "[TEST (i=%d)] mode %s, main impl %s, one-way impl %s, fanout %d, expansion %zu: ",
+             threads, get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
+             get_mix_name(ctx->one_way_mix), ctx->fanout, CEILDIV(size, ctx->key_size));
+
+        for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
+                double time = MEASURE({
+                        curr_key = ctx->key;
+                        next_key = malloc(ctx->key_size);
+                        outbuffer = malloc(ctx->key_size);
+
+                        remaining_size = size;
+                        keys_to_do = CEILDIV(size, ctx->key_size);
+                        for (uint64_t i = 0; i < keys_to_do; i++) {
+                                keymix_iv(ctx, curr_key, next_key, ctx->key_size, iv, threads);
+                                nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
+                                remaining_one_way_size = ctx->one_way_block_size * nof_macros;
+                                (*ctx->one_way_mixpass)(next_key, outbuffer,
+                                                        MIN(remaining_one_way_size, ctx->key_size),
+                                                        iv);
+                                multi_threaded_memxor(out, outbuffer, in,
+                                                      MIN(remaining_size, ctx->key_size), threads);
+                                curr_key = next_key;
+                                if (remaining_size >= ctx->key_size)
+                                        remaining_size -= ctx->key_size;
+                        }
+
+                        free(next_key);
+                        free(outbuffer);
                 });
                 csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
                          ctx->fanout, time);
@@ -206,7 +253,11 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
                                 } else {
                                         out = malloc(key_size);
                                         in  = out;
-                                        test_enc_stream(&ctx, in, out, size, iv, *thr);
+                                        if (enc_mode != ENC_MODE_OFB) {
+                                                test_ctr_enc_stream(&ctx, in, out, size, iv, *thr);
+                                        } else {
+                                                test_ofb_enc_stream(&ctx, in, out, size, iv, *thr);
+                                        }
                                         free(out);
                                 }
                                 ctx_free(&ctx);
