@@ -68,5 +68,5 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     plt.savefig(f'graphs/enc-{enc_mode}-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
-    print('--- Single-core encryption speeds')
+    print(f'--- {enc_mode} encryption speeds with {impl}')
     print(f"Max speed = {max_speed} [MiB/s]")
