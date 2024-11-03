@@ -667,3 +667,61 @@ mix_impl_t get_mix_type(char* name) {
                         return (mix_impl_t)i;
         return -1;
 }
+
+// *** RUN MIX FUNCTION WITH MULTIPLE THREADS ***
+
+typedef struct {
+        mix_func_t mixpass;
+        byte *in;
+        byte *out;
+        size_t size;
+        byte *iv;
+} thr_mixpass_t;
+
+void *w_thread_mixpass(void *a) {
+        thr_mixpass_t *thr = (thr_mixpass_t*) a;
+        (*thr->mixpass)(thr->in, thr->out, thr->size, thr->iv);
+        return NULL;
+}
+
+int multi_threaded_mixpass(mix_func_t mixpass, block_size_t block_size,
+                           byte *in, byte *out, size_t size, byte *iv,
+                           uint8_t nof_threads) {
+        int err = 0;
+        pthread_t threads[nof_threads];
+        thr_mixpass_t args[nof_threads];
+        uint64_t tot_macros;
+        uint64_t macros;
+        size_t chunk_size;
+
+        tot_macros = size / block_size;
+
+        for (uint8_t t = 0; t < nof_threads; t++) {
+                thr_mixpass_t *arg = args + t;
+
+                macros     = get_curr_thread_size(tot_macros, t, nof_threads);
+                chunk_size = block_size * macros;
+
+                arg->mixpass = mixpass;
+                arg->in      = in;
+                arg->out     = out;
+                arg->size    = chunk_size;
+                arg->iv      = iv;
+
+                pthread_create(&threads[t], NULL, w_thread_mixpass, arg);
+
+                in += chunk_size;
+                out += chunk_size;
+        }
+
+        _log(LOG_DEBUG, "[i] joining the threads...\n");
+        for (uint8_t t = 0; t < nof_threads; t++) {
+                err = pthread_join(threads[t], NULL);
+                if (err) {
+                        _log(LOG_ERROR, "pthread_join error %d (thread %d)\n", err, t);
+                        return err;
+                }
+        }
+
+        return err;
+}

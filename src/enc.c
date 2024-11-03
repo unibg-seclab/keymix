@@ -87,9 +87,11 @@ void keymix_ofb_mode(enc_args_t *args) {
                           args->threads);
                 nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
                 remaining_one_way_size = ctx->one_way_block_size * nof_macros;
-                (*ctx->one_way_mixpass)(next_key, outbuffer,
-                                        MIN(remaining_one_way_size, ctx->key_size),
-                                        args->iv);
+                multi_threaded_mixpass(ctx->one_way_mixpass,
+                                       ctx->one_way_block_size,
+                                       next_key, outbuffer,
+                                       MIN(remaining_one_way_size, ctx->key_size),
+                                       args->iv, args->threads);
                 if (ctx->encrypt) {
                         multi_threaded_memxor(out, outbuffer, in,
                                               MIN(remaining_size, ctx->key_size),

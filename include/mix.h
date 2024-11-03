@@ -4,6 +4,7 @@
 #include "types.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 // Number of AES execution in the MixCTR implementations
@@ -181,5 +182,10 @@ mix_info_t *get_mix_info(mix_impl_t mix_type);
 
 // Get the mix type given its name.
 mix_impl_t get_mix_type(char *name);
+
+// Run mix function with multiple threads.
+int multi_threaded_mixpass(mix_func_t mixpass, block_size_t block_size,
+                           byte *in, byte *out, size_t size, byte *iv,
+                           uint8_t nof_threads);
 
 #endif
