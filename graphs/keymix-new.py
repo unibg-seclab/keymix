@@ -6,34 +6,34 @@ import pandas as pd
 from common import *
 
 IMPLS = {
-    'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16,'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
-    # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16,'marker': 'v', 'linestyle': 'solid', 'color': 'orange'},
-    'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16,'marker': '^', 'linestyle': 'solid', 'color': 'green'},
-    # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'block_size': 16,'marker': 'o', 'linestyle': 'dashed', 'color': 'blue'},
-    'wolfcrypt-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16,'marker': 'v', 'linestyle': 'dashed', 'color': 'orange'},
-    # 'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16,'marker': '^', 'linestyle': 'dashed', 'color': 'green'},
-    # 'openssl-sha3-256': {'name': 'SHA3-256', 'block_size': 32,'marker': '<', 'linestyle': 'solid', 'color': 'red'},
-    'openssl-blake2s': {'name': 'BLAKE2s', 'block_size': 32,'marker': '>', 'linestyle': 'solid', 'color': 'purple'},
-    'wolfcrypt-sha3-256': {'name': 'SHA3-256', 'block_size': 32,'marker': '<', 'linestyle': 'dashed', 'color': 'red'},
-    # 'wolfcrypt-blake2s': {'name': 'BLAKE2s', 'block_size': 32,'marker': '>', 'linestyle': 'dashed', 'color': 'purple'},
-    'blake3-blake3': {'name': 'BLAKE3', 'block_size': 32,'marker': '1', 'linestyle': 'dotted', 'color': 'brown'},
-    # 'aes-ni-mixctr': {'name': 'MixCtr', 'block_size': 48,'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
-    # 'openssl-mixctr': {'name': 'MixCtr', 'block_size': 48,'marker': '2', 'linestyle': 'solid', 'color': 'pink'},
-    # 'wolfcrypt-mixctr': {'name': 'MixCtr', 'block_size': 48,'marker': '2', 'linestyle': 'dashed', 'color': 'pink'},
-    # 'openssl-sha3-512': {'name': 'SHA3-512', 'block_size': 64,'marker': '3', 'linestyle': 'solid', 'color': 'grey'},
-    'openssl-blake2b': {'name': 'BLAKE2b', 'block_size': 64,'marker': '4', 'linestyle': 'solid', 'color': 'olive'},
-    'wolfcrypt-sha3-512': {'name': 'SHA3-512', 'block_size': 64,'marker': '3', 'linestyle': 'dashed', 'color': 'grey'},
-    # 'wolfcrypt-blake2b': {'name': 'BLAKE2b', 'block_size': 64,'marker': '4', 'linestyle': 'dashed', 'color': 'olive'},
-    # 'xkcp-xoodyak': {'name': 'Xoodyak', 'block_size': 48,'marker': '8', 'linestyle': 'dotted', 'color': 'cyan'},
-    # 'xkcp-xoofff-wbc': {'name': 'Xoofff-WBC', 'block_size': 48,'marker': 's', 'linestyle': 'dotted', 'color': 'lightcoral'},
-    # 'openssl-shake256': {'name': 'SHAKE256', 'block_size': 128,'marker': 'p', 'linestyle': 'solid', 'color': 'gold'},
-    'wolfcrypt-shake256': {'name': 'SHAKE256', 'block_size': 128,'marker': 'p', 'linestyle': 'dashed', 'color': 'gold'},
-    'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'block_size': 128,'marker': 'p', 'linestyle': 'dotted', 'color': 'limegreen'},
-    # 'openssl-shake128': {'name': 'SHAKE128', 'block_size': 160,'marker': 'P', 'linestyle': 'solid', 'color': 'turquoise'},
-    'wolfcrypt-shake128': {'name': 'SHAKE128', 'block_size': 160,'marker': 'P', 'linestyle': 'dashed', 'color': 'turquoise'},
-    'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'block_size': 160,'marker': 'P', 'linestyle': 'dotted', 'color': 'lightskyblue'},
-    'xkcp-kangarootwelve': {'name': 'KangarooTwelve', 'block_size': 160,'marker': '*', 'linestyle': 'dotted', 'color': 'navy'},
-    # 'xkcp-kravette-wbc': {'name': 'Kravette-WBC', 'block_size': 192,'marker': '*', 'linestyle': 'dotted', 'color': 'magenta'},
+    'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
+    # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 'v', 'linestyle': 'solid', 'color': 'orange'},
+    'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'solid', 'color': 'green'},
+    # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'dashed', 'color': 'blue'},
+    'wolfcrypt-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 'v', 'linestyle': 'dashed', 'color': 'orange'},
+    # 'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'dashed', 'color': 'green'},
+    # 'openssl-sha3-256': {'name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'solid', 'color': 'red'},
+    'openssl-blake2s': {'name': 'BLAKE2s', 'block_size': 32, 'marker': '>', 'linestyle': 'solid', 'color': 'purple'},
+    'wolfcrypt-sha3-256': {'name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'dashed', 'color': 'red'},
+    # 'wolfcrypt-blake2s': {'name': 'BLAKE2s', 'block_size': 32, 'marker': '>', 'linestyle': 'dashed', 'color': 'purple'},
+    'blake3-blake3': {'name': 'BLAKE3', 'block_size': 32, 'marker': '1', 'linestyle': 'dotted', 'color': 'brown'},
+    # 'aes-ni-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
+    # 'openssl-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'solid', 'color': 'pink'},
+    # 'wolfcrypt-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dashed', 'color': 'pink'},
+    # 'openssl-sha3-512': {'name': 'SHA3-512', 'block_size': 64, 'marker': '3', 'linestyle': 'solid', 'color': 'grey'},
+    'openssl-blake2b': {'name': 'BLAKE2b', 'block_size': 64, 'marker': '4', 'linestyle': 'solid', 'color': 'olive'},
+    'wolfcrypt-sha3-512': {'name': 'SHA3-512', 'block_size': 64, 'marker': '3', 'linestyle': 'dashed', 'color': 'grey'},
+    # 'wolfcrypt-blake2b': {'name': 'BLAKE2b', 'block_size': 64, 'marker': '4', 'linestyle': 'dashed', 'color': 'olive'},
+    # 'xkcp-xoodyak': {'name': 'Xoodyak', 'block_size': 48, 'marker': '8', 'linestyle': 'dotted', 'color': 'cyan'},
+    # 'xkcp-xoofff-wbc': {'name': 'Xoofff-WBC', 'block_size': 48, 'marker': 's', 'linestyle': 'dotted', 'color': 'lightcoral'},
+    # 'openssl-shake256': {'name': 'SHAKE256', 'block_size': 128, 'marker': 'p', 'linestyle': 'solid', 'color': 'gold'},
+    'wolfcrypt-shake256': {'name': 'SHAKE256', 'block_size': 128, 'marker': 'p', 'linestyle': 'dashed', 'color': 'gold'},
+    'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'block_size': 128, 'marker': 'p', 'linestyle': 'dotted', 'color': 'limegreen'},
+    # 'openssl-shake128': {'name': 'SHAKE128', 'block_size': 160, 'marker': 'P', 'linestyle': 'solid', 'color': 'turquoise'},
+    'wolfcrypt-shake128': {'name': 'SHAKE128', 'block_size': 160, 'marker': 'P', 'linestyle': 'dashed', 'color': 'turquoise'},
+    'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'block_size': 160, 'marker': 'P', 'linestyle': 'dotted', 'color': 'lightskyblue'},
+    'xkcp-kangarootwelve': {'name': 'KangarooTwelve', 'block_size': 160, 'marker': '*', 'linestyle': 'dotted', 'color': 'navy'},
+    # 'xkcp-kravette-wbc': {'name': 'Kravette-WBC', 'block_size': 192, 'marker': '*', 'linestyle': 'dotted', 'color': 'magenta'},
 }
 
 FILE = 'data/out-anthem.csv'
@@ -97,7 +97,7 @@ for fanout in fanouts:
     plt.savefig(f'graphs/keymix-f{fanout}-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
-# Keymix time/speed vs key size (grouped by fanout)
+# Keymix time/speed vs #threads (grouped by fanout)
 overall_thread_contributions = []
 for fanout in fanouts:
     df_fanout = df[df.fanout == fanout]
