@@ -228,11 +228,6 @@ int sync_spread_and_mixpass(thr_keymix_t *thr, spread_args_t *args) {
         mix_func_t mixpass = ctx->mixpass;
         byte *mixpass_iv   = MIXPASS_DEFAULT_IV;
 
-        // If the enc mode is ctr/ctr-opt and a one-way mixing function is
-        // specified, we do a one-way pass at the last level
-        bool do_one_way_mixpass = (ctx->enc_mode != ENC_MODE_OFB &&
-                                   ctx->one_way_mix != NONE && args->level == thr->total_levels - 1);
-
         // When using ofb encryption mode and the user provides an IV pass it
         // down to the mixpass
         if (ctx->enc_mode == ENC_MODE_OFB && thr->iv) {

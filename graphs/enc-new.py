@@ -1,5 +1,4 @@
 import itertools
-import statistics
 
 import matplotlib.pyplot as plt
 import pandas as pd

@@ -348,6 +348,10 @@ int openssl_davies_meyer(byte *in, byte *out, size_t size, byte *iv) {
 int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size, byte *iv) {
         // To support inplace execution of the function we need avoid
         // overwriting the input
+        // NOTE: To achieve higher time/speed performance, here we create a
+        // buffer of the same size as the key. If memory consumption is a
+        // constraint, we suggest using the other implementation of Matyas
+        // Meyer Oseas
         unsigned char *out_enc = (in == out ? malloc(size) : out);
         openssl_aes_ecb(in, out_enc, size, iv);
         memxor(out, out_enc, in, size);
