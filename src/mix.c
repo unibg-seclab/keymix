@@ -361,6 +361,48 @@ int openssl_matyas_meyer_oseas(byte *in, byte *out, size_t size, byte *iv) {
         return 0;
 }
 
+int openssl_new_matyas_meyer_oseas(byte *in, byte *out, size_t size, byte *iv) {
+        int outl;
+
+        // To support inplace execution of the function we need avoid
+        // overwriting the input
+        bool is_inplace = (in == out);
+        byte *out_enc = (is_inplace ? malloc(BLOCK_SIZE_AES) : out);
+
+        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+                _log(LOG_ERROR, "EVP_MD_CTX_create error\n");
+        }
+
+        if (!EVP_EncryptInit(ctx, EVP_aes_128_ecb(), iv, NULL)) {
+                _log(LOG_ERROR, "EVP_EncryptInit error\n");
+        }
+
+        EVP_CIPHER_CTX_set_padding(ctx, 0); // disable padding
+
+        byte *last = in + size;
+        for (; in < last; in += BLOCK_SIZE_AES, out += BLOCK_SIZE_AES) {
+                if (!EVP_EncryptUpdate(ctx, out_enc, &outl, in, BLOCK_SIZE_AES)) {
+                        _log(LOG_ERROR, "EVP_EncryptUpdate error\n");
+                }
+                memxor(out, out_enc, in, BLOCK_SIZE_AES);
+
+                if (!is_inplace) {
+                        out_enc += BLOCK_SIZE_AES;
+                }
+        }
+
+        // if (!EVP_EncryptFinal(ctx, out, &outl)) {
+        //         _log(LOG_ERROR, "EVP_EncryptFinal_ex error\n");
+        // }
+
+        EVP_CIPHER_CTX_free(ctx);
+        if (is_inplace) {
+                free(out_enc);
+        }
+        return 0;
+}
+
 // --- wolfCrypt hash functions ---
 
 int generic_wolfcrypt_hash(enum wc_HashType hash_type, block_size_t block_size,
@@ -606,6 +648,7 @@ mix_info_t MIX_FUNCTIONS[] = {
         {"openssl-aes-128", &openssl_aes_ecb, MIX_AES, BLOCK_SIZE_AES, false},
         {"openssl-davies-meyer", &openssl_davies_meyer, MIX_DAVIES_MEYER, BLOCK_SIZE_AES, true},
         {"openssl-matyas-meyer-oseas", &openssl_matyas_meyer_oseas, MIX_MATYAS_MEYER_OSEAS, BLOCK_SIZE_AES, true},
+        {"openssl-new-matyas-meyer-oseas", &openssl_new_matyas_meyer_oseas, MIX_MATYAS_MEYER_OSEAS, BLOCK_SIZE_AES, true},
         {"wolfcrypt-aes-128", &wolfcrypt_aes_ecb, MIX_AES, BLOCK_SIZE_AES, false},
         {"wolfcrypt-davies-meyer", &wolfcrypt_davies_meyer, MIX_DAVIES_MEYER, BLOCK_SIZE_AES, true},
         {"wolfcrypt-matyas-meyer-oseas", &wolfcrypt_matyas_meyer_oseas, MIX_MATYAS_MEYER_OSEAS, BLOCK_SIZE_AES, true},

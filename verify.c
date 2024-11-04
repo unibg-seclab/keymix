@@ -194,7 +194,7 @@ int verify_shuffles_with_varying_threads(block_size_t block_size, size_t fanout,
 int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
         size_t size;
         uint8_t nof_groups;
-        mix_impl_t groups[2][2];
+        mix_impl_t groups[3][2];
         mix_func_t funcs[2];
         block_size_t block_sizes[2];
         ctx_t ctx;
@@ -218,7 +218,9 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
                 groups[0][0] = OPENSSL_DAVIES_MEYER_128;
                 groups[0][1] = WOLFCRYPT_DAVIES_MEYER_128;
                 groups[1][0] = OPENSSL_MATYAS_MEYER_OSEAS_128;
-                groups[1][1] = WOLFCRYPT_MATYAS_MEYER_OSEAS_128;
+                groups[1][1] = OPENSSL_NEW_MATYAS_MEYER_OSEAS_128;
+                groups[2][0] = OPENSSL_MATYAS_MEYER_OSEAS_128;
+                groups[2][1] = WOLFCRYPT_MATYAS_MEYER_OSEAS_128;
                 break;
         case BLOCK_SIZE_SHA3_256:
                 nof_groups = 2;
