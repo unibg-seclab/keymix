@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "keymix.h"
 #include "enc.h"
 #include "utils.h"
 
@@ -101,7 +102,7 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                 if (read == 0)
                         goto while_end;
 
-                keymix_ex(ctx, buffer, buffer_size, tmpiv, threads);
+                keymix_ex(ctx, ctx->key, buffer, buffer_size, tmpiv, threads);
 
                 // We have to XOR the whole buffer (however, we can break away
                 // if we get to the EOF first)

@@ -84,7 +84,7 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
                 goto ctx_cleanup;
         }
 
-        time = MEASURE({ err = keymix(&ctx, key, out, key_size, nof_threads); }); // all layers
+        time = MEASURE({ err = keymix_t(&ctx, out, key_size, nof_threads); }); // all layers
         // time = MEASURE({ err = (*func)(key, out, key_size); }); // single layer
         if (err) {
                 printf("Error occured while encrypting");

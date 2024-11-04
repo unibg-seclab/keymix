@@ -382,7 +382,7 @@ thread_exit:
         return NULL;
 }
 
-int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
+int keymix_ex(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
               uint8_t nof_threads) {
         uint64_t tot_macros;
         uint64_t macros;
@@ -391,6 +391,9 @@ int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
         size_t thread_chunk_size;
         byte *in_offset;
         byte *out_offset;
+
+        assert(size == ctx->key_size &&
+               "Keymix size must be equal to the key size");
 
         tot_macros = size / ctx->block_size;
         _log(LOG_DEBUG, "total macros:\t%d\n", tot_macros);
@@ -517,6 +520,12 @@ cleanup:
         return err;
 }
 
-int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {
-        return keymix_iv(ctx, in, out, size, NULL, nof_threads);
+int keymix(ctx_t *ctx, byte *out, size_t size) {
+        assert(!ctx->encrypt && "You can't use an encryption context with keymix");
+        return keymix_ex(ctx, ctx->key, out, size, NULL, 1);
+}
+
+int keymix_t(ctx_t *ctx, byte *out, size_t size, uint8_t threads) {
+        assert(!ctx->encrypt && "You can't use an encryption context with keymix");
+        return keymix_ex(ctx, ctx->key, out, size, NULL, threads);
 }

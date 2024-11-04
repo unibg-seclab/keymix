@@ -20,8 +20,11 @@ int get_fanouts_from_mix_type(mix_impl_t mix_type, uint8_t n, uint8_t *fanouts);
 // Get number of encryption levels in the keymix computation
 uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout);
 
-// Same as `keymix_iv` but with IV set to NULL
-int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads);
+// Same as `keymix_ex` but without IV and with a single thread.
+int keymix(ctx_t *ctx, byte *out, size_t size);
+
+// Same as `keymix_ex` but without the IV.
+int keymix_t(ctx_t *ctx, byte *out, size_t size, uint8_t threads);
 
 // The Keymix primitive.
 // Applies mix as defined by `ctx->mixpass` to `in`, putting the result in
@@ -29,7 +32,7 @@ int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads);
 // multiple of the `block_size` by a power of `fanout`.
 // An IV of 64-bit nonce and 64-bit counter is applied on the 1st 128 bits
 // of `in` to generate a fresh keysteam
-int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
+int keymix_ex(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
               uint8_t nof_threads);
 
 #endif

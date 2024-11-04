@@ -238,7 +238,7 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
                         _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
                         exit(EXIT_FAILURE);
                 }
-                keymix(&ctx, in, out[0], size, 1);
+                keymix(&ctx, out[0], size);
                 ctx_free(&ctx);
 
                 err = ctx_keymix_init(&ctx, groups[g][1], in, size, fanout);
@@ -246,7 +246,7 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
                         _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
                         exit(EXIT_FAILURE);
                 }
-                keymix(&ctx, in, out[1], size, 1);
+                keymix(&ctx, out[1], size);
                 ctx_free(&ctx);
 
                 char *error_msg = (char *) malloc(80 * sizeof(char));
@@ -288,9 +288,9 @@ int verify_multithreaded_keymix(mix_impl_t mix_type, size_t fanout, uint8_t leve
                 exit(EXIT_FAILURE);
         }
 
-        keymix(&ctx, in, out1, size, 1);
+        keymix(&ctx, out1, size);
         for (int nof_threads = 2; nof_threads <= fanout; nof_threads++) {
-                keymix(&ctx, in, outt, size, nof_threads);
+                keymix_t(&ctx, outt, size, nof_threads);
                 err += COMPARE(out1, outt, size, "Keymix (1) != Keymix (%d)\n", nof_threads);
                 if (err)
                         return err;

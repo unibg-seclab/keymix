@@ -175,12 +175,14 @@ void test_ofb_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                         remaining_size = size;
                         keys_to_do = CEILDIV(size, ctx->key_size);
                         for (uint64_t i = 0; i < keys_to_do; i++) {
-                                keymix_iv(ctx, curr_key, next_key, ctx->key_size, iv, threads);
+                                keymix_ex(ctx, curr_key, next_key, ctx->key_size, iv, threads);
                                 nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
                                 remaining_one_way_size = ctx->one_way_block_size * nof_macros;
-                                (*ctx->one_way_mixpass)(next_key, outbuffer,
-                                                        MIN(remaining_one_way_size, ctx->key_size),
-                                                        iv);
+                                multi_threaded_mixpass(ctx->one_way_mixpass,
+                                                       ctx->one_way_block_size,
+                                                       next_key, outbuffer,
+                                                       MIN(remaining_one_way_size, ctx->key_size),
+                                                       iv, threads);
                                 multi_threaded_memxor(out, outbuffer, in,
                                                       MIN(remaining_size, ctx->key_size), threads);
                                 curr_key = next_key;

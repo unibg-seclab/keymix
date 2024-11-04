@@ -11,13 +11,6 @@
 // (from https://github.com/openssl/openssl/blob/master/crypto/evp/e_aes.c)
 void ctr64_inc(unsigned char *counter);
 
-// Same as `keymix_ex` but without the IV.
-int keymix_t(ctx_t *ctx, byte *buffer, size_t size, uint8_t threads);
-
-// Threaded keymix applied in-place to `buffer`.
-int keymix_ex(ctx_t *ctx, byte *buffer, size_t size, byte *iv,
-              uint8_t threads);
-
 // Same as `encrypt_t` but with no threads.
 int encrypt(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv);
 
