@@ -7,9 +7,9 @@
 #include "mix.h"
 #include "types.h"
 
-#define KEYMIX_IV_SIZE 12
-#define KEYMIX_COUNTER_SIZE 4
-#define KEYMIX_IV_COUNTER_SIZE KEYMIX_IV_SIZE + KEYMIX_COUNTER_SIZE
+#define KEYMIX_NONCE_SIZE 8
+#define KEYMIX_COUNTER_SIZE 8
+#define KEYMIX_IV_SIZE KEYMIX_NONCE_SIZE + KEYMIX_COUNTER_SIZE
 
 typedef enum {
         ENC_MODE_CTR,

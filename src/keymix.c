@@ -29,7 +29,7 @@ typedef struct {
         uint8_t unsync_levels;
         uint8_t total_levels;
         byte *iv;
-        uint32_t counter;
+        uint64_t counter;
 } thr_keymix_t;
 
 // --------------------------------------------------------- Some utility functions
@@ -69,7 +69,7 @@ inline uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout) 
 
 // --------------------------------------------------------- Single-threaded keymix
 
-inline void _reverse32bits(uint32_t *x) {
+inline void _reverse64bits(uint64_t *x) {
         byte *data  = (byte *)x;
         size_t size = sizeof(*x);
         for (size_t i = 0; i < size / 2; i++) {
@@ -80,25 +80,25 @@ inline void _reverse32bits(uint32_t *x) {
 }
 
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
-#define __correct_endianness(...) _reverse32bits(__VA_ARGS_)
+#define __correct_endianness(...) _reverse64bits(__VA_ARGS_)
 #else
 #define __correct_endianness(...)
 #endif
 
 // Copy 1st block size of the key and update its 1st 128 bits as follows:
-// - XOR IV with 1st 96 bits of the key
-// - Sum counter to the following 32 bits of the key
+// - XOR IV with 1st 64 bits of the key
+// - Sum counter to the following 64 bits of the key
 // Then, encrypt the 1st block size, this is done to preserve the key and avoid
 // allocating extra memory
 void update_iv_counter_block(mix_func_t mixpass, byte *in, byte *out,
                              block_size_t block_size, byte *iv,
-                             uint32_t counter) {
+                             uint64_t counter) {
         byte block[block_size];
-        uint32_t *counter_ptr;
+        uint64_t *counter_ptr;
 
         memcpy(block, in, block_size);
-        memxor(block, block, iv, KEYMIX_IV_SIZE);
-        counter_ptr = (uint32_t *)(block + KEYMIX_IV_SIZE);
+        memxor(block, block, iv, KEYMIX_NONCE_SIZE);
+        counter_ptr = (uint64_t *)(block + KEYMIX_NONCE_SIZE);
         __correct_endianness(counter_ptr);
         (*counter_ptr) += counter;
         __correct_endianness(counter_ptr);
@@ -106,7 +106,7 @@ void update_iv_counter_block(mix_func_t mixpass, byte *in, byte *out,
 }
 
 void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
-                  uint32_t counter, uint8_t levels, uint8_t tot_levels) {
+                  uint64_t counter, uint8_t levels, uint8_t tot_levels) {
         mix_func_t mixpass = ctx->mixpass;
         byte *out_first    = out;
         size_t size_first  = size;
@@ -169,7 +169,7 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
 // caller. On the other hand, when they are not inplace the input shall not be
 // be changed.
 void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
-                      uint32_t counter, uint8_t levels, uint8_t tot_levels) {
+                      uint64_t counter, uint8_t levels, uint8_t tot_levels) {
         size_t curr_size   = ctx->block_size;
         mix_func_t mixpass = ctx->mixpass;
 
@@ -275,7 +275,7 @@ void *w_thread_keymix(void *a) {
         thr_keymix_t *thr     = (thr_keymix_t *)a;
         ctx_t *ctx            = thr->ctx;
         byte *iv              = (!thr->id ? thr->iv : NULL);
-        uint32_t counter      = (!thr->id ? thr->counter : 0);
+        uint64_t counter      = (!thr->id ? thr->counter : 0);
 
         // When using ofb encryption mode give the IV to all threads, so they
         // can pass it down to the mixpass
@@ -330,7 +330,7 @@ void *w_thread_keymix_opt(void *a) {
         thr_keymix_t *thr = (thr_keymix_t *)a;
         ctx_t *ctx        = thr->ctx;
         byte *iv          = (!thr->id ? thr->iv : NULL);
-        uint32_t counter  = (!thr->id ? thr->counter : 0);
+        uint64_t counter  = (!thr->id ? thr->counter : 0);
 
         size_t curr_tot_size = thr->chunk_size;
 
@@ -410,7 +410,7 @@ thread_exit:
 }
 
 int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
-                      uint32_t counter, uint8_t nof_threads) {
+                      uint64_t counter, uint8_t nof_threads) {
         uint64_t tot_macros;
         uint64_t macros;
         uint8_t levels;

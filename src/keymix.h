@@ -31,9 +31,9 @@ int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
 // Applies mix as defined by `ctx->mixpass` to `in`, putting the result in
 // `out`. Here `size` is the size of both input and output, and must be a
 // multiple of the `block_size` by a power of `fanout`.
-// 96-bit IV and 32-bit counter are applied on the 1st 128 bits of `in` to
+// 64-bit IV and 64-bit counter are applied on the 1st 128 bits of `in` to
 // generate a fresh keysteam.
 int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
-                      uint32_t counter, uint8_t nof_threads);
+                      uint64_t counter, uint8_t nof_threads);
 
 #endif

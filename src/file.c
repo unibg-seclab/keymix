@@ -30,7 +30,7 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
         size_t buffer_size = ctx->key_size;
         byte *buffer       = malloc(buffer_size);
 
-        uint32_t counter = 0;
+        uint64_t counter = 0;
         size_t read      = 0;
 
         do {
@@ -70,8 +70,8 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
         size_t fbuf_size = ctx->key_size;
         byte *fbuf       = malloc(fbuf_size);
 
-        uint32_t counter = 0;
-        size_t read       = 0;
+        uint64_t counter = 0;
+        size_t read      = 0;
         do {
                 byte *bp = buffer;
 

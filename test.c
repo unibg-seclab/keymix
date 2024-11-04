@@ -129,7 +129,7 @@ void test_ctr_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE({
-                        uint32_t counter      = 0;
+                        uint64_t counter      = 0;
                         size_t remaining_size = size;
 
                         while (remaining_size > 0) {
