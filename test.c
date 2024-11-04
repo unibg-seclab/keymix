@@ -129,17 +129,19 @@ void test_ctr_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE({
-                        uint64_t counter      = 0;
+                        byte *tmpiv = malloc(KEYMIX_IV_SIZE);
+                        memcpy(tmpiv, iv, KEYMIX_IV_SIZE);
+                        byte *counter = tmpiv + KEYMIX_NONCE_SIZE;
                         size_t remaining_size = size;
 
                         while (remaining_size > 0) {
                                 size_t to_encrypt = MIN(remaining_size, ctx->key_size);
-                                encrypt_ex(ctx, in, out, to_encrypt, iv, counter, threads);
+                                encrypt_t(ctx, in, out, to_encrypt, tmpiv, threads);
 
                                 if (remaining_size >= to_encrypt)
                                         remaining_size -= to_encrypt;
                                 // Don't need to forward in/out
-                                counter += 1;
+                                ctr64_inc(counter);
                         }
                 });
                 csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,

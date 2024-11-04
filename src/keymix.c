@@ -29,7 +29,6 @@ typedef struct {
         uint8_t unsync_levels;
         uint8_t total_levels;
         byte *iv;
-        uint64_t counter;
 } thr_keymix_t;
 
 // --------------------------------------------------------- Some utility functions
@@ -69,44 +68,21 @@ inline uint8_t get_levels(size_t size, block_size_t block_size, uint8_t fanout) 
 
 // --------------------------------------------------------- Single-threaded keymix
 
-inline void _reverse64bits(uint64_t *x) {
-        byte *data  = (byte *)x;
-        size_t size = sizeof(*x);
-        for (size_t i = 0; i < size / 2; i++) {
-                byte temp          = data[i];
-                data[i]            = data[size - 1 - i];
-                data[size - 1 - i] = temp;
-        }
-}
-
-#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
-#define __correct_endianness(...) _reverse64bits(__VA_ARGS_)
-#else
-#define __correct_endianness(...)
-#endif
-
-// Copy 1st block size of the key and update its 1st 128 bits as follows:
-// - XOR IV with 1st 64 bits of the key
-// - Sum counter to the following 64 bits of the key
+// Make a copy 1st block size of the key and update its 1st 128 bits by XOR'ing
+// it with the 128-bit IV
 // Then, encrypt the 1st block size, this is done to preserve the key and avoid
 // allocating extra memory
-void update_iv_counter_block(mix_func_t mixpass, byte *in, byte *out,
-                             block_size_t block_size, byte *iv,
-                             uint64_t counter) {
+void update_iv_block(mix_func_t mixpass, byte *in, byte *out,
+                     block_size_t block_size, byte *iv) {
         byte block[block_size];
-        uint64_t *counter_ptr;
 
         memcpy(block, in, block_size);
-        memxor(block, block, iv, KEYMIX_NONCE_SIZE);
-        counter_ptr = (uint64_t *)(block + KEYMIX_NONCE_SIZE);
-        __correct_endianness(counter_ptr);
-        (*counter_ptr) += counter;
-        __correct_endianness(counter_ptr);
+        memxor(block, block, iv, KEYMIX_IV_SIZE);
         (*mixpass)(block, out, block_size, MIXPASS_DEFAULT_IV);
 }
 
 void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
-                  uint64_t counter, uint8_t levels, uint8_t tot_levels) {
+                  uint8_t levels, uint8_t tot_levels) {
         mix_func_t mixpass = ctx->mixpass;
         byte *out_first    = out;
         size_t size_first  = size;
@@ -135,8 +111,8 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
         if (iv) {
                 if (ctx->enc_mode != ENC_MODE_OFB) {
                         // Update 1st block with IV and counter on its own
-                        update_iv_counter_block(mixpass, in, out,
-                                                ctx->block_size, iv, counter);
+                        update_iv_block(mixpass, in, out,
+                                                ctx->block_size, iv);
 
                         // Skip 1st block with 1st encryption level
                         in += ctx->block_size;
@@ -169,7 +145,7 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
 // caller. On the other hand, when they are not inplace the input shall not be
 // be changed.
 void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
-                      uint64_t counter, uint8_t levels, uint8_t tot_levels) {
+                      uint8_t levels, uint8_t tot_levels) {
         size_t curr_size   = ctx->block_size;
         mix_func_t mixpass = ctx->mixpass;
 
@@ -199,8 +175,7 @@ void keymix_inner_opt(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
         // 1st level
         if (iv) {
                 // Update 1st block with IV and counter on its own
-                update_iv_counter_block(mixpass, in, out, ctx->block_size, iv,
-                                        counter);
+                update_iv_block(mixpass, in, out, ctx->block_size, iv);
         } else {
                 // Encrypt 1st block as is
                 (*mixpass)(in, out, curr_size, MIXPASS_DEFAULT_IV);
@@ -275,7 +250,6 @@ void *w_thread_keymix(void *a) {
         thr_keymix_t *thr     = (thr_keymix_t *)a;
         ctx_t *ctx            = thr->ctx;
         byte *iv              = (!thr->id ? thr->iv : NULL);
-        uint64_t counter      = (!thr->id ? thr->counter : 0);
 
         // When using ofb encryption mode give the IV to all threads, so they
         // can pass it down to the mixpass
@@ -284,7 +258,7 @@ void *w_thread_keymix(void *a) {
         }
 
         // No need to sync among other threads here
-        keymix_inner(thr->ctx, thr->in, thr->out, thr->chunk_size, iv, counter,
+        keymix_inner(thr->ctx, thr->in, thr->out, thr->chunk_size, iv,
                      thr->unsync_levels, thr->total_levels);
         _log(LOG_DEBUG, "t=%d: finished layers without coordination\n", thr->id);
 
@@ -330,7 +304,6 @@ void *w_thread_keymix_opt(void *a) {
         thr_keymix_t *thr = (thr_keymix_t *)a;
         ctx_t *ctx        = thr->ctx;
         byte *iv          = (!thr->id ? thr->iv : NULL);
-        uint64_t counter  = (!thr->id ? thr->counter : 0);
 
         size_t curr_tot_size = thr->chunk_size;
 
@@ -340,8 +313,8 @@ void *w_thread_keymix_opt(void *a) {
                 // At the beginning only the 1st thread performs the keymix
                 // up to a predetermined number of levels
                 keymix_inner_opt(thr->ctx, thr->abs_in, thr->abs_out,
-                                 curr_tot_size, iv, counter,
-                                 thr->unsync_levels, thr->total_levels);
+                                 curr_tot_size, iv, thr->unsync_levels,
+                                 thr->total_levels);
                 _log(LOG_DEBUG, "t=%d: finished mixing prefix of internal state\n",
                      thr->id);
         } else if (thr->abs_in != thr->abs_out) {
@@ -409,8 +382,8 @@ thread_exit:
         return NULL;
 }
 
-int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
-                      uint64_t counter, uint8_t nof_threads) {
+int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
+              uint8_t nof_threads) {
         uint64_t tot_macros;
         uint64_t macros;
         uint8_t levels;
@@ -432,11 +405,9 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
         // allocate and deallocate a lot of stuff
         if (nof_threads == 1) {
                 if (ctx->enc_mode != ENC_MODE_CTR_OPT) {
-                        keymix_inner(ctx, in, out, size, iv, counter, levels,
-                                     levels);
+                        keymix_inner(ctx, in, out, size, iv, levels, levels);
                 } else {
-                        keymix_inner_opt(ctx, in, out, size, iv, counter, levels,
-                                         levels);
+                        keymix_inner_opt(ctx, in, out, size, iv, levels, levels);
                 }
                 return 0;
         }
@@ -517,7 +488,6 @@ int keymix_iv_counter(ctx_t *ctx, byte *in, byte *out, size_t size, byte* iv,
                 a->unsync_levels = unsync_levels;
                 a->total_levels  = levels;
                 a->iv            = iv;
-                a->counter       = counter;
 
                 if (ctx->enc_mode != ENC_MODE_CTR_OPT) {
                         pthread_create(&threads[t], NULL, w_thread_keymix, a);
@@ -547,11 +517,6 @@ cleanup:
         return err;
 }
 
-int keymix_iv(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
-              uint8_t nof_threads) {
-        return keymix_iv_counter(ctx, in, out, size, iv, 0, nof_threads);
-}
-
 int keymix(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t nof_threads) {
-        return keymix_iv_counter(ctx, in, out, size, NULL, 0, nof_threads);
+        return keymix_iv(ctx, in, out, size, NULL, nof_threads);
 }

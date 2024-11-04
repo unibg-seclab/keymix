@@ -19,13 +19,39 @@ typedef struct {
         size_t resource_size;
         uint64_t keys_to_do;
         byte *iv;
-        uint32_t starting_counter;
         uint8_t threads;
 } enc_args_t;
+
+void ctr64_inc(unsigned char *counter) {
+        if (!counter)
+                return;
+
+        int n = 8;
+        unsigned char c;
+
+        do {
+                --n;
+                c = counter[n];
+                ++c;
+                counter[n] = c;
+                if (c)
+                        return;
+        } while (n);
+}
 
 void keymix_ctr_mode(enc_args_t *args) {
         ctx_t *ctx = args->ctx;
         byte *src  = (ctx->enc_mode == ENC_MODE_CTR ? ctx->key : ctx->state);
+
+        // Make a copy of the IV before changing its counter part, to avoid
+        // unexpected side effects
+        byte *iv      = NULL;
+        byte *counter = NULL;
+        if (args->iv) {
+                iv = malloc(KEYMIX_IV_SIZE);
+                memcpy(iv, args->iv, KEYMIX_IV_SIZE);
+                counter = iv + KEYMIX_NONCE_SIZE;
+        }
 
         // The caller is expected to provide an output buffer of the same size
         // of the input, but the keymix always produces a keystream with the
@@ -41,9 +67,8 @@ void keymix_ctr_mode(enc_args_t *args) {
         size_t remaining_size = args->resource_size;
 
         for (uint32_t i = 0; i < args->keys_to_do; i++) {
-                keymix_iv_counter(ctx, src, outbuffer, ctx->key_size,
-                                  args->iv, args->starting_counter + i,
-                                  args->threads);
+                keymix_iv(ctx, src, outbuffer, ctx->key_size, iv,
+                          args->threads);
                 if (ctx->encrypt) {
                         multi_threaded_memxor(out, outbuffer, in,
                                               MIN(remaining_size, ctx->key_size),
@@ -56,8 +81,12 @@ void keymix_ctr_mode(enc_args_t *args) {
                         outbuffer = out;
                 if (remaining_size >= ctx->key_size)
                         remaining_size -= ctx->key_size;
+
+                ctr64_inc(counter);
         }
 
+        if (args->iv)
+                free(iv);
         if (ctx->encrypt)
                 free(outbuffer);
 }
@@ -113,12 +142,7 @@ void keymix_ofb_mode(enc_args_t *args) {
 }
 
 int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
-                    uint32_t starting_counter, uint8_t threads) {
-        if (ctx->enc_mode == ENC_MODE_OFB && starting_counter) {
-                _log(LOG_ERROR, "ofb encryption mode does not use counters\n");
-                return 1;
-        }
-
+                    uint8_t threads) {
         // mix_info_t mix_info = *get_mix_info(ctx->mix);
         // if (ctx->enc_mode == ENC_MODE_OFB && mix_info.is_one_way && iv) {
         //         _log(LOG_ERROR, "ofb encryption mode does not support IVs for "
@@ -132,7 +156,6 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                 .out              = out,
                 .resource_size    = size,
                 .keys_to_do       = CEILDIV(size, ctx->key_size),
-                .starting_counter = starting_counter,
                 .iv               = iv,
                 .threads          = threads,
         };
@@ -149,26 +172,21 @@ int keymix_internal(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
 // ---------------------------------------------- Principal interface
 
 int keymix_t(ctx_t *ctx, byte *buffer, size_t size, uint8_t threads) {
-        return keymix_ex(ctx, buffer, size, NULL, 0, threads);
+        return keymix_ex(ctx, buffer, size, NULL, threads);
 }
 
 int keymix_ex(ctx_t *ctx, byte *buffer, size_t size, byte *iv,
-              uint32_t starting_counter, uint8_t threads) {
+              uint8_t threads) {
         assert(!ctx->encrypt && "You can't use an encryption context with keymix");
-        return keymix_internal(ctx, NULL, buffer, size, iv, starting_counter, threads);
+        return keymix_internal(ctx, NULL, buffer, size, iv, threads);
 }
 
 int encrypt(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv) {
-        return encrypt_ex(ctx, in, out, size, iv, 0, 1);
+        return encrypt_t(ctx, in, out, size, iv, 1);
 }
 
 int encrypt_t(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
               uint8_t threads) {
-        return encrypt_ex(ctx, in, out, size, iv, 0, threads);
-}
-
-int encrypt_ex(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
-               uint32_t starting_counter, uint8_t threads) {
         assert(ctx->encrypt && "You must use an encryption context with encrypt");
-        return keymix_internal(ctx, in, out, size, iv, starting_counter, threads);
+        return keymix_internal(ctx, in, out, size, iv, threads);
 }

@@ -1,7 +1,10 @@
 #include "file.h"
 
-#include "utils.h"
+#include <string.h>
 #include <unistd.h>
+
+#include "enc.h"
+#include "utils.h"
 
 size_t get_file_size(FILE *fp) {
         if (fp == NULL)
@@ -30,9 +33,17 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
         size_t buffer_size = ctx->key_size;
         byte *buffer       = malloc(buffer_size);
 
-        uint64_t counter = 0;
-        size_t read      = 0;
+        // Make a copy of the IV before changing its counter part, to avoid
+        // unexpected side effects
+        byte *tmpiv   = NULL;
+        byte *counter = NULL;
+        if (iv) {
+                tmpiv = malloc(KEYMIX_IV_SIZE);
+                memcpy(tmpiv, iv, KEYMIX_IV_SIZE);
+                counter = tmpiv + KEYMIX_NONCE_SIZE;
+        }
 
+        size_t read = 0;
         do {
                 // Read a certain number of bytes
                 read = fread(buffer, 1, buffer_size, fin);
@@ -42,18 +53,20 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                 if (read == 0)
                         break;
 
-                encrypt_ex(ctx, buffer, buffer, read, iv, counter, threads);
+                encrypt_t(ctx, buffer, buffer, read, tmpiv, threads);
 
                 fwrite(buffer, read, 1, fout);
-                counter += 1;
+                ctr64_inc(counter);
         } while (read == buffer_size);
 
         free(buffer);
+        if (iv)
+                free(tmpiv);
         return 0;
 }
 
 // Equal to stream_encrypt, but allocates less RAM.
-// Essentially, we first call `keymix_ex` and not `encrypt_ex`, so that we can
+// Essentially, we first call `keymix_ex` and not `encrypt_t`, so that we can
 // read smaller chunks from the file and manually XOR them.
 // One thing of note: this code does one extra keymix when the file is an exact
 // multiple of key_size, because we read after doing the keymix and hence we
@@ -70,8 +83,17 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
         size_t fbuf_size = ctx->key_size;
         byte *fbuf       = malloc(fbuf_size);
 
-        uint64_t counter = 0;
-        size_t read      = 0;
+        // Make a copy of the IV before changing its counter part, to avoid
+        // unexpected side effects
+        byte *tmpiv   = NULL;
+        byte *counter = NULL;
+        if (iv) {
+                tmpiv = malloc(KEYMIX_IV_SIZE);
+                memcpy(tmpiv, iv, KEYMIX_IV_SIZE);
+                counter = tmpiv + KEYMIX_NONCE_SIZE;
+        }
+
+        size_t read   = 0;
         do {
                 byte *bp = buffer;
 
@@ -79,7 +101,7 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                 if (read == 0)
                         goto while_end;
 
-                keymix_ex(ctx, buffer, buffer_size, iv, counter, threads);
+                keymix_ex(ctx, buffer, buffer_size, tmpiv, threads);
 
                 // We have to XOR the whole buffer (however, we can break away
                 // if we get to the EOF first)
@@ -94,11 +116,13 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                                 read = fread(fbuf, 1, fbuf_size, fin);
                 }
 
-                counter += 1;
+                ctr64_inc(counter);
         } while (read == fbuf_size);
 
 while_end:
         free(buffer);
         free(fbuf);
+        if (iv)
+                free(tmpiv);
         return 0;
 }
