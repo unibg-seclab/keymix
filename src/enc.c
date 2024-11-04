@@ -7,6 +7,7 @@
 
 #include "keymix.h"
 #include "log.h"
+#include "refresh.h"
 #include "types.h"
 #include "utils.h"
 
@@ -21,6 +22,20 @@ typedef struct {
         byte *iv;
         uint8_t threads;
 } enc_args_t;
+
+uint64_t ctr64_get(unsigned char *counter) {
+        if (!counter)
+                return 0;
+
+        uint64_t c;
+        uint64_t ctr64 = 0;
+        for (int n = 7; n >= 0; n--) {
+                c = counter[n];
+                ctr64 |= c << 8 * (7 - n);
+        }
+
+        return ctr64;
+}
 
 void ctr64_inc(unsigned char *counter) {
         if (!counter)
@@ -41,7 +56,7 @@ void ctr64_inc(unsigned char *counter) {
 
 void keymix_ctr_mode(enc_args_t *args) {
         ctx_t *ctx = args->ctx;
-        byte *src  = (ctx->enc_mode == ENC_MODE_CTR ? ctx->key : ctx->state);
+        byte *src;
 
         // Make a copy of the IV before changing its counter part, to avoid
         // unexpected side effects
@@ -53,6 +68,9 @@ void keymix_ctr_mode(enc_args_t *args) {
                 counter = iv + KEYMIX_NONCE_SIZE;
         }
 
+        // Extract current uint64_t counter
+        uint64_t starting_counter = ctr64_get(counter);
+
         // Buffer to store the output of the keymix
         byte *outbuffer = malloc(ctx->key_size);
 
@@ -60,7 +78,21 @@ void keymix_ctr_mode(enc_args_t *args) {
         byte *out             = args->out;
         size_t remaining_size = args->resource_size;
 
+        // Configure the source according to the encryption mode and the
+        // refresh parameter
+        if (ctx->enc_mode == ENC_MODE_CTR) {
+                src = (!ctx->refresh ? ctx->key : outbuffer);
+        } else {
+                src = ctx->state;
+        }
+
         for (uint32_t i = 0; i < args->keys_to_do; i++) {
+                if (ctx->refresh) {
+                        multi_threaded_refresh(ctx->key, outbuffer,
+                                               ctx->key_size, iv,
+                                               (ctx->key_size / BLOCK_SIZE_AES) * (starting_counter + i),
+                                               args->threads);
+                }
                 keymix_ex(ctx, src, outbuffer, ctx->key_size, iv,
                           args->threads);
                 multi_threaded_memxor(out, outbuffer, in,

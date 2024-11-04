@@ -27,6 +27,7 @@ typedef enum {
         CTX_ERR_INCOMPATIBLE_PRIMITIVES,
         CTX_ERR_EQUAL_PRIMITIVES,
         CTX_ERR_KEYSIZE,
+        CTX_ERR_UNSUPPORTED_REFRESH,
 } ctx_err_t;
 
 // The context for keymix operations. It houses all shared information that
@@ -70,13 +71,17 @@ typedef struct {
         // ctr encryption mode. Or store the next key of the ofb encryption
         // mode.
         byte *state;
+
+        // Instead of applying a counter on the 1st block, refresh the entire
+        // key with the use of AES in counter mode
+        bool refresh;
 } ctx_t;
 
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
-ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_impl_t one_way_mix,
-                           byte *key, size_t size, uint8_t fanout);
+ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, bool refresh, mix_impl_t mix,
+                           mix_impl_t one_way_mix, byte *key, size_t size, uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
 ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_impl_t mix, byte *key, size_t size, uint8_t fanout);
