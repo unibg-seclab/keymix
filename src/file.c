@@ -102,7 +102,7 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
 
                 read = fread(fbuf, 1, fbuf_size, fin);
                 if (read == 0)
-                        goto while_end;
+                        break;
 
                 keymix_ex(ctx, ctx->key, buffer, buffer_size, tmpiv, threads);
 
@@ -122,7 +122,6 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                 ctr64_inc(counter);
         } while (read == fbuf_size);
 
-while_end:
         free(buffer);
         free(fbuf);
         if (iv) {

@@ -171,35 +171,33 @@ void test_ofb_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE({
-                        curr_key = ctx->key;
-                        next_key = malloc(ctx->key_size);
                         outbuffer = malloc(ctx->key_size);
 
                         remaining_size = size;
                         keys_to_do = CEILDIV(size, ctx->key_size);
                         for (uint64_t i = 0; i < keys_to_do; i++) {
-                                keymix_ex(ctx, curr_key, next_key, ctx->key_size, iv, threads);
+                                keymix_ex(ctx, ctx->state, ctx->state, ctx->key_size, iv, threads);
                                 nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
                                 remaining_one_way_size = ctx->one_way_block_size * nof_macros;
                                 multi_threaded_mixpass(ctx->one_way_mixpass,
                                                        ctx->one_way_block_size,
-                                                       next_key, outbuffer,
+                                                       ctx->state, outbuffer,
                                                        MIN(remaining_one_way_size, ctx->key_size),
                                                        iv, threads);
                                 multi_threaded_memxor(out, outbuffer, in,
                                                       MIN(remaining_size, ctx->key_size), threads);
-                                curr_key = next_key;
                                 if (remaining_size >= ctx->key_size)
                                         remaining_size -= ctx->key_size;
                         }
 
-                        explicit_bzero(next_key, ctx->key_size);
-                        free(next_key);
                         free(outbuffer);
                 });
                 csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
                          ctx->fanout, time);
                 _log(LOG_INFO, ".");
+
+                // Reset ctx state for next test
+                memcpy(ctx->state, ctx->key, ctx->key_size);
         }
         _log(LOG_INFO, "\n");
 }

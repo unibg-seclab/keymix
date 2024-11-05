@@ -44,7 +44,7 @@ typedef struct {
         // The mix implementation.
         mix_func_t mixpass;
 
-        // The fanout for the shuffle/spread part, can only be 2, 3, or 4
+        // The fanout for the shuffle/spread part.
         uint8_t fanout;
 
         // Marks this context as an encryption context.
@@ -57,7 +57,7 @@ typedef struct {
         // Encryption mode.
         enc_mode_t enc_mode;
 
-        // The mix type of the one-way pass
+        // The mix type of the one-way pass.
         mix_impl_t one_way_mix;
 
         // One-way mix pass implementation.
@@ -67,7 +67,8 @@ typedef struct {
         block_size_t one_way_block_size;
 
         // Precomputation of the internal state to optimize execution of the
-        // ctr encryption mode
+        // ctr encryption mode. Or store the next key of the ofb encryption
+        // mode.
         byte *state;
 } ctx_t;
 

@@ -86,6 +86,9 @@ ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_
 
         if (enc_mode == ENC_MODE_CTR_OPT) {
                 ctx_precompute_state(ctx);
+        } else if (enc_mode == ENC_MODE_OFB) {
+                ctx->state = malloc(ctx->key_size);
+                memcpy(ctx->state, ctx->key, ctx->key_size);
         }
 
         return CTX_ERR_NONE;
@@ -143,7 +146,7 @@ void ctx_precompute_state(ctx_t *ctx) {
 }
 
 inline void ctx_free(ctx_t *ctx) {
-        if (ctx->enc_mode == ENC_MODE_CTR_OPT && ctx->state != NULL) {
+        if (ctx->enc_mode != ENC_MODE_CTR && ctx->state != NULL) {
                 explicit_bzero(ctx->state, ctx->key_size);
                 free(ctx->state);
         }

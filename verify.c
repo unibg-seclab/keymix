@@ -373,6 +373,11 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
 
         encrypt(&ctx, in, out1, resource_size, iv);
         for (uint8_t nof_threads = 2; nof_threads <= fanout; nof_threads++) {
+                if (enc_mode == ENC_MODE_OFB) {
+                        // Reset context state for encryption
+                        memcpy(ctx.state, ctx.key, ctx.key_size);
+                }
+
                 encrypt_t(&ctx, in, outt, resource_size, iv, fanout);
                 err = COMPARE(out1, outt, resource_size, "Encrypt != Encrypt (%d int-thr)\n",
                                nof_threads);
@@ -483,6 +488,10 @@ int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_t
                 goto cleanup;
         }
         encrypt(&ctx, in, enc, size, iv);
+        if (enc_mode == ENC_MODE_OFB) {
+                // Reset context state for decryption
+                memcpy(ctx.state, ctx.key, ctx.key_size);
+        }
         encrypt(&ctx, enc, dec, size, iv);
 
         err = COMPARE(in, dec, size, "Enc != INV(Dec)\n");

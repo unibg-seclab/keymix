@@ -81,10 +81,13 @@ void keymix_ctr_mode(enc_args_t *args) {
         free(outbuffer);
 }
 
+// To enable the use of the ofb encryption mode with streams, this function
+// works as an iterator keeping track of the next key to use in its internal
+// state. Unfortunately, this means we cannot reuse the same context as is for
+// multiple encryptions/decryptions. However, it is always possible to reset
+// the context to its initial form by resetting the state to the initial key
 void keymix_ofb_mode(enc_args_t *args) {
         ctx_t *ctx     = args->ctx;
-        byte *curr_key = ctx->key;
-        byte *next_key = malloc(ctx->key_size);
 
         // Buffer to store the output of the keymix
         byte *outbuffer = malloc(ctx->key_size);
@@ -96,19 +99,18 @@ void keymix_ofb_mode(enc_args_t *args) {
         size_t remaining_one_way_size;
 
         for (uint64_t i = 0; i < args->keys_to_do; i++) {
-                keymix_ex(ctx, curr_key, next_key, ctx->key_size, args->iv,
+                keymix_ex(ctx, ctx->state, ctx->state, ctx->key_size, args->iv,
                           args->threads);
                 nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
                 remaining_one_way_size = ctx->one_way_block_size * nof_macros;
                 multi_threaded_mixpass(ctx->one_way_mixpass,
                                        ctx->one_way_block_size,
-                                       next_key, outbuffer,
+                                       ctx->state, outbuffer,
                                        MIN(remaining_one_way_size, ctx->key_size),
                                        args->iv, args->threads);
                 multi_threaded_memxor(out, outbuffer, in,
                                       MIN(remaining_size, ctx->key_size),
                                       args->threads);
-                curr_key = next_key;
 
                 in += ctx->key_size;
                 out += ctx->key_size;
@@ -116,8 +118,6 @@ void keymix_ofb_mode(enc_args_t *args) {
                         remaining_size -= ctx->key_size;
         }
 
-        explicit_bzero(next_key, ctx->key_size);
-        free(next_key);
         free(outbuffer);
 }
 
