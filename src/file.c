@@ -36,9 +36,9 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
 
         // Make a copy of the IV before changing its counter part, to avoid
         // unexpected side effects
-        byte *tmpiv   = NULL;
+        byte *tmpiv   = iv;
         byte *counter = NULL;
-        if (iv) {
+        if (ctx->enc_mode != ENC_MODE_OFB && iv) {
                 tmpiv = malloc(KEYMIX_IV_SIZE);
                 memcpy(tmpiv, iv, KEYMIX_IV_SIZE);
                 counter = tmpiv + KEYMIX_NONCE_SIZE;
@@ -61,7 +61,7 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
         } while (read == buffer_size);
 
         free(buffer);
-        if (iv) {
+        if (ctx->enc_mode != ENC_MODE_OFB && iv) {
                 explicit_bzero(tmpiv, KEYMIX_IV_SIZE);
                 free(tmpiv);
         }
@@ -76,8 +76,13 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
 // don't check if the file has ended before.
 int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                     uint8_t threads) {
+        uint64_t nof_macros;
+
         size_t buffer_size = ctx->key_size;
-        byte *buffer       = malloc(buffer_size);
+
+        byte *src    = (ctx->enc_mode != ENC_MODE_OFB ? ctx->key : ctx->state);
+        byte *buffer = malloc(buffer_size);
+        byte *dst    = (ctx->enc_mode != ENC_MODE_OFB ? buffer : ctx->state);
 
         // We use key_size because it is surely a divisor of buffer_size.
         // If it weren't, then we would have to manage cases where we read
@@ -88,15 +93,15 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
 
         // Make a copy of the IV before changing its counter part, to avoid
         // unexpected side effects
-        byte *tmpiv   = NULL;
+        byte *tmpiv   = iv;
         byte *counter = NULL;
-        if (iv) {
+        if (ctx->enc_mode != ENC_MODE_OFB && iv) {
                 tmpiv = malloc(KEYMIX_IV_SIZE);
                 memcpy(tmpiv, iv, KEYMIX_IV_SIZE);
                 counter = tmpiv + KEYMIX_NONCE_SIZE;
         }
 
-        size_t read   = 0;
+        size_t read = 0;
         do {
                 byte *bp = buffer;
 
@@ -104,7 +109,13 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                 if (read == 0)
                         break;
 
-                keymix_ex(ctx, ctx->key, buffer, buffer_size, tmpiv, threads);
+                keymix_ex(ctx, src, dst, buffer_size, tmpiv, threads);
+                if (ctx->enc_mode == ENC_MODE_OFB) {
+                        multi_threaded_mixpass(ctx->one_way_mixpass,
+                                               ctx->one_way_block_size,
+                                               ctx->state, buffer,
+                                               ctx->key_size, tmpiv, threads);
+                }
 
                 // We have to XOR the whole buffer (however, we can break away
                 // if we get to the EOF first)
@@ -124,7 +135,7 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
 
         free(buffer);
         free(fbuf);
-        if (iv) {
+        if (ctx->enc_mode != ENC_MODE_OFB && iv) {
                 explicit_bzero(tmpiv, KEYMIX_IV_SIZE);
                 free(tmpiv);
         }
