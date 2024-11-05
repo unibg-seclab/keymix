@@ -74,9 +74,10 @@ void keymix_ctr_mode(enc_args_t *args) {
                         remaining_size -= ctx->key_size;
         }
 
-
-        if (args->iv)
+        if (args->iv) {
+                explicit_bzero(iv, KEYMIX_IV_SIZE);
                 free(iv);
+        }
         free(outbuffer);
 }
 
@@ -115,6 +116,7 @@ void keymix_ofb_mode(enc_args_t *args) {
                         remaining_size -= ctx->key_size;
         }
 
+        explicit_bzero(next_key, ctx->key_size);
         free(next_key);
         free(outbuffer);
 }

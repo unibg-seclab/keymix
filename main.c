@@ -69,6 +69,8 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
                 _log(LOG_ERROR, "Cannot allocate memory\n");
                 goto cleanup;
         }
+
+        // Initialize key and keystream buffers
         explicit_bzero(key, key_size);
         explicit_bzero(out, key_size);
 
@@ -95,9 +97,6 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
         printf("total time:\t%.*lf s\n", PRECISION, time / 1000);
         printf("total size:\t%.*lf MiB\n", PRECISION, readable_size);
         printf("average speed:\t%.*lf MiB/s\n\n", PRECISION, readable_size * 1000 / (time));
-
-        explicit_bzero(key, key_size);
-        explicit_bzero(out, key_size);
 
 ctx_cleanup:
         ctx_free(&ctx);

@@ -61,8 +61,10 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
         } while (read == buffer_size);
 
         free(buffer);
-        if (iv)
+        if (iv) {
+                explicit_bzero(tmpiv, KEYMIX_IV_SIZE);
                 free(tmpiv);
+        }
         return 0;
 }
 
@@ -123,7 +125,9 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
 while_end:
         free(buffer);
         free(fbuf);
-        if (iv)
+        if (iv) {
+                explicit_bzero(tmpiv, KEYMIX_IV_SIZE);
                 free(tmpiv);
+        }
         return 0;
 }

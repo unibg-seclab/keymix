@@ -143,6 +143,9 @@ void test_ctr_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                                 // Don't need to forward in/out
                                 ctr64_inc(counter);
                         }
+
+                        explicit_bzero(tmpiv, KEYMIX_IV_SIZE);
+                        free(tmpiv);
                 });
                 csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
                          ctx->fanout, time);
@@ -190,6 +193,7 @@ void test_ofb_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                                         remaining_size -= ctx->key_size;
                         }
 
+                        explicit_bzero(next_key, ctx->key_size);
                         free(next_key);
                         free(outbuffer);
                 });
