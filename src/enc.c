@@ -29,9 +29,9 @@ uint64_t ctr64_get(unsigned char *counter) {
 
         uint64_t c;
         uint64_t ctr64 = 0;
-        for (int n = 7; n >= 0; n--) {
-                c = counter[n];
-                ctr64 |= c << 8 * (7 - n);
+        for (int n = 0; n < KEYMIX_COUNTER_SIZE; n++) {
+                c = counter[KEYMIX_COUNTER_SIZE - n - 1];
+                ctr64 |= c << 8 * n;
         }
 
         return ctr64;
@@ -41,7 +41,7 @@ void ctr64_inc(unsigned char *counter) {
         if (!counter)
                 return;
 
-        int n = 8;
+        int n = KEYMIX_COUNTER_SIZE;
         unsigned char c;
 
         do {
@@ -74,10 +74,6 @@ void keymix_ctr_mode(enc_args_t *args) {
         // Buffer to store the output of the keymix
         byte *outbuffer = malloc(ctx->key_size);
 
-        byte *in              = args->in;
-        byte *out             = args->out;
-        size_t remaining_size = args->resource_size;
-
         // Configure the source according to the encryption mode and the
         // refresh parameter
         if (ctx->enc_mode == ENC_MODE_CTR) {
@@ -85,6 +81,10 @@ void keymix_ctr_mode(enc_args_t *args) {
         } else {
                 src = ctx->state;
         }
+
+        byte *in              = args->in;
+        byte *out             = args->out;
+        size_t remaining_size = args->resource_size;
 
         for (uint32_t i = 0; i < args->keys_to_do; i++) {
                 if (ctx->refresh) {

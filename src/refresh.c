@@ -12,6 +12,15 @@
 // Maximum size of the OpenSSL encryption batch multiple of the AES block size
 #define MAX_BATCH_SIZE 2147483520
 
+typedef struct {
+        uint8_t id;
+        byte *in;
+        byte *out;
+        size_t size;
+        byte *nonce;
+        uint64_t counter;
+} thr_refresh_t;
+
 void *w_thread_refresh(void *a) {
         thr_refresh_t *thr = (thr_refresh_t*) a;
 
@@ -30,11 +39,11 @@ void *w_thread_refresh(void *a) {
         // at https://github.com/openssl/openssl/blob/master/crypto/evp/e_aes.c
         
         // Initialize nonce
-        memcpy(iv, thr->iv, 8);
+        memcpy(iv, thr->nonce, KEYMIX_NONCE_SIZE);
 
         // Initialize counter
-        byte *counter = iv + 8;
-        for (int n = 7; n >= 0; n--) {
+        byte *counter = iv + KEYMIX_NONCE_SIZE;
+        for (int n = KEYMIX_COUNTER_SIZE - 1; n >= 0; n--) {
             counter[n] = thr->counter & 255;
             thr->counter >>= 8;
         }
@@ -64,7 +73,7 @@ void *w_thread_refresh(void *a) {
         return NULL;
 }
 
-int multi_threaded_refresh(byte *in, byte *out, size_t size, byte *iv,
+int multi_threaded_refresh(byte *in, byte *out, size_t size, byte *nonce,
                            uint64_t counter, uint8_t nof_threads) {
         int err = 0;
         pthread_t threads[nof_threads];
@@ -85,7 +94,7 @@ int multi_threaded_refresh(byte *in, byte *out, size_t size, byte *iv,
                 arg->in      = in;
                 arg->out     = out;
                 arg->size    = chunk_size;
-                arg->iv      = iv;
+                arg->nonce   = nonce;
                 arg->counter = counter;
 
                 pthread_create(&threads[t], NULL, w_thread_refresh, arg);
