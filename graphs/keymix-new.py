@@ -170,7 +170,7 @@ for fanout in fanouts:
     plt.xlabel('Number of threads')
     plt.xticks(ticks=xs)
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 1700)
+    plt.ylim(0, 1800)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
