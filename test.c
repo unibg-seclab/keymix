@@ -383,6 +383,5 @@ int main(int argc, char *argv[]) {
 cleanup:
         if (fout)
                 fclose(fout);
-        free(key_sizes);
         return 0;
 }
