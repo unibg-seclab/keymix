@@ -5,6 +5,7 @@
 
 #include "keymix.h"
 #include "enc.h"
+#include "refresh.h"
 #include "utils.h"
 
 size_t get_file_size(FILE *fp) {
@@ -76,13 +77,25 @@ int stream_encrypt(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
 // don't check if the file has ended before.
 int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                     uint8_t threads) {
-        uint64_t nof_macros;
-
         size_t buffer_size = ctx->key_size;
 
-        byte *src    = (ctx->enc_mode != ENC_MODE_OFB ? ctx->key : ctx->state);
+        byte *src;
         byte *buffer = malloc(buffer_size);
         byte *dst    = (ctx->enc_mode != ENC_MODE_OFB ? buffer : ctx->state);
+
+        // Configure the source according to the encryption mode
+        switch (ctx->enc_mode) {
+        case ENC_MODE_CTR:
+                src = ctx->key;
+                break;
+        case ENC_MODE_CTR_OPT:
+        case ENC_MODE_OFB:
+                src = ctx->state;
+                break;
+        case ENC_MODE_CTR_CTR:
+                src = buffer;
+                break;
+        }
 
         // We use key_size because it is surely a divisor of buffer_size.
         // If it weren't, then we would have to manage cases where we read
@@ -101,6 +114,8 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                 counter = tmpiv + KEYMIX_NONCE_SIZE;
         }
 
+        uint64_t ctr64 = ctr64_get(counter);
+
         size_t read = 0;
         do {
                 byte *bp = buffer;
@@ -109,6 +124,12 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                 if (read == 0)
                         break;
 
+                if (ctx->enc_mode == ENC_MODE_CTR_CTR) {
+                        multi_threaded_refresh(ctx->key, buffer,
+                                               ctx->key_size, tmpiv,
+                                               (ctx->key_size / BLOCK_SIZE_AES) * ctr64,
+                                               threads);
+                }
                 keymix_ex(ctx, src, dst, buffer_size, tmpiv, threads);
                 if (ctx->enc_mode == ENC_MODE_OFB) {
                         multi_threaded_mixpass(ctx->one_way_mixpass,
@@ -130,6 +151,7 @@ int stream_encrypt2(ctx_t *ctx, FILE *fin, FILE *fout, byte *iv,
                                 read = fread(fbuf, 1, fbuf_size, fin);
                 }
 
+                ctr64++;
                 ctr64_inc(counter);
         } while (read == fbuf_size);
 

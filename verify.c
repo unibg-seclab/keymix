@@ -337,7 +337,7 @@ cleanup:
         return err;
 }
 
-int verify_enc(enc_mode_t enc_mode, bool refresh, mix_impl_t mix_type, mix_impl_t one_way_type, size_t fanout,
+int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type, size_t fanout,
                uint8_t level) {
         mix_func_t mix;
         block_size_t block_size;
@@ -367,7 +367,7 @@ int verify_enc(enc_mode_t enc_mode, bool refresh, mix_impl_t mix_type, mix_impl_
         out1 = setup(resource_size, false);
         outt = setup(resource_size, false);
         
-        err = ctx_encrypt_init(&ctx, enc_mode, refresh, mix_type, one_way_type, key, key_size, fanout);
+        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, fanout);
         if (err) {
                 _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
                 goto cleanup;
@@ -430,8 +430,7 @@ int verify_enc_ctr_modes(mix_impl_t mix_type, mix_impl_t one_way_type, size_t fa
         out1 = setup(resource_size, false);
         out2 = setup(resource_size, false);
 
-        err = ctx_encrypt_init(&ctx, ENC_MODE_CTR, false, mix_type, one_way_type, key, key_size,
-                               fanout);
+        err = ctx_encrypt_init(&ctx, ENC_MODE_CTR, mix_type, one_way_type, key, key_size, fanout);
         if (err) {
                 _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
                 goto cleanup;
@@ -439,8 +438,8 @@ int verify_enc_ctr_modes(mix_impl_t mix_type, mix_impl_t one_way_type, size_t fa
         encrypt(&ctx, in, out1, resource_size, iv);
         ctx_free(&ctx);
 
-        err = ctx_encrypt_init(&ctx, ENC_MODE_CTR_OPT, false, mix_type, one_way_type, key,
-                               key_size, fanout);
+        err = ctx_encrypt_init(&ctx, ENC_MODE_CTR_OPT, mix_type, one_way_type, key, key_size,
+                               fanout);
         if (err) {
                 _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
                 goto cleanup;
@@ -459,7 +458,7 @@ cleanup:
         return err;
 }
 
-int custom_checks(enc_mode_t enc_mode, bool refresh, mix_impl_t mix_type, mix_impl_t one_way_type) {
+int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type) {
         mix_func_t mix;
         block_size_t block_size;
         size_t size;
@@ -485,7 +484,7 @@ int custom_checks(enc_mode_t enc_mode, bool refresh, mix_impl_t mix_type, mix_im
         enc = setup(size, false);
         dec = setup(size, false);
 
-        err = ctx_encrypt_init(&ctx, enc_mode, false, mix_type, one_way_type, key, block_size, 2);
+        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, block_size, 2);
         if (err) {
                 _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
                 goto cleanup;
@@ -556,12 +555,13 @@ int main() {
                 mix_info = *get_mix_info(mix_type);
                 fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS, fanouts);
 
-                CHECKED(custom_checks(ENC_MODE_CTR, false, mix_type, NONE));
-                CHECKED(custom_checks(ENC_MODE_CTR, true, mix_type, NONE));
-                CHECKED(custom_checks(ENC_MODE_CTR_OPT, false, mix_type, NONE));
-                if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
-                        CHECKED(custom_checks(ENC_MODE_OFB, false, mix_type,
-                                              OPENSSL_MATYAS_MEYER_OSEAS_128));
+                for (enc_mode_t enc_mode = ENC_MODE_CTR; enc_mode <= ENC_MODE_OFB; enc_mode++) {
+                        if (enc_mode != ENC_MODE_OFB) {
+                                CHECKED(custom_checks(enc_mode, mix_type, NONE));
+                        } else if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
+                                CHECKED(custom_checks(ENC_MODE_OFB, mix_type,
+                                                      OPENSSL_MATYAS_MEYER_OSEAS_128));
+                        }
                 }
 
                 for (uint8_t j = 0; j < fanouts_count; j++) {
@@ -571,13 +571,14 @@ int main() {
                              get_mix_name(mix_type), fanout);
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_multithreaded_keymix(mix_type, fanout, l));
-                                CHECKED(verify_enc(ENC_MODE_CTR, false, mix_type, NONE, fanout, l));
-                                CHECKED(verify_enc(ENC_MODE_CTR, true, mix_type, NONE, fanout, l));
-                                CHECKED(verify_enc(ENC_MODE_CTR_OPT, false, mix_type, NONE, fanout, l));
-                                if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
-                                        CHECKED(verify_enc(ENC_MODE_OFB, false, mix_type,
-                                                           OPENSSL_MATYAS_MEYER_OSEAS_128, fanout,
-                                                           l));
+                                for (enc_mode_t mode = ENC_MODE_CTR; mode <= ENC_MODE_OFB; mode++) {
+                                        if (mode != ENC_MODE_OFB) {
+                                                CHECKED(verify_enc(mode, mix_type, NONE, fanout, l));
+                                        } else if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
+                                                CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
+                                                                   OPENSSL_MATYAS_MEYER_OSEAS_128,
+                                                                   fanout, l));
+                                        }
                                 }
                                 CHECKED(verify_enc_ctr_modes(mix_type, NONE, fanout, l));
                         }

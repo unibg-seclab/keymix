@@ -74,12 +74,17 @@ void keymix_ctr_mode(enc_args_t *args) {
         // Buffer to store the output of the keymix
         byte *outbuffer = malloc(ctx->key_size);
 
-        // Configure the source according to the encryption mode and the
-        // refresh parameter
-        if (ctx->enc_mode == ENC_MODE_CTR) {
-                src = (!ctx->refresh ? ctx->key : outbuffer);
-        } else {
+        // Configure the source according to the encryption mode
+        switch (ctx->enc_mode) {
+        case ENC_MODE_CTR:
+                src = ctx->key;
+                break;
+        case ENC_MODE_CTR_OPT:
                 src = ctx->state;
+                break;
+        case ENC_MODE_CTR_CTR:
+                src = outbuffer;
+                break;
         }
 
         byte *in              = args->in;
@@ -87,7 +92,7 @@ void keymix_ctr_mode(enc_args_t *args) {
         size_t remaining_size = args->resource_size;
 
         for (uint32_t i = 0; i < args->keys_to_do; i++) {
-                if (ctx->refresh) {
+                if (ctx->enc_mode == ENC_MODE_CTR_CTR) {
                         multi_threaded_refresh(ctx->key, outbuffer,
                                                ctx->key_size, iv,
                                                (ctx->key_size / BLOCK_SIZE_AES) * (starting_counter + i),

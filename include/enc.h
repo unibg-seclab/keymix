@@ -7,6 +7,9 @@
 
 // Callable functions
 
+// Get counter in 64-bit unsigned int format
+uint64_t ctr64_get(unsigned char *counter);
+
 // Increment counter (64-bit int) by 1
 // (from https://github.com/openssl/openssl/blob/master/crypto/evp/e_aes.c)
 void ctr64_inc(unsigned char *counter);

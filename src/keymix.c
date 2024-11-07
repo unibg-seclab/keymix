@@ -109,22 +109,32 @@ void keymix_inner(ctx_t *ctx, byte* in, byte* out, size_t size, byte* iv,
         }
 
         if (iv) {
-                if (ctx->enc_mode != ENC_MODE_OFB) {
+                switch (ctx->enc_mode) {
+                case ENC_MODE_CTR:
                         // Update 1st block with IV and counter on its own
-                        update_iv_block(mixpass, in, out,
-                                                ctx->block_size, iv);
+                        update_iv_block(mixpass, in, out, ctx->block_size, iv);
 
                         // Skip 1st block with 1st encryption level
                         in += ctx->block_size;
                         out_first += ctx->block_size;
                         size_first -= ctx->block_size;
-                } else {
+                        break;
+                case ENC_MODE_CTR_CTR:
+                        // No changes to blocks
+                        out_first = out;
+                        size_first = size;
+
+                        // The user provided IV was already applied beforehand
+                        // by refreshing the key in enc.c
+                        break;
+                case ENC_MODE_OFB:
                         // No changes to blocks
                         out_first = out;
                         size_first = size;
 
                         // But use user provided IV for the mixpass
                         mixpass_iv = iv;
+                        break;
                 }
         }
 
@@ -249,12 +259,24 @@ int sync_spread_and_mixpass(thr_keymix_t *thr, spread_args_t *args) {
 void *w_thread_keymix(void *a) {
         thr_keymix_t *thr     = (thr_keymix_t *)a;
         ctx_t *ctx            = thr->ctx;
-        byte *iv              = (!thr->id ? thr->iv : NULL);
+        byte *iv;
 
-        // When using ofb encryption mode give the IV to all threads, so they
-        // can pass it down to the mixpass
-        if (ctx->enc_mode == ENC_MODE_OFB) {
+        switch (ctx->enc_mode) {
+        case ENC_MODE_CTR:
+                // The 1st thread owns the 1st block, as such, it is in charge
+                // of applying the IV
+                iv = (!thr->id ? thr->iv : NULL);
+                break;
+        case ENC_MODE_CTR_CTR:
+                // None of the threads must have the IV, since the IV was
+                // already applied beforehand by refreshing the key in enc.c
+                iv = NULL;
+                break;
+        case ENC_MODE_OFB:
+                // All threads must have the IV, so they can pass it down to
+                // the mixpass
                 iv = thr->iv;
+                break;
         }
 
         // No need to sync among other threads here

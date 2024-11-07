@@ -21,7 +21,6 @@
 #define ERR_NOT_ONE_WAY 107
 #define ERR_INCOMPATIBLE_PRIMITIVES 108
 #define ERR_EQUAL_PRIMITIVES 109
-#define ERR_UNSUPPORTED_REFRESH 110
 
 void errmsg(const char *fmt, ...) {
         va_list args;
@@ -43,7 +42,6 @@ typedef struct {
         enc_mode_t enc_mode;
         mix_impl_t mix;
         mix_impl_t one_way_mix;
-        bool refresh;
         uint8_t threads;
         bool verbose;
 } cli_args_t;
@@ -54,7 +52,6 @@ enum args_key {
         ARG_KEY_ONE_WAY_PRIMITIVE = 0x100,
         ARG_KEY_OUTPUT            = 'o',
         ARG_KEY_PRIMITIVE         = 'p',
-        ARG_KEY_REFRESH           = 'r',
         ARG_KEY_THREADS           = 't',
         ARG_KEY_VERBOSE           = 'v',
 };
@@ -78,7 +75,6 @@ static struct argp_option options[] = {
     {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
     {"primitive", ARG_KEY_PRIMITIVE, "STRING", 0,
      "One of the mixing primitive available (default: xkcp-tuboshake-128)"},
-    {"refresh", ARG_KEY_REFRESH, NULL, 0, "Refresh the entire key with new counter"},
     {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads"},
     {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
@@ -118,7 +114,8 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case ARG_KEY_ENC_MODE:
                 arguments->enc_mode = get_enc_mode_type(arg);
                 if (arguments->enc_mode == -1)
-                        argp_error(state, "encryption mode must be one of ctr, ctr-opt, ofb");
+                        argp_error(state,
+                                   "encryption mode must be one of ctr, ctr-opt, ctr-ctr, ofb");
                 break;
         case ARG_KEY_PRIMITIVE:
                 arguments->mix = get_mix_type(arg);
@@ -129,9 +126,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->one_way_mix = get_mix_type(arg);
                 if (arguments->one_way_mix == -1)
                         argp_error(state, "one-way primitive must be one of the available ones");
-                break;
-        case ARG_KEY_REFRESH:
-                arguments->refresh = true;
                 break;
         case ARG_KEY_THREADS:
                 long value = strtol(arg, NULL, 10);
@@ -185,7 +179,6 @@ int main(int argc, char **argv) {
             .enc_mode    = ENC_MODE_CTR,
             .mix         = XKCP_TURBOSHAKE_128,
             .one_way_mix = NONE,
-            .refresh     = false,
             .threads     = 1,
             .verbose     = false,
         };
@@ -210,7 +203,6 @@ int main(int argc, char **argv) {
                 printf("primitive:         %s", get_mix_name(args.mix));
                 printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
                 printf("fanout:            %d\n", args.fanout);
-                printf("refresh:           %s\n", args.refresh ? "true" : "false");
                 printf("threads:           %d\n", args.threads);
                 printf("===============\n");
         }
@@ -247,8 +239,8 @@ int main(int argc, char **argv) {
 
         // Do the encryption
         ctx_t ctx;
-        err = ctx_encrypt_init(&ctx, args.enc_mode, args.refresh, args.mix, args.one_way_mix,
-                               key, key_size, args.fanout);
+        err = ctx_encrypt_init(&ctx, args.enc_mode, args.mix, args.one_way_mix, key, key_size,
+                               args.fanout);
         switch (err) {
         case CTX_ERR_UNKNOWN_MIX:
                 errmsg("no mix primitive implementation found");
@@ -305,10 +297,6 @@ int main(int argc, char **argv) {
                         break;
                 }
                 err = ERR_KEY_SIZE;
-                goto cleanup;
-        case CTX_ERR_UNSUPPORTED_REFRESH:
-                errmsg("cannot refresh the key with %s encryption mode", args.enc_mode);
-                err = ERR_EQUAL_PRIMITIVES;
                 goto cleanup;
         }
 

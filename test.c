@@ -53,14 +53,13 @@ void csv_header() {
         fprintf(fout, "time\n");            // Time in ms
         fflush(fout);
 }
-void csv_line(size_t key_size, size_t size, uint8_t threads, enc_mode_t enc_mode, bool refresh,
+void csv_line(size_t key_size, size_t size, uint8_t threads, enc_mode_t enc_mode,
               mix_impl_t implementation, mix_impl_t one_way_mix_type, uint8_t fanout, double time) {
         fprintf(fout, "%zu,", key_size);
         fprintf(fout, "%zu,", size);
         fprintf(fout, "%d,", threads);
         fprintf(fout, "%d,", 1); // kept for compatibility
         fprintf(fout, "%s,", (enc_mode != -1 ? get_enc_mode_name(enc_mode) : "none"));
-        fprintf(fout, "%s,", (refresh ? "true" : "false"));
         fprintf(fout, "%s,", get_mix_name(implementation));
         fprintf(fout, "%s,", get_mix_name(one_way_mix_type));
         fprintf(fout, "%d,", fanout);
@@ -100,8 +99,7 @@ void test_keymix(ctx_t *ctx, byte *out, size_t size, uint8_t threads) {
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE(keymix_t(ctx, out, size, threads));
-                csv_line(ctx->key_size, size, threads, -1, false, ctx->mix, NONE, ctx->fanout,
-                         time);
+                csv_line(ctx->key_size, size, threads, -1, ctx->mix, NONE, ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
@@ -115,8 +113,8 @@ void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv, uint8_t th
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE(encrypt_t(ctx, in, out, size, iv, threads));
-                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->refresh, ctx->mix,
-                         ctx->one_way_mix, ctx->fanout, time);
+                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
+                         ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
@@ -149,8 +147,8 @@ void test_ctr_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
                         explicit_bzero(tmpiv, KEYMIX_IV_SIZE);
                         free(tmpiv);
                 });
-                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->refresh, ctx->mix,
-                         ctx->one_way_mix, ctx->fanout, time);
+                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
+                         ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
@@ -194,8 +192,8 @@ void test_ofb_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
 
                         free(outbuffer);
                 });
-                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->refresh, ctx->mix,
-                         ctx->one_way_mix, ctx->fanout, time);
+                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
+                         ctx->fanout, time);
                 _log(LOG_INFO, ".");
 
                 // Reset ctx state for next test
@@ -204,8 +202,7 @@ void test_ofb_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv,
         _log(LOG_INFO, "\n");
 }
 
-void do_encryption_tests(enc_mode_t enc_mode, bool refresh, mix_impl_t mix_type,
-                         mix_impl_t one_way_mix_type) {
+void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_mix_type) {
         int err;
         byte *key;
         byte *out;
@@ -252,7 +249,7 @@ void do_encryption_tests(enc_mode_t enc_mode, bool refresh, mix_impl_t mix_type,
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
-                                ctx_encrypt_init(&ctx, enc_mode, refresh, mix_type, one_way_mix_type, key,
+                                ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_mix_type, key,
                                                  key_size, fanout);
                                 if (size < 100 * SIZE_1GiB) {
                                         out = malloc(size);
@@ -371,16 +368,16 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        do_encryption_tests(ENC_MODE_CTR, false, XKCP_TURBOSHAKE_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR, false, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR, false, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
-        do_encryption_tests(ENC_MODE_CTR, true, XKCP_TURBOSHAKE_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR, true, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR, true, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
-        do_encryption_tests(ENC_MODE_CTR_OPT, false, XKCP_TURBOSHAKE_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR_OPT, false, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR_OPT, false, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
-        do_encryption_tests(ENC_MODE_OFB, false, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
+        do_encryption_tests(ENC_MODE_CTR, XKCP_TURBOSHAKE_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
+        do_encryption_tests(ENC_MODE_CTR_OPT, XKCP_TURBOSHAKE_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR_OPT, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR_OPT, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
+        do_encryption_tests(ENC_MODE_CTR_CTR, XKCP_TURBOSHAKE_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR_CTR, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
+        do_encryption_tests(ENC_MODE_CTR_CTR, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
+        do_encryption_tests(ENC_MODE_OFB, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
 
         fclose(fout);
         fout = NULL;

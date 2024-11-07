@@ -29,21 +29,14 @@ ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_impl_t mix, byte *key, size_t size, ui
         ctx->mix         = mix;
         ctx->one_way_mix = NONE;
         ctx->fanout      = fanout;
-        ctx->refresh     = false;
         ctx_disable_encryption(ctx);
 
         return CTX_ERR_NONE;
 }
 
-ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, bool refresh, mix_impl_t mix,
-                           mix_impl_t one_way_mix, byte *key, size_t size, uint8_t fanout) {
+ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_impl_t one_way_mix,
+                           byte *key, size_t size, uint8_t fanout) {
         ctx->state = NULL;
-
-        // Ensure the encryption mode selected supports refreshing the key
-        // (only basic counter mode does)
-        if (enc_mode != ENC_MODE_CTR && refresh) {
-                return CTX_ERR_UNSUPPORTED_REFRESH;
-        }
 
         int err = ctx_keymix_init(ctx, mix, key, size, fanout);
         if (err) {
@@ -89,7 +82,6 @@ ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, bool refresh, mix_im
 
         ctx->enc_mode    = enc_mode;
         ctx->one_way_mix = one_way_mix;
-        ctx->refresh     = refresh;
         ctx_enable_encryption(ctx);
 
         if (enc_mode == ENC_MODE_CTR_OPT) {
@@ -154,13 +146,13 @@ void ctx_precompute_state(ctx_t *ctx) {
 }
 
 inline void ctx_free(ctx_t *ctx) {
-        if (ctx->enc_mode != ENC_MODE_CTR && ctx->state != NULL) {
+        if (ctx->state != NULL) {
                 explicit_bzero(ctx->state, ctx->key_size);
                 free(ctx->state);
         }
 }
 
-char *ENC_NAMES[] = { "ctr", "ctr-opt", "ofb" };
+char *ENC_NAMES[] = { "ctr", "ctr-opt", "ctr-ctr", "ofb" };
 
 char *get_enc_mode_name(enc_mode_t enc_mode) {
         uint8_t n = sizeof(ENC_NAMES) / sizeof(*ENC_NAMES);

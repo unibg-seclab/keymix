@@ -11,7 +11,8 @@ KEEP_FILES_MIB = [1, 10, 100, 1024, 10240, 102400]
 ENC_MODES = {
     'ctr': {'name': 'Counter', 'color': 'tab:blue', 'marker': 'o'},
     'ctr-opt': {'name': 'Counter \w optimization', 'color': 'tab:orange', 'marker': 's'},
-    'ofb': {'name': 'Output Feedback', 'color': 'tab:green', 'marker': '^'}
+    'ctr-ctr': {'name': 'Counter \w refresh', 'color': 'tab:green', 'marker': '^'},
+    'ofb': {'name': 'Output Feedback', 'color': 'tab:red', 'marker': 'D'}
 }
 
 # Encryption time/speed vs resource size
