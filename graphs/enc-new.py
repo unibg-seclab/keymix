@@ -10,7 +10,7 @@ FILE = 'data/enc-anthem.csv'
 KEEP_FILES_MIB = [1, 10, 100, 1024, 10240, 102400]
 ENC_MODES = {
     'ctr': {'name': 'Counter', 'color': 'tab:blue', 'marker': 'o'},
-    'ctr-opt': {'name': 'Counter \w optimization', 'color': 'tab:orange', 'marker': 's'},
+    'ctr-opt': {'name': 'Counter \w opt', 'color': 'tab:orange', 'marker': 's'},
     'ctr-ctr': {'name': 'Counter \w refresh', 'color': 'tab:green', 'marker': '^'},
     'ofb': {'name': 'Output Feedback', 'color': 'tab:red', 'marker': 'D'}
 }
@@ -114,7 +114,7 @@ for impl in TARGET_IMPLEMENTATIONS:
 
     plt.xscale('log')
     plt.yscale('log')
-    pltlegend(plt, ENC_MODE_NAMES, x0=-0.23, width=1.3, ncol=2)
+    pltlegend(plt, ENC_MODE_NAMES, x0=-0.18, width=1.2, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.ylabel('Average time [s]')
     plt.savefig(f'graphs/enc-modes-{impl}-time.pdf', bbox_inches='tight',
@@ -131,7 +131,7 @@ for impl in TARGET_IMPLEMENTATIONS:
 
     plt.xscale('log')
     plt.yscale('log')
-    pltlegend(plt, ENC_MODE_NAMES, x0=-0.23, width=1.3, ncol=2)
+    pltlegend(plt, ENC_MODE_NAMES, x0=-0.18, width=1.2, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.ylabel('Average speed [MiB/s]')
     plt.savefig(f'graphs/enc-modes-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
