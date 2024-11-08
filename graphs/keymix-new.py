@@ -9,7 +9,7 @@ IMPLS = {
     'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
     # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 'v', 'linestyle': 'solid', 'color': 'orange'},
     'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'solid', 'color': 'green'},
-    # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'dashed', 'color': 'blue'},
+    # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'dashed', 'color': 'royalblue'},
     'wolfcrypt-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 'v', 'linestyle': 'dashed', 'color': 'orange'},
     # 'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'dashed', 'color': 'green'},
     # 'openssl-sha3-256': {'name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'solid', 'color': 'red'},
@@ -84,16 +84,18 @@ for fanout in fanouts:
         data = df_groupby(data, 'key_size')
         xs = [to_mib(x) for x in data.key_size]
         ys = [x / to_sec(y) for x, y in zip(xs, data.time_mean)]
-        plt.loglog(xs, ys,
-                   color=IMPLS[impl]['color'],
-                   linestyle=IMPLS[impl]['linestyle'],
-                   marker=IMPLS[impl]['marker'],
-                   markersize=8)
+        plt.plot(xs, ys,
+                 color=IMPLS[impl]['color'],
+                 linestyle=IMPLS[impl]['linestyle'],
+                 marker=IMPLS[impl]['marker'],
+                 markersize=8)
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Key size [MiB]')
+    ax = plt.gca()
+    ax.set_xscale('log')
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(1e0, 1e3)
+    plt.ylim(0, 250)
     plt.savefig(f'graphs/keymix-f{fanout}-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
