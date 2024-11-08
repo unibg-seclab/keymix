@@ -9,6 +9,7 @@ IMPLS = {
     'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
     # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 'v', 'linestyle': 'solid', 'color': 'orange'},
     'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'solid', 'color': 'green'},
+    # 'openssl-new-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'dashdot', 'color': 'green'},
     # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'dashed', 'color': 'royalblue'},
     'wolfcrypt-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 'v', 'linestyle': 'dashed', 'color': 'orange'},
     # 'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'dashed', 'color': 'green'},
