@@ -17,7 +17,7 @@ IMPLS = {
     'wolfcrypt-sha3-256': {'name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'dashed', 'color': 'red'},
     # 'wolfcrypt-blake2s': {'name': 'BLAKE2s', 'block_size': 32, 'marker': '>', 'linestyle': 'dashed', 'color': 'purple'},
     'blake3-blake3': {'name': 'BLAKE3', 'block_size': 32, 'marker': '1', 'linestyle': 'dotted', 'color': 'brown'},
-    # 'aes-ni-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
+    'aes-ni-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
     # 'openssl-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'solid', 'color': 'pink'},
     # 'wolfcrypt-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dashed', 'color': 'pink'},
     # 'openssl-sha3-512': {'name': 'SHA3-512', 'block_size': 64, 'marker': '3', 'linestyle': 'solid', 'color': 'grey'},
@@ -36,7 +36,8 @@ IMPLS = {
     # 'xkcp-kravette-wbc': {'name': 'Kravette-WBC', 'block_size': 192, 'marker': '*', 'linestyle': 'dotted', 'color': 'magenta'},
 }
 
-FILE = 'data/out-anthem.csv'
+FILE = 'data/out-anthem-to-128-threads.csv' # data/out-anthem.csv
+THREAD_SCALE = 'log' # linear
 TARGET_KEY_SIZE = 100 * 1024 * 1024
 
 df = pd.read_csv(FILE)
@@ -100,6 +101,9 @@ for fanout in fanouts:
     plt.close()
 
 # Keymix time/speed vs #threads (grouped by fanout)
+unit = 'MiB' if THREAD_SCALE == 'linear' else 'GiB'
+to_unit = to_mib if THREAD_SCALE == 'linear' else to_gib
+
 overall_thread_contributions = []
 for fanout in fanouts:
     df_fanout = df[df.fanout == fanout]
@@ -129,7 +133,11 @@ for fanout in fanouts:
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Number of threads')
-    plt.xticks(ticks=xs)
+    ax = plt.gca()
+    ax.set_xscale(THREAD_SCALE)
+    ax.set_xticks(ticks=xs)
+    ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    ax.get_xaxis().set_tick_params(which='minor',bottom=False)
     plt.ylabel('Average time [s]')
     plt.ylim(0, 25)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight', pad_inches=0)
@@ -150,7 +158,7 @@ for fanout in fanouts:
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
         data = df_groupby(data, 'internal_threads')
         xs = list(data.internal_threads)
-        ys = [to_mib(size) / to_sec(y) for y in data.time_mean]
+        ys = [to_unit(size) / to_sec(y) for y in data.time_mean]
 
         print('=== For impl', impl)
         for thr, speed in zip(xs, ys):
@@ -170,9 +178,13 @@ for fanout in fanouts:
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Number of threads')
-    plt.xticks(ticks=xs)
-    plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 1800)
+    ax = plt.gca()
+    ax.set_xscale(THREAD_SCALE)
+    ax.set_xticks(ticks=xs)
+    ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    ax.get_xaxis().set_tick_params(which='minor',bottom=False)
+    plt.ylabel(f'Average speed [{unit}/s]')
+    plt.ylim(0, 1800 if THREAD_SCALE == 'linear' else 6)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 

@@ -6,6 +6,9 @@ matplotlib.rc('pdf', fonttype=42)
 def to_mib(bytes):
     return bytes / 1024 / 1024
 
+def to_gib(bytes):
+    return bytes / 1024 / 1024 / 1024
+
 def to_sec(ms):
     return ms / 1000
 
