@@ -31,18 +31,18 @@ def pltlegend(plt, labels, x0=0, width=1, is_with_legend=True, ncol=3):
                         ncol=ncol,
                         handlelength=1.5,
                         loc="lower left")
-    for handle in legend.legend_handles:
-        handle.set_markersize(8)
+    # for handle in legend.legend_handles:
+    #     handle.set_markersize(8)
     export_legend(legend, "graphs/legend.pdf")
 
 def df_filter(df, impl, fanout):
     return df[(df.implementation == impl) & (df.fanout == fanout)]
 
-def df_groupby(df, cols):
-    data = df.groupby(cols, as_index=False).agg({'time': ['mean', 'std']})
+def df_groupby(df, cols, agg='time'):
+    data = df.groupby(cols, as_index=False).agg({agg: ['mean', 'std']})
     if type(cols) == list:
-        data.columns = cols + ['time_mean', 'time_std']
+        data.columns = cols + [f'{agg}_mean', f'{agg}_std']
     else:
-        data.columns = [cols, 'time_mean', 'time_std']
+        data.columns = [cols, f'{agg}_mean', f'{agg}_std']
     data.reindex(columns=data.columns)
     return data

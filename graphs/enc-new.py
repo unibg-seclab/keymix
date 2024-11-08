@@ -1,4 +1,5 @@
 import itertools
+import math
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -45,6 +46,8 @@ def get_key_size_string(key_size):
 df = pd.read_csv(FILE)
 df['outsize_mib'] = to_mib(df.outsize)
 df = df[df.outsize_mib.isin(KEEP_FILES_MIB)]
+df.time = to_sec(df.time)
+df['inv_time'] = 1 / df.time
 
 # Encryption time/speed vs resource size (grouped by mode of operation and
 # implementation)
@@ -57,37 +60,42 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     key_sizes = sorted(data.key_size.unique())
     key_sizes_in_mib = [to_mib(k) for k in key_sizes]
 
+    # Time
     plt.figure()
     for i, size in enumerate(key_sizes):
         grouped = df_groupby(data[data.key_size == size], 'outsize')
         xs = [to_mib(x) for x in grouped.outsize]
-        ys = [to_sec(y) for y in grouped.time_mean]
-        plt.plot(xs, ys, marker=MARKERS[i], markersize=8)
+        ys = [y for y in grouped.time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
 
-    plt.xscale('log')
-    plt.yscale('log')
     labels = [get_key_size_string(key_size) for key_size in key_sizes_in_mib]
     pltlegend(plt, labels, x0=-0.23, width=1.3)
     plt.xlabel('File size [MiB]')
+    plt.xscale('log')
     plt.ylabel('Average time [s]')
+    plt.yscale('log')
     plt.savefig(f'graphs/enc-{enc_mode}-{impl}-time.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
-    max_speed = 0
-
+    # Speed
     plt.figure()
+    max_speed = 0
     for i, size in enumerate(key_sizes):
-        grouped = df_groupby(data[data.key_size == size], 'outsize')
+        grouped = df_groupby(data[data.key_size == size], 'outsize', agg='inv_time')
         xs = [to_mib(x) for x in grouped.outsize]
-        ys = [x / to_sec(y) for x, y in zip(xs, grouped.time_mean)]
+        ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         max_speed = max([max_speed] + ys)
-        plt.plot(xs, ys, marker=MARKERS[i], markersize=8)
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
 
-    plt.xscale('log')
-    plt.yscale('log')
     pltlegend(plt, labels, x0=-0.23, width=1.3)
     plt.xlabel('File size [MiB]')
+    plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
+    plt.yscale('log')
     plt.savefig(f'graphs/enc-{enc_mode}-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
@@ -104,35 +112,41 @@ for impl in TARGET_IMPLEMENTATIONS:
     if plot_data.empty:
         continue
 
+    # Time
     plt.figure()
     for i, enc_mode in enumerate(ENC_MODES):
         grouped = df_groupby(plot_data[plot_data.enc_mode == enc_mode], 'outsize')
         xs = [to_mib(x) for x in grouped.outsize]
-        ys = [to_sec(y) for y in grouped.time_mean]
-        plt.plot(xs, ys, color=ENC_MODES[enc_mode]['color'],
-                 marker=ENC_MODES[enc_mode]['marker'], markersize=8)
+        ys = [y for y in grouped.time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
+                     marker=ENC_MODES[enc_mode]['marker'], markersize=8)
 
-    plt.xscale('log')
-    plt.yscale('log')
     pltlegend(plt, ENC_MODE_NAMES, x0=-0.18, width=1.2, ncol=2)
     plt.xlabel('File size [MiB]')
+    plt.xscale('log')
     plt.ylabel('Average time [s]')
+    plt.yscale('log')
     plt.savefig(f'graphs/enc-modes-{impl}-time.pdf', bbox_inches='tight',
                 pad_inches=0)
     plt.close()
 
+    # Speed
     plt.figure()
     for i, enc_mode in enumerate(ENC_MODES):
-        grouped = df_groupby(plot_data[plot_data.enc_mode == enc_mode], 'outsize')
+        grouped = df_groupby(plot_data[plot_data.enc_mode == enc_mode], 'outsize', agg='inv_time')
         xs = [to_mib(x) for x in grouped.outsize]
-        ys = [x / to_sec(y) for x, y in zip(xs, grouped.time_mean)]
-        plt.plot(xs, ys, color=ENC_MODES[enc_mode]['color'],
-                 marker=ENC_MODES[enc_mode]['marker'], markersize=8)
+        ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
+                     marker=ENC_MODES[enc_mode]['marker'], markersize=8)
 
-    plt.xscale('log')
-    plt.yscale('log')
     pltlegend(plt, ENC_MODE_NAMES, x0=-0.18, width=1.2, ncol=2)
     plt.xlabel('File size [MiB]')
+    plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
+    plt.yscale('log')
     plt.savefig(f'graphs/enc-modes-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()

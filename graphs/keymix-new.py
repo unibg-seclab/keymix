@@ -1,3 +1,4 @@
+import math
 import statistics
 
 import matplotlib.pyplot as plt
@@ -43,6 +44,8 @@ TARGET_KEY_SIZE = 100 * 1024 * 1024
 
 df = pd.read_csv(FILE)
 df = df[df.implementation.isin(IMPLS.keys())]
+df.time = to_sec(df.time)
+df['inv_time'] = 1 / df.time
 fanouts = sorted(df.fanout.unique())
 
 # Keymix time/speed vs key size (grouped by fanouts)
@@ -61,16 +64,17 @@ for fanout in fanouts:
         data = data[data.internal_threads == 1]
         data = df_groupby(data, 'key_size')
         xs = [to_mib(x) for x in data.key_size]
-        ys = [to_sec(y) for y in data.time_mean]
-        plt.loglog(xs, ys,
-                   color=IMPLS[impl]['color'],
-                   linestyle=IMPLS[impl]['linestyle'],
-                   marker=IMPLS[impl]['marker'],
-                   markersize=8)
+        ys = [y for y in data.time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in data.time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Key size [MiB]')
+    plt.xscale('log')
     plt.ylabel('Average time [s]')
+    plt.yscale('log')
     plt.ylim(1e-2, 1e3)
     plt.savefig(f'graphs/keymix-f{fanout}-time.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -83,19 +87,17 @@ for fanout in fanouts:
 
         data = df_fanout[df_fanout.implementation == impl]
         data = data[data.internal_threads == 1]
-        data = df_groupby(data, 'key_size')
+        data = df_groupby(data, 'key_size', agg='inv_time')
         xs = [to_mib(x) for x in data.key_size]
-        ys = [x / to_sec(y) for x, y in zip(xs, data.time_mean)]
-        plt.plot(xs, ys,
-                 color=IMPLS[impl]['color'],
-                 linestyle=IMPLS[impl]['linestyle'],
-                 marker=IMPLS[impl]['marker'],
-                 markersize=8)
+        ys = [x * y for x, y in zip(xs, data.inv_time_mean)]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Key size [MiB]')
-    ax = plt.gca()
-    ax.set_xscale('log')
+    plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 250)
     plt.savefig(f'graphs/keymix-f{fanout}-speed.pdf', bbox_inches='tight', pad_inches=0)
@@ -111,6 +113,7 @@ for fanout in fanouts:
     impls = list(df_fanout.implementation.unique())
     legend = [IMPLS[impl]['name'] for impl in impls if impl in IMPLS]
 
+    # Time
     plt.figure()
     for impl in impls:
         if impl not in IMPLS:
@@ -125,27 +128,27 @@ for fanout in fanouts:
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
         data = df_groupby(data, 'internal_threads')
         xs = list(data.internal_threads)
-        ys = [to_sec(y) for y in data.time_mean]
-        plt.plot(xs, ys,
-                 color=IMPLS[impl]['color'],
-                 linestyle=IMPLS[impl]['linestyle'],
-                 marker=IMPLS[impl]['marker'],
-                 markersize=8)
+        ys = [y for y in data.time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in data.time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Number of threads')
+    plt.xscale(THREAD_SCALE)
+    plt.xticks(ticks=xs)
+    plt.xticks(minor=True, ticks=[])
     ax = plt.gca()
-    ax.set_xscale(THREAD_SCALE)
-    ax.set_xticks(ticks=xs)
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    ax.get_xaxis().set_tick_params(which='minor',bottom=False)
     plt.ylabel('Average time [s]')
     plt.ylim(0, 25)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
-    print('-------------- Fanout', fanout)
+    # Speed
     plt.figure()
+    print('-------------- Fanout', fanout)
     for impl in impls:
         if impl not in IMPLS:
             continue
@@ -157,9 +160,13 @@ for fanout in fanouts:
             size *= fanout
 
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
-        data = df_groupby(data, 'internal_threads')
+        data = df_groupby(data, 'internal_threads', agg='inv_time')
         xs = list(data.internal_threads)
-        ys = [to_unit(size) / to_sec(y) for y in data.time_mean]
+        ys = [to_unit(size) * y for y in data.inv_time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
         print('=== For impl', impl)
         for thr, speed in zip(xs, ys):
@@ -171,19 +178,13 @@ for fanout in fanouts:
             if thr > 1:
                 overall_thread_contributions.append(thread_contribution)
 
-        plt.plot(xs, ys,
-                 color=IMPLS[impl]['color'],
-                 linestyle=IMPLS[impl]['linestyle'],
-                 marker=IMPLS[impl]['marker'],
-                 markersize=8)
-
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Number of threads')
+    plt.xscale(THREAD_SCALE)
+    plt.xticks(ticks=xs)
+    plt.xticks(minor=True, ticks=[])
     ax = plt.gca()
-    ax.set_xscale(THREAD_SCALE)
-    ax.set_xticks(ticks=xs)
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    ax.get_xaxis().set_tick_params(which='minor',bottom=False)
     plt.ylabel(f'Average speed [{unit}/s]')
     plt.ylim(0, 1800 if THREAD_SCALE == 'linear' else 6)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight', pad_inches=0)
