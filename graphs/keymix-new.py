@@ -127,6 +127,7 @@ for fanout in fanouts:
 
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
         data = df_groupby(data, 'internal_threads')
+        data = data[data.internal_threads <= 64] # filter out AMD SMT results
         xs = list(data.internal_threads)
         ys = [y for y in data.time_mean]
         # Margins of error with 95% confidence interval
@@ -161,6 +162,7 @@ for fanout in fanouts:
 
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
         data = df_groupby(data, 'internal_threads', agg='inv_time')
+        data = data[data.internal_threads <= 64] # filter out AMD SMT results
         xs = list(data.internal_threads)
         ys = [to_unit(size) * y for y in data.inv_time_mean]
         # Margins of error with 95% confidence interval

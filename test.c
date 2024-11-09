@@ -220,8 +220,8 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
                 iv[i] = 0;
         }
 
-        uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64, 128};
-        uint8_t threads_count = 8;
+        uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64};
+        uint8_t threads_count = 7;
 
         size_t file_sizes[]     = {SIZE_1MiB, 10 * SIZE_1MiB, 100 * SIZE_1MiB,
                                    SIZE_1GiB, 10 * SIZE_1GiB, 100 * SIZE_1GiB};
@@ -305,8 +305,8 @@ int main(int argc, char *argv[]) {
         size_t *key_sizes = NULL;
         uint8_t key_sizes_count;
 
-        uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64, 128};
-        uint8_t threads_count = 8;
+        uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64};
+        uint8_t threads_count = 7;
 
         ctx_t ctx;
 
