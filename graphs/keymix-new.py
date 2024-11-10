@@ -126,6 +126,9 @@ for fanout in fanouts:
             size *= fanout
 
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
+        if data.empty:
+            continue
+
         data = df_groupby(data, 'internal_threads')
         data = data[data.internal_threads <= 64] # filter out AMD SMT results
         xs = list(data.internal_threads)
@@ -149,7 +152,7 @@ for fanout in fanouts:
 
     # Speed
     plt.figure()
-    print('-------------- Fanout', fanout)
+    print('--- Fanout', fanout)
     for impl in impls:
         if impl not in IMPLS:
             continue
@@ -161,6 +164,9 @@ for fanout in fanouts:
             size *= fanout
 
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
+        if data.empty:
+            continue
+
         data = df_groupby(data, 'internal_threads', agg='inv_time')
         data = data[data.internal_threads <= 64] # filter out AMD SMT results
         xs = list(data.internal_threads)
@@ -170,7 +176,7 @@ for fanout in fanouts:
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                      linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
-        print('=== For impl', impl)
+        print(f'=== {impl} ({to_mib(size):.1f} MiB)')
         for thr, speed in zip(xs, ys):
             print('Threads =', thr, end='\t')
             print('Speed   =', speed, end='\t')
@@ -191,8 +197,9 @@ for fanout in fanouts:
     plt.ylim(0, 1800 if THREAD_SCALE == 'linear' else 6)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
+    print()
 
-print('-------------- Overall')
+print('--- Overall')
 print('Additional thread improvement', end='\t')
 print(f'+{statistics.mean(overall_thread_contributions):>6.2f} (avg)', end='\t')
 print(f'+{statistics.median(overall_thread_contributions):>6.2f} (median)')
