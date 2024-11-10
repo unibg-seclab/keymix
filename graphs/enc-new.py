@@ -25,6 +25,9 @@ IMPLEMENTATIONS = {
 }
 THREADS = 4
 
+# Encryption time/speed vs key size
+RESOURCE_SIZE = 100 * 1024 * 1024 * 1024 # 10 GiB
+
 # Encryption time/speed vs resource size
 MARKERS = ['o', 's', '^', 'D', '*', 'p', 'h', '8', 'v']
 
@@ -54,8 +57,68 @@ df = df[df.internal_threads == THREADS]
 df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
 
-# Encryption time/speed vs resource size (grouped by mode of operation and
-# implementation)
+# Encryption time/speed vs key size
+for enc_mode in ENC_MODES:
+    data = df[(df.enc_mode == enc_mode) & (df.outsize == RESOURCE_SIZE)]
+
+    if data.empty:
+        continue
+
+    # Time
+    plt.figure()
+    labels = []
+    for i, impl in enumerate(IMPLEMENTATIONS):
+        plot_data = data[data.implementation == impl]
+
+        if plot_data.empty:
+            continue
+
+        labels.append(IMPLEMENTATIONS[impl]['name'])
+        grouped = df_groupby(plot_data, 'key_size')
+        xs = [to_mib(x) for x in grouped.key_size]
+        ys = [y for y in grouped.time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+
+    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    plt.xlabel('Key size [MiB]')
+    plt.xscale('log')
+    plt.ylabel('Average time [s]')
+    plt.ylim(bottom=0)
+    plt.savefig(f'graphs/enc-{enc_mode}-primitives-time-by-key-size.pdf', bbox_inches='tight',
+                pad_inches=0)
+    plt.close()
+
+    # Speed
+    plt.figure()
+    labels = []
+    for i, impl in enumerate(IMPLEMENTATIONS):
+        plot_data = data[data.implementation == impl]
+
+        if plot_data.empty:
+            continue
+
+        labels.append(IMPLEMENTATIONS[impl]['name'])
+        grouped = df_groupby(plot_data, 'key_size', agg='inv_time')
+        xs = [to_mib(x) for x in grouped.key_size]
+        ys = [to_mib(RESOURCE_SIZE) * y for y in grouped.inv_time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+
+    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    plt.xlabel('Key size [MiB]')
+    plt.xscale('log')
+    plt.ylabel('Average speed [MiB/s]')
+    plt.ylim(bottom=0)
+    plt.savefig(f'graphs/enc-{enc_mode}-primitives-speed-by-key-size.pdf', bbox_inches='tight',
+                pad_inches=0)
+    plt.close()
+
+# Encryption time/speed vs resource size
 for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     data = df[(df.enc_mode == enc_mode) & (df.implementation == impl)]
 
@@ -105,7 +168,71 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     plt.savefig(f'graphs/enc-{enc_mode}-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
-# Encryption modes time/speed comparison
+# Encryption mixing primitive time/speed comparison vs resource size
+for enc_mode in ENC_MODES:
+    data = df[df.enc_mode == enc_mode]
+
+    if data.empty:
+        continue
+
+    # Time
+    plt.figure()
+    labels = []
+    for i, impl in enumerate(IMPLEMENTATIONS):
+        plot_data = data[data.implementation == impl]
+        key_sizes = sorted(plot_data.key_size.unique())
+        plot_data = plot_data[plot_data.key_size == get_key_size(key_sizes, TARGET_KEY_SIZE)]
+
+        if plot_data.empty:
+            continue
+
+        labels.append(IMPLEMENTATIONS[impl]['name'])
+        grouped = df_groupby(plot_data, 'outsize')
+        xs = [to_mib(x) for x in grouped.outsize]
+        ys = [y for y in grouped.time_mean]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+
+    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    plt.xlabel('File size [MiB]')
+    plt.xscale('log')
+    plt.ylabel('Average time [s]')
+    plt.yscale('log')
+    plt.savefig(f'graphs/enc-{enc_mode}-primitives-time.pdf', bbox_inches='tight',
+                pad_inches=0)
+    plt.close()
+
+    # Speed
+    plt.figure()
+    labels = []
+    for i, impl in enumerate(IMPLEMENTATIONS):
+        plot_data = data[data.implementation == impl]
+        key_sizes = sorted(plot_data.key_size.unique())
+        plot_data = plot_data[plot_data.key_size == get_key_size(key_sizes, TARGET_KEY_SIZE)]
+
+        if plot_data.empty:
+            continue
+
+        labels.append(IMPLEMENTATIONS[impl]['name'])
+        grouped = df_groupby(plot_data, 'outsize', agg='inv_time')
+        xs = [to_mib(x) for x in grouped.outsize]
+        ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
+        # Margins of error with 95% confidence interval
+        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+
+    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    plt.xlabel('File size [MiB]')
+    plt.xscale('log')
+    plt.ylabel('Average speed [MiB/s]')
+    plt.yscale('log')
+    plt.savefig(f'graphs/enc-{enc_mode}-primitives-speed.pdf', bbox_inches='tight', pad_inches=0)
+    plt.close()
+
+# Encryption modes time/speed comparison vs resource size
 for impl in IMPLEMENTATIONS:
     data = df[df.implementation == impl]
     key_sizes = sorted(data.key_size.unique())
@@ -164,68 +291,4 @@ for impl in IMPLEMENTATIONS:
     plt.ylabel('Average speed [MiB/s]')
     plt.yscale('log')
     plt.savefig(f'graphs/enc-modes-{impl}-speed.pdf', bbox_inches='tight', pad_inches=0)
-    plt.close()
-
-# Encryption mixing primitive time/speed comparison
-for enc_mode in ENC_MODES:
-    data = df[df.enc_mode == enc_mode]
-
-    if data.empty:
-        continue
-
-    # Time
-    plt.figure()
-    labels = []
-    for i, impl in enumerate(IMPLEMENTATIONS):
-        plot_data = data[data.implementation == impl]
-        key_sizes = sorted(plot_data.key_size.unique())
-        plot_data = plot_data[plot_data.key_size == get_key_size(key_sizes, TARGET_KEY_SIZE)]
-
-        if plot_data.empty:
-            continue
-        
-        labels.append(impl)
-        grouped = df_groupby(plot_data, 'outsize')
-        xs = [to_mib(x) for x in grouped.outsize]
-        ys = [y for y in grouped.time_mean]
-        # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
-                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
-
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
-    plt.xlabel('File size [MiB]')
-    plt.xscale('log')
-    plt.ylabel('Average time [s]')
-    plt.yscale('log')
-    plt.savefig(f'graphs/enc-{enc_mode}-primitives-time.pdf', bbox_inches='tight',
-                pad_inches=0)
-    plt.close()
-
-    # Speed
-    plt.figure()
-    labels = []
-    for i, impl in enumerate(IMPLEMENTATIONS):
-        plot_data = data[data.implementation == impl]
-        key_sizes = sorted(plot_data.key_size.unique())
-        plot_data = plot_data[plot_data.key_size == get_key_size(key_sizes, TARGET_KEY_SIZE)]
-
-        if plot_data.empty:
-            continue
-
-        labels.append(impl)
-        grouped = df_groupby(plot_data, 'outsize', agg='inv_time')
-        xs = [to_mib(x) for x in grouped.outsize]
-        ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
-        # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
-                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
-
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
-    plt.xlabel('File size [MiB]')
-    plt.xscale('log')
-    plt.ylabel('Average speed [MiB/s]')
-    plt.yscale('log')
-    plt.savefig(f'graphs/enc-{enc_mode}-primitives-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
