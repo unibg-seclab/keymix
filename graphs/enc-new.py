@@ -9,7 +9,6 @@ from common import *
 
 # Common
 FILE = 'data/enc-anthem.csv'
-KEEP_FILES_MIB = [1, 10, 100, 1024, 10240, 102400]
 ENC_MODES = {
     'ctr': {'name': 'Counter', 'color': 'tab:blue', 'marker': 'o'},
     'ctr-opt': {'name': 'Counter \w opt', 'color': 'tab:orange', 'marker': 's'},
@@ -24,11 +23,12 @@ IMPLEMENTATIONS = {
     'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'block_size': 128, 'marker': 'p', 'linestyle': 'dotted', 'color': 'limegreen'},
     'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'block_size': 160, 'marker': 'P', 'linestyle': 'dotted', 'color': 'lightskyblue'},
 }
+THREADS = 4
 
 # Encryption time/speed vs resource size
 MARKERS = ['o', 's', '^', 'D', '*', 'p', 'h', '8', 'v']
 
-# Encryption modes time/speed comparison
+# Encryption modes and mixing primitive time/speed comparison
 TARGET_KEY_SIZE = 256 * 1024 * 1024
 
 
@@ -50,8 +50,7 @@ def get_key_size_string(key_size):
 
 
 df = pd.read_csv(FILE)
-df['outsize_mib'] = to_mib(df.outsize)
-df = df[df.outsize_mib.isin(KEEP_FILES_MIB)]
+df = df[df.internal_threads == THREADS]
 df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
 
