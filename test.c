@@ -221,7 +221,7 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
         }
 
         uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64};
-        uint8_t threads_count = 7;
+        uint8_t threads_count = sizeof(threads) / sizeof(uint8_t);
 
         size_t file_sizes[]     = {SIZE_1MiB, 10 * SIZE_1MiB, 100 * SIZE_1MiB,
                                    SIZE_1GiB, 10 * SIZE_1GiB, 100 * SIZE_1GiB};
@@ -306,7 +306,7 @@ int main(int argc, char *argv[]) {
         uint8_t key_sizes_count;
 
         uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64};
-        uint8_t threads_count = 7;
+        uint8_t threads_count = sizeof(threads) / sizeof(uint8_t);
 
         ctx_t ctx;
 
@@ -368,16 +368,31 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        do_encryption_tests(ENC_MODE_CTR, XKCP_TURBOSHAKE_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
-        do_encryption_tests(ENC_MODE_CTR_OPT, XKCP_TURBOSHAKE_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR_OPT, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR_OPT, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
-        do_encryption_tests(ENC_MODE_CTR_CTR, XKCP_TURBOSHAKE_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR_CTR, OPENSSL_MATYAS_MEYER_OSEAS_128, NONE);
-        do_encryption_tests(ENC_MODE_CTR_CTR, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
-        do_encryption_tests(ENC_MODE_OFB, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
+        enc_mode_t enc_modes[] = {ENC_MODE_CTR, ENC_MODE_CTR_OPT, ENC_MODE_CTR_CTR,
+                                  ENC_MODE_OFB};
+
+        // Run encryption modes with a mixing function (i.e., no one-way mixing)
+        mix_t enc_mix_types[] = {OPENSSL_MATYAS_MEYER_OSEAS_128, WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+                                 AESNI_MIXCTR, XKCP_TURBOSHAKE_128, XKCP_TURBOSHAKE_256};
+        for (int i = 0; i < sizeof(enc_modes) / sizeof(enc_mode_t) - 1; i++) {
+                enc_mode_t enc_mode = enc_modes[i];
+                for (int j = 0; j < sizeof(enc_mix_types) / sizeof(mix_t); j++) {
+                        mix_t mix_type = enc_mix_types[j];
+                        do_encryption_tests(enc_mode, mix_type, NONE);
+                }
+        }
+
+        // Run encryption modes with the OpenSSL AES-128-ECB mixing function and
+        // another one-way mixing function
+        mix_t one_way_mix_types[] = {OPENSSL_MATYAS_MEYER_OSEAS_128,
+                                     WOLFCRYPT_MATYAS_MEYER_OSEAS_128, XKCP_TURBOSHAKE_256};
+        for (int i = 0; i < sizeof(enc_modes) / sizeof(enc_mode_t); i++) {
+                enc_mode_t enc_mode = enc_modes[i];
+                for (int j = 0; j < sizeof(one_way_mix_types) / sizeof(mix_t); j++) {
+                        mix_t one_way_mix_type = one_way_mix_types[j];
+                        do_encryption_tests(enc_mode, OPENSSL_AES_128, one_way_mix_type);
+                }
+        }
 
         fclose(fout);
         fout = NULL;
