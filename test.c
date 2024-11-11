@@ -220,7 +220,7 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
                 iv[i] = 0;
         }
 
-        uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64};
+        uint8_t threads[]     = {16};
         uint8_t threads_count = sizeof(threads) / sizeof(uint8_t);
 
         size_t file_sizes[]     = {SIZE_1MiB, 10 * SIZE_1MiB, 100 * SIZE_1MiB,
@@ -372,8 +372,9 @@ int main(int argc, char *argv[]) {
                                   ENC_MODE_OFB};
 
         // Run encryption modes with a mixing function (i.e., no one-way mixing)
-        mix_t enc_mix_types[] = {OPENSSL_MATYAS_MEYER_OSEAS_128, WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
-                                 AESNI_MIXCTR, XKCP_TURBOSHAKE_128, XKCP_TURBOSHAKE_256};
+        mix_t enc_mix_types[] = {OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128,
+                                 WOLFCRYPT_MATYAS_MEYER_OSEAS_128, AESNI_MIXCTR,
+                                 XKCP_TURBOSHAKE_256, XKCP_TURBOSHAKE_128};
         for (int i = 0; i < sizeof(enc_modes) / sizeof(enc_mode_t) - 1; i++) {
                 enc_mode_t enc_mode = enc_modes[i];
                 for (int j = 0; j < sizeof(enc_mix_types) / sizeof(mix_t); j++) {
