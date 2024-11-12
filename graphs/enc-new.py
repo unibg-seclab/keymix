@@ -23,10 +23,10 @@ IMPLEMENTATIONS = {
     'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'block_size': 128, 'marker': 'p', 'linestyle': 'dotted', 'color': 'limegreen'},
     'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'block_size': 160, 'marker': 'P', 'linestyle': 'dotted', 'color': 'lightskyblue'},
 }
-THREADS = 4
+THREADS = 16
 
 # Encryption time/speed vs key size
-RESOURCE_SIZE = 100 * 1024 * 1024 * 1024 # 10 GiB
+RESOURCE_SIZE = 100 * 1024 * 1024 * 1024 # 100 GiB
 
 # Encryption time/speed vs resource size
 MARKERS = ['o', 's', '^', 'D', '*', 'p', 'h', '8', 'v']
@@ -80,6 +80,7 @@ for enc_mode in ENC_MODES:
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
     pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
@@ -107,6 +108,7 @@ for enc_mode in ENC_MODES:
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
     pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
@@ -193,6 +195,7 @@ for enc_mode in ENC_MODES:
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
     pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
@@ -222,6 +225,7 @@ for enc_mode in ENC_MODES:
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
     pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
