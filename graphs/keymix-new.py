@@ -48,6 +48,19 @@ df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
 fanouts = sorted(df.fanout.unique())
 
+# Keymix legend
+impls = [impl for impl in df.implementation.unique() if impl in IMPLS]
+legend = [IMPLS[impl]['name'] for impl in impls]
+sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
+legend.sort()
+plt.figure()
+for i in sorted_idx:
+    impl = impls[i]
+    plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLS[impl]['color'],
+                 linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
+pltlegend(plt, legend, width=4, ncol=7)
+plt.close()
+
 # Keymix time/speed vs key size (grouped by fanouts)
 for fanout in fanouts:
     df_fanout = df[df.fanout == fanout]
@@ -70,7 +83,7 @@ for fanout in fanouts:
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                      linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
+    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -138,7 +151,7 @@ for fanout in fanouts:
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                      linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
+    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Number of threads')
     plt.xscale(THREAD_SCALE)
     plt.xticks(ticks=xs)
@@ -186,7 +199,7 @@ for fanout in fanouts:
             if thr > 1:
                 overall_thread_contributions.append(thread_contribution)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
+    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Number of threads')
     plt.xscale(THREAD_SCALE)
     plt.xticks(ticks=xs)
