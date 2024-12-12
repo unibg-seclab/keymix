@@ -7,7 +7,7 @@ import pandas as pd
 from common import *
 
 IMPLS = {
-    'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
+    # 'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
     # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 'v', 'linestyle': 'solid', 'color': 'orange'},
     # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'solid', 'color': 'green'},
     # 'openssl-new-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': '^', 'linestyle': 'dashdot', 'color': 'green'},
@@ -95,11 +95,11 @@ for fanout in fanouts:
         plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                      linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2)
+    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 250)
+    plt.ylim(0, 200)
     plt.savefig(f'graphs/keymix-f{fanout}-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
@@ -194,7 +194,7 @@ for fanout in fanouts:
     ax = plt.gca()
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel(f'Average speed [{unit}/s]')
-    plt.ylim(0, 1800 if THREAD_SCALE == 'linear' else 6)
+    plt.ylim(0, 1800 if THREAD_SCALE == 'linear' else 4)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-speed.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
     print()
