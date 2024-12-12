@@ -122,7 +122,7 @@ for fanout in fanouts:
         # Select 1st key sizes grater or equal to the target key size for the
         # given fanout and implementation pair
         size = IMPLS[impl]['block_size']
-        while (size <= TARGET_KEY_SIZE):
+        while (size < TARGET_KEY_SIZE):
             size *= fanout
 
         data = df_fanout[(df_fanout.implementation == impl) & (df_fanout.key_size == size)]
@@ -146,7 +146,7 @@ for fanout in fanouts:
     ax = plt.gca()
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel('Average time [s]')
-    plt.ylim(0, 105)
+    plt.ylim(0, 50)
     plt.savefig(f'graphs/keymix-f{fanout}-threading-time.pdf', bbox_inches='tight', pad_inches=0)
     plt.close()
 
