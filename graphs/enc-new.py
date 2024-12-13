@@ -83,7 +83,7 @@ for enc_mode in ENC_MODES:
                      linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -111,7 +111,7 @@ for enc_mode in ENC_MODES:
                      linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -198,7 +198,7 @@ for enc_mode in ENC_MODES:
                      linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -228,7 +228,7 @@ for enc_mode in ENC_MODES:
                      linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                      marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
 
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
