@@ -44,7 +44,8 @@ IMPLS = {
 FILE = os.path.realpath(os.path.join(__file__, '..', '..', 'data',
                                      'out-anthem-to-128-threads.csv')) # out-anthem.csv
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
-THREAD_SCALE = 'log' # linear
+X_THREAD_SCALE = 'log' # linear
+Y_THREAD_SCALE = 'log' # linear
 TARGET_KEY_SIZE = 256 * 1024 * 1024
 
 df = pd.read_csv(FILE)
@@ -125,8 +126,8 @@ for fanout in fanouts:
     plt.close()
 
 # Keymix time/speed vs #threads (grouped by fanout)
-unit = 'MiB' if THREAD_SCALE == 'linear' else 'GiB'
-to_unit = to_mib if THREAD_SCALE == 'linear' else to_gib
+unit = 'MiB' if X_THREAD_SCALE == 'linear' or Y_THREAD_SCALE == 'log' else 'GiB'
+to_unit = to_mib if X_THREAD_SCALE == 'linear' or Y_THREAD_SCALE == 'log' else to_gib
 
 overall_thread_contributions = []
 for fanout in fanouts:
@@ -161,13 +162,15 @@ for fanout in fanouts:
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Number of threads')
-    plt.xscale(THREAD_SCALE)
+    plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
     plt.xticks(minor=True, ticks=[])
     ax = plt.gca()
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel('Average time [s]')
-    plt.ylim(0, 50)
+    plt.ylim(bottom=0 if Y_THREAD_SCALE == 'linear' else 10**-1,
+             top=50 if Y_THREAD_SCALE == 'linear' else 10**2)
+    plt.yscale(Y_THREAD_SCALE)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-threading-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -210,14 +213,15 @@ for fanout in fanouts:
 
     pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Number of threads')
-    plt.xscale(THREAD_SCALE)
+    plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
     plt.xticks(minor=True, ticks=[])
     ax = plt.gca()
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel(f'Average speed [{unit}/s]')
-    plt.ylim(top=1800 if THREAD_SCALE == 'linear' else 4)
-    # plt.yscale('log')
+    plt.ylim(bottom=0 if Y_THREAD_SCALE == 'linear' else 1,
+             top=1800 if X_THREAD_SCALE == 'linear' else (10**4 if Y_THREAD_SCALE == 'log' else 4))
+    plt.yscale(Y_THREAD_SCALE)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-threading-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
