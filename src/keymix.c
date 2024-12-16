@@ -34,7 +34,19 @@ typedef struct {
 // --------------------------------------------------------- Some utility functions
 
 int get_fanouts_from_block_size(block_size_t block_size, uint8_t n, uint8_t *fanouts) {
-        uint8_t chunk_size = (block_size == 16 ? 8 : 16);
+        uint8_t chunk_size;
+        switch (block_size) {
+        case 16:
+                chunk_size = 8;
+                break;
+        case 48:
+                chunk_size = 12;
+                break;
+        default:
+                chunk_size = 16;
+                break;
+        }
+
         uint8_t count = 0;
 
         for (uint8_t fanout = block_size / chunk_size; fanout >= 2; fanout--) {
