@@ -61,6 +61,25 @@ df = df[df.internal_threads == THREADS]
 df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
 
+# Encryption legend
+impls = [impl for impl in df.implementation.unique() if impl in IMPLEMENTATIONS]
+legend = [IMPLEMENTATIONS[impl]['name'] for impl in impls]
+sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
+legend.sort()
+
+handles = []
+plt.figure()
+for i in sorted_idx:
+    impl = impls[i]
+    handle = plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                          linestyle=IMPLEMENTATIONS[impl]['linestyle'],
+                          marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+    handles.append(handle)
+
+obj = pltlegend(plt, handles, legend, width=2.3, ncol=4)
+export_legend(obj, os.path.join(OUTDIR, f'enc-legend.pdf'))
+plt.close()
+
 # Encryption time/speed vs key size
 for enc_mode in ENC_MODES:
     data = df[(df.enc_mode == enc_mode) & (df.outsize == RESOURCE_SIZE)]
@@ -89,7 +108,7 @@ for enc_mode in ENC_MODES:
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -119,7 +138,7 @@ for enc_mode in ENC_MODES:
                                marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -214,7 +233,7 @@ for enc_mode in ENC_MODES:
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -246,7 +265,7 @@ for enc_mode in ENC_MODES:
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')

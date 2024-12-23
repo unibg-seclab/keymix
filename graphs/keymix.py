@@ -70,7 +70,7 @@ for i in sorted_idx:
     handles.append(handle)
 
 obj = pltlegend(plt, handles, legend, width=4, ncol=7)
-export_legend(obj, os.path.join(OUTDIR, f'legend.pdf'))
+export_legend(obj, os.path.join(OUTDIR, f'keymix-legend.pdf'))
 plt.close()
 
 # Keymix time/speed vs key size (grouped by fanouts)
