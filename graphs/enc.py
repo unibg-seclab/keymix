@@ -70,6 +70,7 @@ for enc_mode in ENC_MODES:
 
     # Time
     plt.figure()
+    handles = []
     labels = []
     for i, impl in enumerate(IMPLEMENTATIONS):
         plot_data = data[data.implementation == impl]
@@ -83,11 +84,12 @@ for enc_mode in ENC_MODES:
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
-                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
-                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                              linestyle=IMPLEMENTATIONS[impl]['linestyle'],
+                              marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -98,6 +100,7 @@ for enc_mode in ENC_MODES:
 
     # Speed
     plt.figure()
+    handles = []
     labels = []
     for i, impl in enumerate(IMPLEMENTATIONS):
         plot_data = data[data.implementation == impl]
@@ -111,11 +114,12 @@ for enc_mode in ENC_MODES:
         ys = [to_mib(RESOURCE_SIZE) * y for y in grouped.inv_time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
-                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
-                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                               linestyle=IMPLEMENTATIONS[impl]['linestyle'],
+                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -137,15 +141,17 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
 
     # Time
     plt.figure()
+    handles = []
     for i, size in enumerate(key_sizes):
         grouped = df_groupby(data[data.key_size == size], 'outsize')
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, labels, x0=-0.23, width=1.3)
+    pltlegend(plt, handles, labels, x0=-0.23, width=1.3)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -156,6 +162,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
 
     # Speed
     plt.figure()
+    handles = []
     print(f'--- {enc_mode} encryption speeds with {impl}')
     for i, size in enumerate(key_sizes):
         grouped = df_groupby(data[data.key_size == size], 'outsize', agg='inv_time')
@@ -163,11 +170,12 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
+        handles.append(handle)
         max_speed = max(ys)
         print(f'Key size = {to_mib(size):.1f} MiB \tMax speed = {max_speed} MiB/s')
 
-    pltlegend(plt, labels, x0=-0.23, width=1.3)
+    pltlegend(plt, handles, labels, x0=-0.23, width=1.3)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -185,6 +193,7 @@ for enc_mode in ENC_MODES:
 
     # Time
     plt.figure()
+    handles = []
     labels = []
     for i, impl in enumerate(IMPLEMENTATIONS):
         plot_data = data[data.implementation == impl]
@@ -200,11 +209,12 @@ for enc_mode in ENC_MODES:
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
-                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
-                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                              linestyle=IMPLEMENTATIONS[impl]['linestyle'],
+                              marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -215,6 +225,7 @@ for enc_mode in ENC_MODES:
 
     # Speed
     plt.figure()
+    handles = []
     labels = []
     for i, impl in enumerate(IMPLEMENTATIONS):
         plot_data = data[data.implementation == impl]
@@ -230,11 +241,12 @@ for enc_mode in ENC_MODES:
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
-                     linestyle=IMPLEMENTATIONS[impl]['linestyle'],
-                     marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                              linestyle=IMPLEMENTATIONS[impl]['linestyle'],
+                              marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, labels, x0=-0.22, width=1.3, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -255,6 +267,7 @@ for impl in IMPLEMENTATIONS:
 
     # Time
     plt.figure()
+    handles = []
     labels = []
     for i, enc_mode in enumerate(ENC_MODES):
         line_data = plot_data[plot_data.enc_mode == enc_mode]
@@ -267,10 +280,11 @@ for impl in IMPLEMENTATIONS:
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
-                     marker=ENC_MODES[enc_mode]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
+                              marker=ENC_MODES[enc_mode]['marker'], markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.18, width=1.2, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -281,6 +295,7 @@ for impl in IMPLEMENTATIONS:
 
     # Speed
     plt.figure()
+    handles = []
     labels = []
     for i, enc_mode in enumerate(ENC_MODES):
         line_data = plot_data[plot_data.enc_mode == enc_mode]
@@ -293,10 +308,11 @@ for impl in IMPLEMENTATIONS:
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
-                     marker=ENC_MODES[enc_mode]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
+                              marker=ENC_MODES[enc_mode]['marker'], markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, labels, x0=-0.18, width=1.2, ncol=2)
+    pltlegend(plt, handles, labels, x0=-0.18, width=1.2, ncol=2)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')

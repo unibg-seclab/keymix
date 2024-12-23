@@ -1,4 +1,5 @@
 import matplotlib
+from matplotlib import container
 
 matplotlib.rc('font', size=18, family=['NewComputerModern08', 'sans-serif'])
 matplotlib.rc('pdf', fonttype=42)
@@ -18,13 +19,16 @@ def export_legend(legend, filename):
     bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi='figure', bbox_inches=bbox)
 
-def pltlegend(plt, labels, x0=0, width=1, is_with_legend=True, ncol=3):
+def pltlegend(plt, handles, labels, x0=0, width=1, is_with_legend=True, ncol=3):
     if not is_with_legend:
         return
 
+    # Remove errorbar
+    handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
+
     y0 = 1.02
     height = 0.2
-    legend = plt.legend(labels,
+    legend = plt.legend(handles, labels,
                         frameon=False,
                         mode='expand',
                         bbox_to_anchor=(x0, y0, width, height),

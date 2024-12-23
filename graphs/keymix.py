@@ -59,12 +59,17 @@ impls = [impl for impl in df.implementation.unique() if impl in IMPLS]
 legend = [IMPLS[impl]['name'] for impl in impls]
 sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
 legend.sort()
+
+handles = []
 plt.figure()
 for i in sorted_idx:
     impl = impls[i]
-    plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLS[impl]['color'],
-                 linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
-obj = pltlegend(plt, legend, width=4, ncol=7)
+    handle = plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLS[impl]['color'],
+                          linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
+                          markersize=8)
+    handles.append(handle)
+
+obj = pltlegend(plt, handles, legend, width=4, ncol=7)
 export_legend(obj, os.path.join(OUTDIR, f'legend.pdf'))
 plt.close()
 
@@ -75,6 +80,7 @@ for fanout in fanouts:
     legend = [IMPLS[impl]['name'] for impl in impls if impl in IMPLS]
 
     # Time
+    handles = []
     plt.figure()
     for impl in impls:
         if impl not in IMPLS:
@@ -87,10 +93,12 @@ for fanout in fanouts:
         ys = [y for y in data.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in data.time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
-                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                              linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
+                              markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -101,6 +109,7 @@ for fanout in fanouts:
     plt.close()
 
     # Speed
+    handles = []
     plt.figure()
     for impl in impls:
         if impl not in IMPLS:
@@ -113,10 +122,12 @@ for fanout in fanouts:
         ys = [x * y for x, y in zip(xs, data.inv_time_mean)]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
-                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                              linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
+                              markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -136,6 +147,7 @@ for fanout in fanouts:
     legend = [IMPLS[impl]['name'] for impl in impls if impl in IMPLS]
 
     # Time
+    handles = []
     plt.figure()
     for impl in impls:
         if impl not in IMPLS:
@@ -157,10 +169,12 @@ for fanout in fanouts:
         ys = [y for y in data.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in data.time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
-                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                              linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
+                              markersize=8)
+        handles.append(handle)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
@@ -176,6 +190,7 @@ for fanout in fanouts:
     plt.close()
 
     # Speed
+    handles = []
     plt.figure()
     print('--- Fanout', fanout)
     for impl in impls:
@@ -198,8 +213,10 @@ for fanout in fanouts:
         ys = [to_unit(size) * y for y in data.inv_time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std]
-        plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
-                     linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
+                              linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
+                              markersize=8)
+        handles.append(handle)
 
         print(f'=== {impl} ({to_mib(size):.1f} MiB)')
         for thr, speed in zip(xs, ys):
@@ -211,7 +228,7 @@ for fanout in fanouts:
             if thr > 1:
                 overall_thread_contributions.append(thread_contribution)
 
-    pltlegend(plt, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
