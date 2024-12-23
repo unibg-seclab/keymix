@@ -45,7 +45,7 @@ FILE = os.path.realpath(os.path.join(__file__, '..', '..', 'data',
                                      'out-anthem-to-128-threads.csv')) # out-anthem.csv
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
 X_THREAD_SCALE = 'log' # linear
-Y_THREAD_SCALE = 'log' # linear
+Y_THREAD_SCALE = 'linear' # log
 TARGET_KEY_SIZE = 256 * 1024 * 1024
 
 df = pd.read_csv(FILE)
