@@ -5,7 +5,9 @@ import math
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from matplotlib.collections import LineCollection
 
 from common import *
 
@@ -160,20 +162,32 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
 
     # Time
     plt.figure()
-    handles = []
+    lines = []
     for i, size in enumerate(key_sizes):
         grouped = df_groupby(data[data.key_size == size], 'outsize')
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
-        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
-        handles.append(handle)
+        line = np.column_stack((xs, ys))
+        lines.append(line)
 
-    pltlegend(plt, handles, labels, x0=-0.23, width=1.3)
+    # Draw collection of lines colored based on the color map
+    line_collection = LineCollection(lines, array=key_sizes_in_mib, cmap="viridis",
+                                     norm=matplotlib.colors.LogNorm(vmin=8, vmax=2e4))
+    plt.gca().add_collection(line_collection)
+
+    # Draw markers colored based on the color map
+    x = [t[0] for l in lines for t in l]
+    y = [t[1] for l in lines for t in l]
+    c = [key_sizes_in_mib[i] for i, l in enumerate(lines) for t in l]
+    plt.scatter(x, y, c=c, cmap="viridis", norm=matplotlib.colors.LogNorm(vmin=8, vmax=2e4))
+
+    plt.colorbar(line_collection, label="Key size [MiB]")
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
+    plt.ylim(bottom=8e-3, top=5e2)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
@@ -181,23 +195,35 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
 
     # Speed
     plt.figure()
-    handles = []
+    lines = []
     print(f'--- {enc_mode} encryption speeds with {impl}')
     for i, size in enumerate(key_sizes):
         grouped = df_groupby(data[data.key_size == size], 'outsize', agg='inv_time')
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
-        # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
-        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
-        handles.append(handle)
+        # # Margins of error with 95% confidence interval
+        # errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        line = np.column_stack((xs, ys))
+        lines.append(line)
         max_speed = max(ys)
         print(f'Key size = {to_mib(size):.1f} MiB \tMax speed = {max_speed} MiB/s')
 
-    pltlegend(plt, handles, labels, x0=-0.23, width=1.3)
+    # Draw collection of lines colored based on the color map
+    line_collection = LineCollection(lines, array=key_sizes_in_mib, cmap="viridis",
+                                     norm=matplotlib.colors.LogNorm(vmin=8, vmax=2e4))
+    plt.gca().add_collection(line_collection)
+
+    # Draw markers colored based on the color map
+    x = [t[0] for l in lines for t in l]
+    y = [t[1] for l in lines for t in l]
+    c = [key_sizes_in_mib[i] for i, l in enumerate(lines) for t in l]
+    plt.scatter(x, y, c=c, cmap="viridis", norm=matplotlib.colors.LogNorm(vmin=8, vmax=2e4))
+
+    plt.colorbar(line_collection, label="Key size [MiB]")
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
+    plt.ylim(bottom=2e-2, top=2e3)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
