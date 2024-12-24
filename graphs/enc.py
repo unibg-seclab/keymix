@@ -200,7 +200,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(bottom=1e-3, top=1e3)
+    plt.ylim(bottom=1e-3, top=2e3)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
