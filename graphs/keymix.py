@@ -59,19 +59,16 @@ fanouts = sorted(df.fanout.unique())
 if not IS_WITH_LEGEND:
     impls = [impl for impl in df.implementation.unique() if impl in IMPLS]
     legend = [IMPLS[impl]['name'] for impl in impls]
-    sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
-    legend.sort()
 
     handles = []
     plt.figure()
-    for i in sorted_idx:
-        impl = impls[i]
+    for impl in impls:
         handle = plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLS[impl]['color'],
-                            linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
-                            markersize=8)
+                              linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
+                              markersize=8)
         handles.append(handle)
 
-    obj = pltlegend(plt, handles, legend, width=4, ncol=7, inside=False)
+    obj = pltlegend(plt, handles, legend, width=4, ncol=7, inside=False, to_sort=True)
     export_legend(obj, os.path.join(OUTDIR, f'keymix-legend.pdf'))
     plt.close()
 
@@ -101,7 +98,7 @@ for fanout in fanouts:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
     plt.xlabel('Key size [MiB]')
     plt.xlim(6, 3e4)
     plt.xscale('log')
@@ -132,7 +129,7 @@ for fanout in fanouts:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
     plt.xlabel('Key size [MiB]')
     plt.xlim(6, 3e4)
     plt.xscale('log')
@@ -181,7 +178,7 @@ for fanout in fanouts:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
@@ -236,7 +233,7 @@ for fanout in fanouts:
                 overall_thread_contributions.append(thread_contribution)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)

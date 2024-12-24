@@ -19,11 +19,16 @@ def export_legend(legend, filename):
     bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi='figure', bbox_inches=bbox)
 
-def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=True, loc='best'):
+def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=True, loc='best',
+              to_sort=False):
     mode = 'expand' if expand else None
 
     # Remove errorbar
     handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
+
+    if to_sort:
+        # Sort both labels and handles by labels
+        labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: t[0]))
 
     if inside:
         legend = plt.legend(handles, labels, handlelength=1.5, mode=mode, ncol=ncol, loc=loc)
