@@ -19,22 +19,20 @@ def export_legend(legend, filename):
     bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi='figure', bbox_inches=bbox)
 
-def pltlegend(plt, handles, labels, x0=0, width=1, is_with_legend=True, ncol=3):
-    if not is_with_legend:
-        return
+def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=True, loc='best'):
+    mode = 'expand' if expand else None
 
     # Remove errorbar
     handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
 
-    y0 = 1.02
-    height = 0.2
-    legend = plt.legend(handles, labels,
-                        frameon=False,
-                        mode='expand',
-                        bbox_to_anchor=(x0, y0, width, height),
-                        ncol=ncol,
-                        handlelength=1.5,
-                        loc='lower left')
+    if inside:
+        legend = plt.legend(handles, labels, handlelength=1.5, mode=mode, ncol=ncol, loc=loc)
+    else:
+        y0 = 1.02
+        height = 0.2
+        legend = plt.legend(handles, labels, bbox_to_anchor=(x0, y0, width, height), frameon=False,
+                            handlelength=1.5, loc='lower left', mode=mode, ncol=ncol)
+
     return legend
 
 def df_filter(df, impl, fanout):

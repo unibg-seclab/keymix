@@ -20,12 +20,12 @@ ENC_MODES = {
     'ofb': {'name': 'Output Feedback', 'color': 'tab:red', 'marker': 'D'}
 }
 IMPLEMENTATIONS = {
-    # 'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
-    # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': 's', 'linestyle': 'solid', 'color': 'green'},
-    'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'green'},
-    'aes-ni-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
-    'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'block_size': 128, 'marker': 'P', 'linestyle': 'dotted', 'color': 'limegreen'},
-    'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'block_size': 160, 'marker': 'X', 'linestyle': 'dotted', 'color': 'lightskyblue'},
+    # 'openssl-aes-128': {'name': 'AES-128-ECB', 'short-name': 'AES', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
+    # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'solid', 'color': 'green'},
+    'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'green'},
+    'aes-ni-mixctr': {'name': 'MixCtr', 'short-name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
+    'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'short-name': 'TSHAKE256', 'block_size': 128, 'marker': 'P', 'linestyle': 'dotted', 'color': 'limegreen'},
+    'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'short-name': 'TSHAKE128', 'block_size': 160, 'marker': 'X', 'linestyle': 'dotted', 'color': 'lightskyblue'},
 }
 THREADS = 16
 
@@ -36,6 +36,7 @@ RESOURCE_SIZE = 100 * 1024 * 1024 * 1024 # 100 GiB
 MARKERS = ['o', 's', '^', 'D', '*', 'p', 'h', '8', 'v']
 
 # Encryption modes and mixing primitive time/speed comparison
+IS_WITH_LEGEND = True
 TARGET_KEY_SIZE = 256 * 1024 * 1024
 
 
@@ -62,23 +63,24 @@ df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
 
 # Encryption legend
-impls = [impl for impl in df.implementation.unique() if impl in IMPLEMENTATIONS]
-legend = [IMPLEMENTATIONS[impl]['name'] for impl in impls]
-sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
-legend.sort()
+if not IS_WITH_LEGEND:
+    impls = [impl for impl in df.implementation.unique() if impl in IMPLEMENTATIONS]
+    legend = [IMPLEMENTATIONS[impl]['name'] for impl in impls]
+    sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
+    legend.sort()
 
-handles = []
-plt.figure()
-for i in sorted_idx:
-    impl = impls[i]
-    handle = plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
-                          linestyle=IMPLEMENTATIONS[impl]['linestyle'],
-                          marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
-    handles.append(handle)
+    handles = []
+    plt.figure()
+    for i in sorted_idx:
+        impl = impls[i]
+        handle = plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
+                            linestyle=IMPLEMENTATIONS[impl]['linestyle'],
+                            marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
+        handles.append(handle)
 
-obj = pltlegend(plt, handles, legend, width=2.3, ncol=4)
-export_legend(obj, os.path.join(OUTDIR, f'enc-legend.pdf'))
-plt.close()
+    obj = pltlegend(plt, handles, legend, width=2.3, ncol=4, inside=False)
+    export_legend(obj, os.path.join(OUTDIR, f'enc-legend.pdf'))
+    plt.close()
 
 # Encryption time/speed vs key size
 for enc_mode in ENC_MODES:
@@ -97,7 +99,7 @@ for enc_mode in ENC_MODES:
         if plot_data.empty:
             continue
 
-        labels.append(IMPLEMENTATIONS[impl]['name'])
+        labels.append(IMPLEMENTATIONS[impl]['short-name'])
         grouped = df_groupby(plot_data, 'key_size')
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [y for y in grouped.time_mean]
@@ -108,7 +110,8 @@ for enc_mode in ENC_MODES:
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -127,7 +130,7 @@ for enc_mode in ENC_MODES:
         if plot_data.empty:
             continue
 
-        labels.append(IMPLEMENTATIONS[impl]['name'])
+        labels.append(IMPLEMENTATIONS[impl]['short-name'])
         grouped = df_groupby(plot_data, 'key_size', agg='inv_time')
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [to_mib(RESOURCE_SIZE) * y for y in grouped.inv_time_mean]
@@ -138,7 +141,8 @@ for enc_mode in ENC_MODES:
                                marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -170,10 +174,11 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.23, width=1.3)
+    pltlegend(plt, handles, labels, x0=-0.23, width=1.3, ncol=2, expand=False, loc='upper left')
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
+    plt.ylim(bottom=1e-3, top=1e7)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
@@ -194,10 +199,11 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         max_speed = max(ys)
         print(f'Key size = {to_mib(size):.1f} MiB \tMax speed = {max_speed} MiB/s')
 
-    pltlegend(plt, handles, labels, x0=-0.23, width=1.3)
+    pltlegend(plt, handles, labels, x0=-0.23, width=1.3, ncol=2, expand=False, loc='lower right')
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
+    plt.ylim(bottom=1e-3, top=1e3)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
@@ -233,7 +239,8 @@ for enc_mode in ENC_MODES:
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, expand=False)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -265,7 +272,8 @@ for enc_mode in ENC_MODES:
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, expand=False)
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')

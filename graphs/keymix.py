@@ -10,43 +10,44 @@ import pandas as pd
 from common import *
 
 IMPLS = {
-    # 'openssl-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
-    # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 's', 'linestyle': 'solid', 'color': 'orange'},
-    # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': 'D', 'linestyle': 'solid', 'color': 'green'},
-    # 'openssl-new-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': 'D', 'linestyle': 'dashdot', 'color': 'green'},
-    # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'block_size': 16, 'marker': 'o', 'linestyle': 'dashed', 'color': 'royalblue'},
-    'wolfcrypt-davies-meyer': {'name': 'Davies-Meyer', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'orange'},
-    'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'block_size': 16, 'marker': 'D', 'linestyle': 'dashed', 'color': 'green'},
-    # 'openssl-sha3-256': {'name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'solid', 'color': 'red'},
-    'openssl-blake2s': {'name': 'BLAKE2s', 'block_size': 32, 'marker': '1', 'linestyle': 'solid', 'color': 'purple'},
-    'wolfcrypt-sha3-256': {'name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'dashed', 'color': 'red'},
-    # 'wolfcrypt-blake2s': {'name': 'BLAKE2s', 'block_size': 32, 'marker': '1', 'linestyle': 'dashed', 'color': 'purple'},
-    'blake3-blake3': {'name': 'BLAKE3', 'block_size': 32, 'marker': '2', 'linestyle': 'dotted', 'color': 'brown'},
-    'aes-ni-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '*', 'linestyle': 'dotted', 'color': 'pink'},
-    # 'openssl-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '*', 'linestyle': 'solid', 'color': 'pink'},
-    # 'wolfcrypt-mixctr': {'name': 'MixCtr', 'block_size': 48, 'marker': '*', 'linestyle': 'dashed', 'color': 'pink'},
-    # 'openssl-sha3-512': {'name': 'SHA3-512', 'block_size': 64, 'marker': '>', 'linestyle': 'solid', 'color': 'grey'},
-    'openssl-blake2b': {'name': 'BLAKE2b', 'block_size': 64, 'marker': '3', 'linestyle': 'solid', 'color': 'olive'},
-    'wolfcrypt-sha3-512': {'name': 'SHA3-512', 'block_size': 64, 'marker': '>', 'linestyle': 'dashed', 'color': 'grey'},
-    # 'wolfcrypt-blake2b': {'name': 'BLAKE2b', 'block_size': 64, 'marker': '3', 'linestyle': 'dashed', 'color': 'olive'},
-    # 'xkcp-xoodyak': {'name': 'Xoodyak', 'block_size': 48, 'marker': 'p', 'linestyle': 'dotted', 'color': 'cyan'},
-    # 'xkcp-xoofff-wbc': {'name': 'Xoofff-WBC', 'block_size': 48, 'marker': 'h', 'linestyle': 'dotted', 'color': 'lightcoral'},
-    # 'openssl-shake256': {'name': 'SHAKE256', 'block_size': 128, 'marker': '^', 'linestyle': 'solid', 'color': 'gold'},
-    'wolfcrypt-shake256': {'name': 'SHAKE256', 'block_size': 128, 'marker': '^', 'linestyle': 'dashed', 'color': 'gold'},
-    'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'block_size': 128, 'marker': 'P', 'linestyle': 'dotted', 'color': 'limegreen'},
-    # 'openssl-shake128': {'name': 'SHAKE128', 'block_size': 160, 'marker': 'v', 'linestyle': 'solid', 'color': 'turquoise'},
-    'wolfcrypt-shake128': {'name': 'SHAKE128', 'block_size': 160, 'marker': 'v', 'linestyle': 'dashed', 'color': 'turquoise'},
-    'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'block_size': 160, 'marker': 'X', 'linestyle': 'dotted', 'color': 'lightskyblue'},
-    'xkcp-kangarootwelve': {'name': 'KangarooTwelve', 'block_size': 160, 'marker': 'x', 'linestyle': 'dotted', 'color': 'navy'},
-    # 'xkcp-kravette-wbc': {'name': 'Kravette-WBC', 'block_size': 192, 'marker': '8', 'linestyle': 'dotted', 'color': 'magenta'},
+    # 'openssl-aes-128': {'name': 'AES-128-ECB', 'short-name': 'AES','block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
+    # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'short-name': 'AES DM','block_size': 16, 'marker': 's', 'linestyle': 'solid', 'color': 'orange'},
+    # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO','block_size': 16, 'marker': 'D', 'linestyle': 'solid', 'color': 'green'},
+    # 'openssl-new-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO','block_size': 16, 'marker': 'D', 'linestyle': 'dashdot', 'color': 'green'},
+    # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'short-name': 'AES','block_size': 16, 'marker': 'o', 'linestyle': 'dashed', 'color': 'royalblue'},
+    'wolfcrypt-davies-meyer': {'name': 'Davies-Meyer', 'short-name': 'AES DM', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'orange'},
+    'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 'D', 'linestyle': 'dashed', 'color': 'green'},
+    # 'openssl-sha3-256': {'name': 'SHA3-256', 'short-name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'solid', 'color': 'red'},
+    'openssl-blake2s': {'name': 'BLAKE2s', 'short-name': 'BLAKE2s', 'block_size': 32, 'marker': '1', 'linestyle': 'solid', 'color': 'purple'},
+    'wolfcrypt-sha3-256': {'name': 'SHA3-256', 'short-name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'dashed', 'color': 'red'},
+    # 'wolfcrypt-blake2s': {'name': 'BLAKE2s', 'short-name': 'BLAKE2s', 'block_size': 32, 'marker': '1', 'linestyle': 'dashed', 'color': 'purple'},
+    'blake3-blake3': {'name': 'BLAKE3', 'short-name': 'BLAKE3', 'block_size': 32, 'marker': '2', 'linestyle': 'dotted', 'color': 'brown'},
+    'aes-ni-mixctr': {'name': 'MixCtr', 'short-name': 'MixCtr', 'block_size': 48, 'marker': '*', 'linestyle': 'dotted', 'color': 'pink'},
+    # 'openssl-mixctr': {'name': 'MixCtr', 'short-name': 'MixCtr', 'block_size': 48, 'marker': '*', 'linestyle': 'solid', 'color': 'pink'},
+    # 'wolfcrypt-mixctr': {'name': 'MixCtr', 'short-name': 'MixCtr', 'block_size': 48, 'marker': '*', 'linestyle': 'dashed', 'color': 'pink'},
+    # 'openssl-sha3-512': {'name': 'SHA3-512', 'short-name': 'SHA3-512', 'block_size': 64, 'marker': '>', 'linestyle': 'solid', 'color': 'grey'},
+    'openssl-blake2b': {'name': 'BLAKE2b', 'short-name': 'BLAKE2b', 'block_size': 64, 'marker': '3', 'linestyle': 'solid', 'color': 'olive'},
+    'wolfcrypt-sha3-512': {'name': 'SHA3-512', 'short-name': 'SHA3-512', 'block_size': 64, 'marker': '>', 'linestyle': 'dashed', 'color': 'grey'},
+    # 'wolfcrypt-blake2b': {'name': 'BLAKE2b', 'short-name': 'BLAKE2b', 'block_size': 64, 'marker': '3', 'linestyle': 'dashed', 'color': 'olive'},
+    # 'xkcp-xoodyak': {'name': 'Xoodyak', 'short-name': 'Xoodyak', 'block_size': 48, 'marker': 'p', 'linestyle': 'dotted', 'color': 'cyan'},
+    # 'xkcp-xoofff-wbc': {'name': 'Xoofff-WBC', 'short-name': 'Xoofff-WBC', 'block_size': 48, 'marker': 'h', 'linestyle': 'dotted', 'color': 'lightcoral'},
+    # 'openssl-shake256': {'name': 'SHAKE256', 'short-name': 'SHAKE256', 'block_size': 128, 'marker': '^', 'linestyle': 'solid', 'color': 'gold'},
+    'wolfcrypt-shake256': {'name': 'SHAKE256', 'short-name': 'SHAKE256', 'block_size': 128, 'marker': '^', 'linestyle': 'dashed', 'color': 'gold'},
+    'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'short-name': 'TSHAKE256', 'block_size': 128, 'marker': 'P', 'linestyle': 'dotted', 'color': 'limegreen'},
+    # 'openssl-shake128': {'name': 'SHAKE128', 'short-name': 'SHAKE128', 'block_size': 160, 'marker': 'v', 'linestyle': 'solid', 'color': 'turquoise'},
+    'wolfcrypt-shake128': {'name': 'SHAKE128', 'short-name': 'SHAKE128', 'block_size': 160, 'marker': 'v', 'linestyle': 'dashed', 'color': 'turquoise'},
+    'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'short-name': 'TSHAKE128', 'block_size': 160, 'marker': 'X', 'linestyle': 'dotted', 'color': 'lightskyblue'},
+    'xkcp-kangarootwelve': {'name': 'KangarooTwelve', 'short-name': 'K12', 'block_size': 160, 'marker': 'x', 'linestyle': 'dotted', 'color': 'navy'},
+    # 'xkcp-kravette-wbc': {'name': 'Kravette-WBC', 'short-name': 'Kravette-WBC', 'block_size': 192, 'marker': '8', 'linestyle': 'dotted', 'color': 'magenta'},
 }
 
 FILE = os.path.realpath(os.path.join(__file__, '..', '..', 'data',
                                      'out-anthem-to-128-threads.csv')) # out-anthem.csv
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
+TARGET_KEY_SIZE = 256 * 1024 * 1024
+IS_WITH_LEGEND = True
 X_THREAD_SCALE = 'log' # linear
 Y_THREAD_SCALE = 'linear' # log
-TARGET_KEY_SIZE = 256 * 1024 * 1024
 
 df = pd.read_csv(FILE)
 df = df[df.implementation.isin(IMPLS.keys())]
@@ -55,29 +56,30 @@ df['inv_time'] = 1 / df.time
 fanouts = sorted(df.fanout.unique())
 
 # Keymix legend
-impls = [impl for impl in df.implementation.unique() if impl in IMPLS]
-legend = [IMPLS[impl]['name'] for impl in impls]
-sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
-legend.sort()
+if not IS_WITH_LEGEND:
+    impls = [impl for impl in df.implementation.unique() if impl in IMPLS]
+    legend = [IMPLS[impl]['name'] for impl in impls]
+    sorted_idx = sorted(range(len(legend)), key=lambda i: legend[i])
+    legend.sort()
 
-handles = []
-plt.figure()
-for i in sorted_idx:
-    impl = impls[i]
-    handle = plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLS[impl]['color'],
-                          linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
-                          markersize=8)
-    handles.append(handle)
+    handles = []
+    plt.figure()
+    for i in sorted_idx:
+        impl = impls[i]
+        handle = plt.errorbar(0, 0, yerr=0, capsize=3, color=IMPLS[impl]['color'],
+                            linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
+                            markersize=8)
+        handles.append(handle)
 
-obj = pltlegend(plt, handles, legend, width=4, ncol=7)
-export_legend(obj, os.path.join(OUTDIR, f'keymix-legend.pdf'))
-plt.close()
+    obj = pltlegend(plt, handles, legend, width=4, ncol=7, inside=False)
+    export_legend(obj, os.path.join(OUTDIR, f'keymix-legend.pdf'))
+    plt.close()
 
 # Keymix time/speed vs key size (grouped by fanouts)
 for fanout in fanouts:
     df_fanout = df[df.fanout == fanout]
     impls = list(df_fanout.implementation.unique())
-    legend = [IMPLS[impl]['name'] for impl in impls if impl in IMPLS]
+    legend = [IMPLS[impl]['short-name'] for impl in impls if impl in IMPLS]
 
     # Time
     handles = []
@@ -98,13 +100,14 @@ for fanout in fanouts:
                               markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xlim(6, 3e4)
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.yscale('log')
-    plt.ylim(1e-2, 1e4)
+    plt.ylim(1e-2, 1e9)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -128,12 +131,13 @@ for fanout in fanouts:
                               markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Key size [MiB]')
     plt.xlim(6, 3e4)
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 200)
+    plt.ylim(0, 250)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -146,7 +150,7 @@ overall_thread_contributions = []
 for fanout in fanouts:
     df_fanout = df[df.fanout == fanout]
     impls = list(df_fanout.implementation.unique())
-    legend = [IMPLS[impl]['name'] for impl in impls if impl in IMPLS]
+    legend = [IMPLS[impl]['short-name'] for impl in impls if impl in IMPLS]
 
     # Time
     handles = []
@@ -176,7 +180,8 @@ for fanout in fanouts:
                               markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
@@ -185,7 +190,7 @@ for fanout in fanouts:
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel('Average time [s]')
     plt.ylim(bottom=0 if Y_THREAD_SCALE == 'linear' else 10**-1,
-             top=50 if Y_THREAD_SCALE == 'linear' else 10**2)
+             top=120 if Y_THREAD_SCALE == 'linear' else 10**5)
     plt.yscale(Y_THREAD_SCALE)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-threading-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
@@ -230,7 +235,8 @@ for fanout in fanouts:
             if thr > 1:
                 overall_thread_contributions.append(thread_contribution)
 
-    pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
+    if IS_WITH_LEGEND:
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2)
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
@@ -239,7 +245,7 @@ for fanout in fanouts:
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel(f'Average speed [{unit}/s]')
     plt.ylim(bottom=0 if Y_THREAD_SCALE == 'linear' else 1,
-             top=1800 if X_THREAD_SCALE == 'linear' else (10**4 if Y_THREAD_SCALE == 'log' else 4))
+             top=1800 if X_THREAD_SCALE == 'linear' else (10**8 if Y_THREAD_SCALE == 'log' else 7))
     plt.yscale(Y_THREAD_SCALE)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-threading-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
