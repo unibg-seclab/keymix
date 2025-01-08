@@ -89,10 +89,10 @@ for fanout in fanouts:
         data = df_fanout[df_fanout.implementation == impl]
         data = data[data.internal_threads == 1]
         data = df_groupby(data, 'key_size')
-        xs = [to_mib(x) for x in data.key_size]
-        ys = [y for y in data.time_mean]
+        xs = [to_mib(x) for x in data.key_size if to_mib(x) < 3e4]
+        ys = [y for y in data.time_mean[:len(xs)]]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in data.time_std]
+        errors = [1.960 * s/math.sqrt(5) for s in data.time_std[:len(xs)]]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)
@@ -100,10 +100,11 @@ for fanout in fanouts:
 
     pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
+    plt.xlim(6, 3e4)
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.yscale('log')
-    plt.ylim(1e-2, 1e3)
+    plt.ylim(1e-2, 1e4)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -118,10 +119,10 @@ for fanout in fanouts:
         data = df_fanout[df_fanout.implementation == impl]
         data = data[data.internal_threads == 1]
         data = df_groupby(data, 'key_size', agg='inv_time')
-        xs = [to_mib(x) for x in data.key_size]
+        xs = [to_mib(x) for x in data.key_size if to_mib(x) < 3e4]
         ys = [x * y for x, y in zip(xs, data.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std]
+        errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std[:len(xs)]]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)
@@ -129,6 +130,7 @@ for fanout in fanouts:
 
     pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, is_with_legend=False)
     plt.xlabel('Key size [MiB]')
+    plt.xlim(6, 3e4)
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(0, 200)
