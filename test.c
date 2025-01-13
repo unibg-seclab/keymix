@@ -372,26 +372,24 @@ int main(int argc, char *argv[]) {
                                   ENC_MODE_OFB};
 
         // Run encryption modes with a mixing function (i.e., no one-way mixing)
-        mix_t enc_mix_types[] = {OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128,
+        mix_impl_t enc_mix_types[] = {OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128,
                                  WOLFCRYPT_MATYAS_MEYER_OSEAS_128, AESNI_MIXCTR,
                                  XKCP_TURBOSHAKE_256, XKCP_TURBOSHAKE_128};
         for (int i = 0; i < sizeof(enc_modes) / sizeof(enc_mode_t) - 1; i++) {
                 enc_mode_t enc_mode = enc_modes[i];
                 for (int j = 0; j < sizeof(enc_mix_types) / sizeof(mix_t); j++) {
-                        mix_t mix_type = enc_mix_types[j];
-                        do_encryption_tests(enc_mode, mix_type, NONE);
+                        do_encryption_tests(enc_mode, enc_mix_types[j], NONE);
                 }
         }
 
         // Run encryption modes with the OpenSSL AES-128-ECB mixing function and
         // another one-way mixing function
-        mix_t one_way_mix_types[] = {OPENSSL_MATYAS_MEYER_OSEAS_128,
+        mix_impl_t one_way_mix_types[] = {OPENSSL_MATYAS_MEYER_OSEAS_128,
                                      WOLFCRYPT_MATYAS_MEYER_OSEAS_128, XKCP_TURBOSHAKE_256};
         for (int i = 0; i < sizeof(enc_modes) / sizeof(enc_mode_t); i++) {
                 enc_mode_t enc_mode = enc_modes[i];
                 for (int j = 0; j < sizeof(one_way_mix_types) / sizeof(mix_t); j++) {
-                        mix_t one_way_mix_type = one_way_mix_types[j];
-                        do_encryption_tests(enc_mode, OPENSSL_AES_128, one_way_mix_type);
+                        do_encryption_tests(enc_mode, OPENSSL_AES_128, one_way_mix_types[j]);
                 }
         }
 
