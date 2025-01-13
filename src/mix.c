@@ -169,66 +169,38 @@ int aesni(byte *in, byte *out, size_t size, byte *iv) {
 // Essentially, it is Davies-Meyer and Matyas-Meyer-Oseas implemented using aesni
 
 int aesni_davies_meyer(byte *in, byte *out, size_t size, byte *iv) {
-        int ret;
-        Aes aes;
-
-        ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-        if (ret) {
-                _log(LOG_ERROR, "wc_AesInit error\n");
-        }
-
+        __m128i key_schedule[AESNI_128_KEY_SCHEDULE_SIZE];
         byte *last = in + size;
         for (; in < last; in += BLOCK_SIZE_AES, out += BLOCK_SIZE_AES) {
-                ret = wc_AesSetKey(&aes, in, BLOCK_SIZE_AES, NULL, AES_ENCRYPTION);
-                if (ret) {
-                        _log(LOG_ERROR, "wc_AesSetKey error\n");
-                }
-                ret = wc_AesEncryptDirect(&aes, out, iv);
-                if (ret) {
-                        _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
-                }
+                aes128_key_expansion(in, key_schedule);
+                aes128_enc(key_schedule, iv, out);
                 memxor(out, out, iv, BLOCK_SIZE_AES);
         }
 
-        wc_AesFree(&aes);
         return 0;
 }
 
 int aesni_matyas_meyer_oseas(byte *in, byte *out, size_t size, byte *iv) {
-        int ret;
-        Aes aes;
         // To support inplace execution of the function we need avoid
         // overwriting the input
         bool is_inplace = (in == out);
         byte *out_enc   = (is_inplace ? malloc(BLOCK_SIZE_AES) : out);
 
-        ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-        if (ret) {
-                _log(LOG_ERROR, "wc_AesInit error\n");
-        }
-
-        ret = wc_AesSetKey(&aes, iv, BLOCK_SIZE_AES, NULL, AES_ENCRYPTION);
-        if (ret) {
-                _log(LOG_ERROR, "wc_AesSetKey error\n");
-        }
+        __m128i key_schedule[AESNI_128_KEY_SCHEDULE_SIZE];
+        aes128_key_expansion(iv, key_schedule);
 
         byte *last = in + size;
         for (; in < last; in += BLOCK_SIZE_AES, out += BLOCK_SIZE_AES) {
-                ret = wc_AesEncryptDirect(&aes, out_enc, in);
-                if (ret) {
-                        _log(LOG_ERROR, "wc_AesEncryptDirect error\n");
-                }
+                aes128_enc(key_schedule, in, out_enc);
                 memxor(out, out_enc, in, BLOCK_SIZE_AES);
-
                 if (!is_inplace) {
                         out_enc += BLOCK_SIZE_AES;
                 }
         }
 
-        wc_AesFree(&aes);
-        if (is_inplace) {
+        if (is_inplace)
                 free(out_enc);
-        }
+
         return 0;
 }
 
@@ -645,6 +617,8 @@ mix_info_t MIX_FUNCTIONS[] = {
     {"wolfcrypt-davies-meyer", &wolfcrypt_davies_meyer, MIX_DAVIES_MEYER, BLOCK_SIZE_AES, true},
     {"wolfcrypt-matyas-meyer-oseas", &wolfcrypt_matyas_meyer_oseas, MIX_MATYAS_MEYER_OSEAS,
      BLOCK_SIZE_AES, true},
+    {"aesni-davies-meyer", &aesni_davies_meyer, MIX_DAVIES_MEYER, BLOCK_SIZE_AES, true},
+    {"aesni-matyas-meyer-oseas", &aesni_matyas_meyer_oseas, MIX_MATYAS_MEYER_OSEAS, BLOCK_SIZE_AES, true},
     {"openssl-sha3-256", &openssl_sha3_256_hash, MIX_SHA3_256, BLOCK_SIZE_SHA3_256, true},
     {"openssl-blake2s", &openssl_blake2s_hash, MIX_BLAKE2S, BLOCK_SIZE_BLAKE2S, true},
     {"wolfcrypt-sha3-256", &wolfcrypt_sha3_256_hash, MIX_SHA3_256, BLOCK_SIZE_SHA3_256, true},

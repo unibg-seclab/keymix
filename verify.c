@@ -214,7 +214,7 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
         nof_groups = 0;
         switch (block_size) {
         case BLOCK_SIZE_AES:
-                nof_groups = 2;
+                nof_groups = 3;
                 groups[0][0] = OPENSSL_DAVIES_MEYER_128;
                 groups[0][1] = WOLFCRYPT_DAVIES_MEYER_128;
                 groups[1][0] = OPENSSL_MATYAS_MEYER_OSEAS_128;

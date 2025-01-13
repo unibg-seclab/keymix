@@ -22,6 +22,8 @@ typedef enum {
         WOLFCRYPT_AES_128,
         WOLFCRYPT_DAVIES_MEYER_128,
         WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+        AESNI_DAVIES_MEYER_128,
+        AESNI_MATYAS_MEYER_OSEAS_128,
         // 256-bit block size
         OPENSSL_SHA3_256,
         OPENSSL_BLAKE2S,
@@ -132,6 +134,8 @@ const static mix_impl_t MIX_TYPES[] = {
         OPENSSL_MATYAS_MEYER_OSEAS_128,
         OPENSSL_NEW_MATYAS_MEYER_OSEAS_128,
         WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+        AESNI_DAVIES_MEYER_128,
+        AESNI_MATYAS_MEYER_OSEAS_128,
         // 256-bit block size
         OPENSSL_SHA3_256,
         WOLFCRYPT_SHA3_256,
