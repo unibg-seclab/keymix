@@ -22,7 +22,8 @@ ENC_MODES = {
 IMPLEMENTATIONS = {
     # 'openssl-aes-128': {'name': 'AES-128-ECB', 'short-name': 'AES', 'block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
     # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'solid', 'color': 'green'},
-    'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'green'},
+    # 'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'green'},
+    'aesni-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'dotted', 'color': 'green'},
     'aes-ni-mixctr': {'name': 'MixCtr', 'short-name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
     'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'short-name': 'TSHAKE256', 'block_size': 128, 'marker': 'P', 'linestyle': 'dotted', 'color': 'limegreen'},
     'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'short-name': 'TSHAKE128', 'block_size': 160, 'marker': 'X', 'linestyle': 'dotted', 'color': 'lightskyblue'},
@@ -59,6 +60,7 @@ def get_key_size_string(key_size):
 
 df = pd.read_csv(FILE)
 df = df[df.internal_threads == THREADS]
+df = df[(df.implementation != 'aesni-matyas-meyer-oseas') | (df.key_size <= 2048 * 1024 * 1024)]
 df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
 
