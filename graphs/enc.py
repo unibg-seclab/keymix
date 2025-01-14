@@ -53,9 +53,9 @@ def get_key_size(all_key_sizes, target_key_size):
 
 def get_key_size_string(key_size):
     if key_size == int(key_size):
-        return f'{int(key_size)} MiB'
+        return f'{int(key_size)}'
     else:
-        return f'{round(key_size, 1)} MiB'
+        return f'{round(key_size, 1)}'
 
 
 df = pd.read_csv(FILE)
@@ -178,11 +178,12 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
                               marker=MARKERS[i], markersize=8)
         handles.append(handle)
 
-    pltlegend(plt, handles, labels, x0=-0.23, width=1.3, ncol=2, expand=False, loc='upper left')
+    pltlegend(plt, handles, labels, ncol=2, expand=False, loc='upper left',
+              title='Key sizes [MiB]')
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
-    plt.ylim(bottom=1e-3, top=1e7)
+    plt.ylim(bottom=1e-3, top=5e7)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
@@ -204,11 +205,12 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         max_speed = max(ys)
         print(f'Key size = {to_mib(size):.1f} MiB \tMax speed = {max_speed} MiB/s')
 
-    pltlegend(plt, handles, labels, x0=-0.23, width=1.3, ncol=2, expand=False, loc='lower right')
+    pltlegend(plt, handles, labels, ncol=2, expand=False, loc='lower right',
+              title='Key sizes [MiB]')
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(bottom=1e-3, top=2e3)
+    plt.ylim(bottom=1e-2, top=2e3)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
