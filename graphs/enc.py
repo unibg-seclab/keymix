@@ -161,6 +161,10 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     key_sizes_in_mib = [to_mib(k) for k in key_sizes]
     labels = [get_key_size_string(key_size) for key_size in key_sizes_in_mib]
 
+    # Configure colors with the use of a colormap
+    norm = matplotlib.colors.LogNorm(vmin=8, vmax=2e4)
+    sm = matplotlib.cm.ScalarMappable(norm=norm, cmap='viridis')
+
     # Time
     plt.figure()
     handles = []
@@ -170,7 +174,8 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
-        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=sm.to_rgba(key_sizes_in_mib[i]),
+                              marker=MARKERS[i], markersize=8)
         handles.append(handle)
 
     pltlegend(plt, handles, labels, x0=-0.23, width=1.3, ncol=2, expand=False, loc='upper left')
@@ -193,7 +198,8 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
         errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
-        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, marker=MARKERS[i], markersize=8)
+        handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=sm.to_rgba(key_sizes_in_mib[i]),
+                              marker=MARKERS[i], markersize=8)
         handles.append(handle)
         max_speed = max(ys)
         print(f'Key size = {to_mib(size):.1f} MiB \tMax speed = {max_speed} MiB/s')
