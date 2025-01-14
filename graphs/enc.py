@@ -15,8 +15,8 @@ FILE = os.path.realpath(os.path.join(__file__, '..', '..', 'data', 'enc-anthem.c
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
 ENC_MODES = {
     'ctr': {'name': 'Counter', 'color': 'tab:blue', 'marker': 'o'},
-    'ctr-opt': {'name': 'Counter \w opt', 'color': 'tab:orange', 'marker': 's'},
-    'ctr-ctr': {'name': 'Counter \w refresh', 'color': 'tab:green', 'marker': '^'},
+    'ctr-opt': {'name': 'Counter w/ opt', 'color': 'tab:orange', 'marker': 's'},
+    'ctr-ctr': {'name': 'Counter w/ refresh', 'color': 'tab:green', 'marker': '^'},
     'ofb': {'name': 'Output Feedback', 'color': 'tab:red', 'marker': 'D'}
 }
 IMPLEMENTATIONS = {
