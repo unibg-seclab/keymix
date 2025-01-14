@@ -32,12 +32,13 @@ def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=T
 
     if inside:
         legend = plt.legend(handles, labels, handlelength=1, mode=mode, ncol=ncol, loc=loc,
-                            title=title)
+                            title=title, prop={'size': 16})
     else:
         y0 = 1.02
         height = 0.2
         legend = plt.legend(handles, labels, bbox_to_anchor=(x0, y0, width, height), frameon=False,
-                            handlelength=1, loc='lower left', mode=mode, ncol=ncol, title=title)
+                            handlelength=1, loc='lower left', mode=mode, ncol=ncol, title=title,
+                            prop={'size': 14})
 
     return legend
 

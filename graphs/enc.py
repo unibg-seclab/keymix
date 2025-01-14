@@ -183,7 +183,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     plt.xlabel('File size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
-    plt.ylim(bottom=1e-3, top=5e7)
+    plt.ylim(bottom=1e-3, top=1e7)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
