@@ -19,7 +19,7 @@ def export_legend(legend, filename):
     bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi='figure', bbox_inches=bbox)
 
-def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=True, loc='best',
+def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=False, loc='best',
               to_sort=False, title=None):
     mode = 'expand' if expand else None
 
@@ -31,13 +31,13 @@ def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=T
         labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: t[0]))
 
     if inside:
-        legend = plt.legend(handles, labels, handlelength=1, mode=mode, ncol=ncol, loc=loc,
+        legend = plt.legend(handles, labels, handlelength=1.3, mode=mode, ncol=ncol, loc=loc,
                             title=title, prop={'size': 16})
     else:
         y0 = 1.02
         height = 0.2
         legend = plt.legend(handles, labels, bbox_to_anchor=(x0, y0, width, height), frameon=False,
-                            handlelength=1, loc='lower left', mode=mode, ncol=ncol, title=title,
+                            handlelength=1.3, loc='lower left', mode=mode, ncol=ncol, title=title,
                             prop={'size': 14})
 
     return legend

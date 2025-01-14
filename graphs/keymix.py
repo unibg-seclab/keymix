@@ -10,6 +10,8 @@ import pandas as pd
 from common import *
 
 IMPLS = {
+    'aesni-davies-meyer': {'name': 'Davies-Meyer', 'short-name': 'AES DM', 'block_size': 16, 'marker': 's', 'linestyle': 'dotted', 'color': 'orange'},
+    'aesni-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 'D', 'linestyle': 'dotted', 'color': 'green'},
     # 'openssl-aes-128': {'name': 'AES-128-ECB', 'short-name': 'AES','block_size': 16, 'marker': 'o', 'linestyle': 'solid', 'color': 'royalblue'},
     # 'openssl-davies-meyer': {'name': 'Davies-Meyer', 'short-name': 'AES DM','block_size': 16, 'marker': 's', 'linestyle': 'solid', 'color': 'orange'},
     # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO','block_size': 16, 'marker': 'D', 'linestyle': 'solid', 'color': 'green'},
@@ -17,8 +19,6 @@ IMPLS = {
     # 'wolfcrypt-aes-128': {'name': 'AES-128-ECB', 'short-name': 'AES','block_size': 16, 'marker': 'o', 'linestyle': 'dashed', 'color': 'royalblue'},
     # 'wolfcrypt-davies-meyer': {'name': 'Davies-Meyer', 'short-name': 'AES DM', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'orange'},
     # 'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 'D', 'linestyle': 'dashed', 'color': 'green'},
-    'aesni-davies-meyer': {'name': 'Davies-Meyer', 'short-name': 'AES DM', 'block_size': 16, 'marker': 's', 'linestyle': 'dotted', 'color': 'orange'},
-    'aesni-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 'D', 'linestyle': 'dotted', 'color': 'green'},
     # 'openssl-sha3-256': {'name': 'SHA3-256', 'short-name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'solid', 'color': 'red'},
     'openssl-blake2s': {'name': 'BLAKE2s', 'short-name': 'BLAKE2s', 'block_size': 32, 'marker': '1', 'linestyle': 'solid', 'color': 'purple'},
     'wolfcrypt-sha3-256': {'name': 'SHA3-256', 'short-name': 'SHA3-256', 'block_size': 32, 'marker': '<', 'linestyle': 'dashed', 'color': 'red'},
@@ -100,13 +100,14 @@ for fanout in fanouts:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True,
+                  loc='upper left')
     plt.xlabel('Key size [MiB]')
     plt.xlim(6, 3e4)
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.yscale('log')
-    plt.ylim(1e-2, 1e10)
+    plt.ylim(1e-2, 1e8)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -131,7 +132,8 @@ for fanout in fanouts:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True,
+                  loc='upper left')
     plt.xlabel('Key size [MiB]')
     plt.xlim(6, 3e4)
     plt.xscale('log')
@@ -180,7 +182,8 @@ for fanout in fanouts:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True,
+                  loc='upper right')
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
@@ -189,7 +192,7 @@ for fanout in fanouts:
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel('Average time [s]')
     plt.ylim(bottom=0 if Y_THREAD_SCALE == 'linear' else 10**-1,
-             top=120 if Y_THREAD_SCALE == 'linear' else 10**5)
+             top=100 if Y_THREAD_SCALE == 'linear' else 10**5)
     plt.yscale(Y_THREAD_SCALE)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-threading-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
@@ -235,7 +238,8 @@ for fanout in fanouts:
                 overall_thread_contributions.append(thread_contribution)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True)
+        pltlegend(plt, handles, legend, x0=-0.18, width=1.25, ncol=2, to_sort=True,
+                  loc='upper left')
     plt.xlabel('Number of threads')
     plt.xscale(X_THREAD_SCALE)
     plt.xticks(ticks=xs)
@@ -244,7 +248,7 @@ for fanout in fanouts:
     ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plt.ylabel(f'Average speed [{unit}/s]')
     plt.ylim(bottom=0 if Y_THREAD_SCALE == 'linear' else 1,
-             top=1800 if X_THREAD_SCALE == 'linear' else (10**8 if Y_THREAD_SCALE == 'log' else 7))
+             top=1800 if X_THREAD_SCALE == 'linear' else (10**8 if Y_THREAD_SCALE == 'log' else 5))
     plt.yscale(Y_THREAD_SCALE)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-threading-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
