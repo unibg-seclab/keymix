@@ -60,9 +60,19 @@ def get_key_size_string(key_size):
 
 df = pd.read_csv(FILE)
 df = df[df.internal_threads == THREADS]
-df = df[(df.implementation != 'aesni-matyas-meyer-oseas') | (df.key_size <= 2048 * 1024 * 1024)]
 df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
+
+# Keep most performance results available on resource of 100 GiB
+df_key_sizes = df[df.key_size <= 18000 * 1024 * 1024]
+
+# Keep performance results available on all resource sizes
+df = df[
+    ((df.implementation == 'aesni-matyas-meyer-oseas') & (df.key_size <= 2048 * 1024 * 1024)) |
+    ((df.implementation == 'aes-ni-mixctr') & (df.key_size <= 3072 * 1024 * 1024)) |
+    ((df.implementation == 'xkcp-turboshake256') & (df.key_size <= 2048 * 1024 * 1024)) |
+    ((df.implementation == 'xkcp-turboshake128') & (df.key_size <= 16000 * 1024 * 1024))
+]
 
 # Encryption legend
 if not IS_WITH_LEGEND:
@@ -83,7 +93,7 @@ if not IS_WITH_LEGEND:
 
 # Encryption time/speed vs key size
 for enc_mode in ENC_MODES:
-    data = df[(df.enc_mode == enc_mode) & (df.outsize == RESOURCE_SIZE)]
+    data = df_key_sizes[(df_key_sizes.enc_mode == enc_mode) & (df_key_sizes.outsize == RESOURCE_SIZE)]
 
     if data.empty:
         continue
@@ -114,7 +124,7 @@ for enc_mode in ENC_MODES:
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
-    plt.ylim(bottom=0, top=250)
+    plt.ylim(bottom=0, top=400)
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-primitives-time-by-key-size.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
