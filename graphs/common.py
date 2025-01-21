@@ -38,7 +38,7 @@ def pltlegend(plt, handles, labels, x0=0, width=1, ncol=3, inside=True, expand=F
         height = 0.2
         legend = plt.legend(handles, labels, bbox_to_anchor=(x0, y0, width, height), frameon=False,
                             handlelength=1.3, loc='lower left', mode=mode, ncol=ncol, title=title,
-                            prop={'size': 14})
+                            prop={'size': 16})
 
     return legend
 
