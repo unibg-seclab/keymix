@@ -190,7 +190,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
 
     pltlegend(plt, handles, labels, ncol=2, expand=False, loc='upper left',
               title='Key sizes [MiB]')
-    plt.xlabel('File size [MiB]')
+    plt.xlabel('Resource size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.ylim(bottom=1e-3, top=1e7)
@@ -217,7 +217,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
 
     pltlegend(plt, handles, labels, ncol=2, expand=False, loc='lower right',
               title='Key sizes [MiB]')
-    plt.xlabel('File size [MiB]')
+    plt.xlabel('Resource size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
     plt.ylim(bottom=1e-2, top=2e3)
@@ -258,7 +258,7 @@ for enc_mode in ENC_MODES:
 
     if IS_WITH_LEGEND:
         pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, expand=False, to_sort=True)
-    plt.xlabel('File size [MiB]')
+    plt.xlabel('Resource size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.yscale('log')
@@ -291,7 +291,7 @@ for enc_mode in ENC_MODES:
 
     if IS_WITH_LEGEND:
         pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, expand=False, to_sort=True)
-    plt.xlabel('File size [MiB]')
+    plt.xlabel('Resource size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
     plt.yscale('log')
@@ -329,7 +329,7 @@ for impl in IMPLEMENTATIONS:
         handles.append(handle)
 
     pltlegend(plt, handles, labels, x0=-0.18, width=1.2, ncol=2)
-    plt.xlabel('File size [MiB]')
+    plt.xlabel('Resource size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.yscale('log')
@@ -357,7 +357,7 @@ for impl in IMPLEMENTATIONS:
         handles.append(handle)
 
     pltlegend(plt, handles, labels, x0=-0.18, width=1.2, ncol=2)
-    plt.xlabel('File size [MiB]')
+    plt.xlabel('Resource size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
     plt.yscale('log')
