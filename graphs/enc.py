@@ -108,7 +108,7 @@ for enc_mode in ENC_MODES:
         if plot_data.empty:
             continue
 
-        labels.append(IMPLEMENTATIONS[impl]['short-name'])
+        labels.append(IMPLEMENTATIONS[impl]['short-name'] + f' ({plot_data.fanout.unique()[0]})')
         grouped = df_groupby(plot_data, 'key_size')
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [y for y in grouped.time_mean]
@@ -120,7 +120,7 @@ for enc_mode in ENC_MODES:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, to_sort=True)
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, to_sort=True)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -139,7 +139,7 @@ for enc_mode in ENC_MODES:
         if plot_data.empty:
             continue
 
-        labels.append(IMPLEMENTATIONS[impl]['short-name'])
+        labels.append(IMPLEMENTATIONS[impl]['short-name'] + f' ({plot_data.fanout.unique()[0]})')
         grouped = df_groupby(plot_data, 'key_size', agg='inv_time')
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [to_mib(RESOURCE_SIZE) * y for y in grouped.inv_time_mean]
@@ -151,7 +151,7 @@ for enc_mode in ENC_MODES:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=2, to_sort=True)
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, to_sort=True)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
