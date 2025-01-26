@@ -24,7 +24,7 @@ IMPLEMENTATIONS = {
     # 'openssl-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'solid', 'color': 'green'},
     # 'wolfcrypt-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'dashed', 'color': 'green'},
     'aesni-matyas-meyer-oseas': {'name': 'Matyas-Meyer-Oseas', 'short-name': 'AES MMO', 'block_size': 16, 'marker': 's', 'linestyle': 'dotted', 'color': 'green'},
-    'aes-ni-mixctr': {'name': 'MixCtr', 'short-name': 'MixCtr', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
+    'aes-ni-mixctr': {'name': 'MixCTR', 'short-name': 'MixCTR', 'block_size': 48, 'marker': '2', 'linestyle': 'dotted', 'color': 'pink'},
     'xkcp-turboshake256': {'name': 'TurboSHAKE256', 'short-name': 'TSHAKE256', 'block_size': 128, 'marker': 'P', 'linestyle': 'dotted', 'color': 'limegreen'},
     'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'short-name': 'TSHAKE128', 'block_size': 160, 'marker': 'X', 'linestyle': 'dotted', 'color': 'lightskyblue'},
 }
