@@ -125,7 +125,7 @@ for fanout in fanouts:
         xs = [to_mib(x) for x in data.key_size if to_mib(x) < 3e4]
         ys = [x * y for x, y in zip(xs, data.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std[:len(xs)]]
+        errors = [1.960 * to_mib(x) * s/math.sqrt(5) for x, s in zip(xs, data.inv_time_std[:len(xs)])]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)
@@ -221,7 +221,7 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_unit(size) * y for y in data.inv_time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in data.inv_time_std]
+        errors = [1.960 * to_unit(size) * s/math.sqrt(5) for s in data.inv_time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)

@@ -108,7 +108,7 @@ for enc_mode in ENC_MODES:
         if plot_data.empty:
             continue
 
-        labels.append(IMPLEMENTATIONS[impl]['short-name'] + f' ({plot_data.fanout.unique()[0]})')
+        labels.append(f"Fanout {plot_data.fanout.unique()[0]:>2} ({IMPLEMENTATIONS[impl]['short-name']})")
         grouped = df_groupby(plot_data, 'key_size')
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [y for y in grouped.time_mean]
@@ -120,7 +120,7 @@ for enc_mode in ENC_MODES:
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, to_sort=True)
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
@@ -139,19 +139,19 @@ for enc_mode in ENC_MODES:
         if plot_data.empty:
             continue
 
-        labels.append(IMPLEMENTATIONS[impl]['short-name'] + f' ({plot_data.fanout.unique()[0]})')
+        labels.append(f"Fanout {plot_data.fanout.unique()[0]:>2} ({IMPLEMENTATIONS[impl]['short-name']})")
         grouped = df_groupby(plot_data, 'key_size', agg='inv_time')
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [to_mib(RESOURCE_SIZE) * y for y in grouped.inv_time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        errors = [1.960 * to_mib(RESOURCE_SIZE) * s/math.sqrt(5) for s in grouped.inv_time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
                                linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                                marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
         handles.append(handle)
 
     if IS_WITH_LEGEND:
-        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1, to_sort=True)
+        pltlegend(plt, handles, labels, x0=-0.22, width=1.3, ncol=1)
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
@@ -208,7 +208,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        errors = [1.960 * to_mib(x) * s/math.sqrt(5) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=sm.to_rgba(key_sizes_in_mib[i]),
                               marker=MARKERS[i], markersize=8)
         handles.append(handle)
@@ -283,7 +283,7 @@ for enc_mode in ENC_MODES:
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        errors = [1.960 * to_mib(x) * s/math.sqrt(5) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
                               linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
@@ -351,7 +351,7 @@ for impl in IMPLEMENTATIONS:
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.inv_time_std]
+        errors = [1.960 * s/math.sqrt(5) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
                               marker=ENC_MODES[enc_mode]['marker'], markersize=8)
         handles.append(handle)
