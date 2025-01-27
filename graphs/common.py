@@ -46,10 +46,10 @@ def df_filter(df, impl, fanout):
     return df[(df.implementation == impl) & (df.fanout == fanout)]
 
 def df_groupby(df, cols, agg='time'):
-    data = df.groupby(cols, as_index=False).agg({agg: ['mean', 'std']})
+    data = df.groupby(cols, as_index=False).agg({agg: ['count', 'mean', 'std']})
     if type(cols) == list:
-        data.columns = cols + [f'{agg}_mean', f'{agg}_std']
+        data.columns = cols + [f'{agg}_count', f'{agg}_mean', f'{agg}_std']
     else:
-        data.columns = [cols, f'{agg}_mean', f'{agg}_std']
+        data.columns = [cols, f'{agg}_count', f'{agg}_mean', f'{agg}_std']
     data.reindex(columns=data.columns)
     return data

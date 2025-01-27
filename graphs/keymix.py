@@ -3,6 +3,7 @@
 import math
 import os
 import statistics
+import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -50,12 +51,22 @@ TARGET_KEY_SIZE = 256 * 1024 * 1024
 IS_WITH_LEGEND = True
 X_THREAD_SCALE = 'log' # linear
 Y_THREAD_SCALE = 'linear' # log
+REPS = 5
 
 df = pd.read_csv(FILE)
 df = df[df.implementation.isin(IMPLS.keys())]
 df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
 fanouts = sorted(df.fanout.unique())
+
+# Check for multiple instances of the same test in the input dataset
+groups = df_groupby(df, ['key_size','outsize','internal_threads','external_threads','enc_mode','implementation','one_way_mix_type','fanout'])
+groups = groups[groups['time_count'] != REPS]
+if not groups.empty:
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(f'ERROR: The following tests have more than {REPS} instances')
+        print(groups[['key_size', 'internal_threads', 'implementation', 'fanout', 'time_count']])
+    sys.exit(1)
 
 # Keymix legend
 if not IS_WITH_LEGEND:
@@ -93,7 +104,7 @@ for fanout in fanouts:
         xs = [to_mib(x) for x in data.key_size if to_mib(x) < 3e4]
         ys = [y for y in data.time_mean[:len(xs)]]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in data.time_std[:len(xs)]]
+        errors = [1.960 * s/math.sqrt(REPS) for s in data.time_std[:len(xs)]]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)
@@ -125,7 +136,7 @@ for fanout in fanouts:
         xs = [to_mib(x) for x in data.key_size if to_mib(x) < 3e4]
         ys = [x * y for x, y in zip(xs, data.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * to_mib(x) * s/math.sqrt(5) for x, s in zip(xs, data.inv_time_std[:len(xs)])]
+        errors = [1.960 * to_mib(x) * s/math.sqrt(REPS) for x, s in zip(xs, data.inv_time_std[:len(xs)])]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)
@@ -175,7 +186,7 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [y for y in data.time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in data.time_std]
+        errors = [1.960 * s/math.sqrt(REPS) for s in data.time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)
@@ -221,7 +232,7 @@ for fanout in fanouts:
         xs = list(data.internal_threads)
         ys = [to_unit(size) * y for y in data.inv_time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * to_unit(size) * s/math.sqrt(5) for s in data.inv_time_std]
+        errors = [1.960 * to_unit(size) * s/math.sqrt(REPS) for s in data.inv_time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLS[impl]['color'],
                               linestyle=IMPLS[impl]['linestyle'], marker=IMPLS[impl]['marker'],
                               markersize=8)

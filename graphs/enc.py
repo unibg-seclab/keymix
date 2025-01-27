@@ -3,6 +3,7 @@
 import itertools
 import math
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -29,6 +30,7 @@ IMPLEMENTATIONS = {
     'xkcp-turboshake128': {'name': 'TurboSHAKE128', 'short-name': 'TSHAKE128', 'block_size': 160, 'marker': 'X', 'linestyle': 'dotted', 'color': 'lightskyblue'},
 }
 THREADS = 16
+REPS = 5
 
 # Encryption time/speed vs key size
 RESOURCE_SIZE = 100 * 1024 * 1024 * 1024 # 100 GiB
@@ -62,6 +64,15 @@ df = pd.read_csv(FILE)
 df = df[df.internal_threads == THREADS]
 df.time = to_sec(df.time)
 df['inv_time'] = 1 / df.time
+
+# Check for multiple instances of the same test in the input dataset
+groups = df_groupby(df, ['key_size','outsize','internal_threads','external_threads','enc_mode','implementation','one_way_mix_type','fanout'])
+groups = groups[groups['time_count'] != REPS]
+if not groups.empty:
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(f'ERROR: The following tests have more than {REPS} instances')
+        print(groups[['key_size', 'internal_threads', 'implementation', 'fanout', 'time_count']])
+    sys.exit(1)
 
 # Keep most performance results available on resource of 100 GiB
 df_key_sizes = df[df.key_size <= 18000 * 1024 * 1024]
@@ -113,7 +124,7 @@ for enc_mode in ENC_MODES:
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        errors = [1.960 * s/math.sqrt(REPS) for s in grouped.time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
                               linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
@@ -144,7 +155,7 @@ for enc_mode in ENC_MODES:
         xs = [to_mib(x) for x in grouped.key_size]
         ys = [to_mib(RESOURCE_SIZE) * y for y in grouped.inv_time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * to_mib(RESOURCE_SIZE) * s/math.sqrt(5) for s in grouped.inv_time_std]
+        errors = [1.960 * to_mib(RESOURCE_SIZE) * s/math.sqrt(REPS) for s in grouped.inv_time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
                                linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                                marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
@@ -183,7 +194,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        errors = [1.960 * s/math.sqrt(REPS) for s in grouped.time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=sm.to_rgba(key_sizes_in_mib[i]),
                               marker=MARKERS[i], markersize=8)
         handles.append(handle)
@@ -208,7 +219,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * to_mib(x) * s/math.sqrt(5) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
+        errors = [1.960 * to_mib(x) * s/math.sqrt(REPS) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=sm.to_rgba(key_sizes_in_mib[i]),
                               marker=MARKERS[i], markersize=8)
         handles.append(handle)
@@ -250,7 +261,7 @@ for enc_mode in ENC_MODES:
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        errors = [1.960 * s/math.sqrt(REPS) for s in grouped.time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
                               linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
@@ -283,7 +294,7 @@ for enc_mode in ENC_MODES:
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * to_mib(x) * s/math.sqrt(5) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
+        errors = [1.960 * to_mib(x) * s/math.sqrt(REPS) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=IMPLEMENTATIONS[impl]['color'],
                               linestyle=IMPLEMENTATIONS[impl]['linestyle'],
                               marker=IMPLEMENTATIONS[impl]['marker'], markersize=8)
@@ -323,7 +334,7 @@ for impl in IMPLEMENTATIONS:
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [y for y in grouped.time_mean]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for s in grouped.time_std]
+        errors = [1.960 * s/math.sqrt(REPS) for s in grouped.time_std]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
                               marker=ENC_MODES[enc_mode]['marker'], markersize=8)
         handles.append(handle)
@@ -351,7 +362,7 @@ for impl in IMPLEMENTATIONS:
         xs = [to_mib(x) for x in grouped.outsize]
         ys = [x * y for x, y in zip(xs, grouped.inv_time_mean)]
         # Margins of error with 95% confidence interval
-        errors = [1.960 * s/math.sqrt(5) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
+        errors = [1.960 * s/math.sqrt(REPS) for x, s in zip(grouped.outsize, grouped.inv_time_std)]
         handle = plt.errorbar(xs, ys, yerr=errors, capsize=3, color=ENC_MODES[enc_mode]['color'],
                               marker=ENC_MODES[enc_mode]['marker'], markersize=8)
         handles.append(handle)
