@@ -118,7 +118,7 @@ for fanout in fanouts:
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.yscale('log')
-    plt.ylim(1e-2, 1e8)
+    plt.ylim(1e-2, 1e10)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
