@@ -118,7 +118,7 @@ for fanout in fanouts:
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.yscale('log')
-    plt.ylim(1e-2, 1e10)
+    plt.ylim(1e-2, 3e10)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -149,7 +149,7 @@ for fanout in fanouts:
     plt.xlim(6, 3e4)
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(0, 250)
+    plt.ylim(0, 350)
     plt.savefig(os.path.join(OUTDIR, f'keymix-f{fanout}-speed.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()

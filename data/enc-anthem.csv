@@ -4034,4 +4034,3 @@ key_size,outsize,internal_threads,external_threads,enc_mode,implementation,one_w
 2684354560,107374182400,16,1,ctr-ctr,xkcp-turboshake128,none,16,86345.82
 2684354560,107374182400,16,1,ctr-ctr,xkcp-turboshake128,none,16,87811.48
 2684354560,107374182400,16,1,ctr-ctr,xkcp-turboshake128,none,16,87869.95
->>>>>>> 59264b8 (Add encryption data for TurboShake128 fanout 16)

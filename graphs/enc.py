@@ -166,7 +166,7 @@ for enc_mode in ENC_MODES:
     plt.xlabel('Key size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average speed [MiB/s]')
-    plt.ylim(bottom=0, top=1000)
+    plt.ylim(bottom=0, top=1600)
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-primitives-speed-by-key-size.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -204,7 +204,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     plt.xlabel('Resource size [MiB]')
     plt.xscale('log')
     plt.ylabel('Average time [s]')
-    plt.ylim(bottom=1e-3, top=1e7)
+    plt.ylim(bottom=1e-3, top=3e7)
     plt.yscale('log')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-{impl}-time.pdf'),
                 bbox_inches='tight', pad_inches=0)
