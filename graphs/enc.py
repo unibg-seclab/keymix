@@ -183,7 +183,7 @@ for enc_mode, impl in itertools.product(ENC_MODES, IMPLEMENTATIONS):
     labels = [get_key_size_string(key_size) for key_size in key_sizes_in_mib]
 
     # Configure colors with the use of a colormap
-    norm = matplotlib.colors.LogNorm(vmin=8, vmax=2e4)
+    norm = matplotlib.colors.LogNorm(vmin=8, vmax=3072)
     sm = matplotlib.cm.ScalarMappable(norm=norm, cmap='viridis')
 
     # Time
