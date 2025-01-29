@@ -270,3 +270,79 @@ print('--- Overall')
 print('Additional thread improvement', end='\t')
 print(f'+{statistics.mean(overall_thread_contributions):>6.2f} (avg)', end='\t')
 print(f'+{statistics.median(overall_thread_contributions):>6.2f} (median)')
+
+# ============================== Degradation of speed for higher keys
+
+ratios = []
+for fanout in [2, 4, 8, 16]:
+    print('--- Fanout', fanout)
+    df_fanout = df[(df.fanout == fanout) & (df.internal_threads == 1)]
+    impls = list(df_fanout.implementation.unique())
+    for impl in impls:
+        if impl not in IMPLS:
+            continue
+
+        data = df_fanout[df_fanout.implementation == impl]
+        min_key = data.key_size.min()
+        max_key = data.key_size.max()
+
+        minkey_time = df_groupby(data[data.key_size == min_key], ['key_size']).time_mean[0]
+        maxkey_time = df_groupby(data[data.key_size == max_key], ['key_size']).time_mean[0]
+
+        minkey_speed = min_key / minkey_time
+        maxkey_speed = max_key / maxkey_time
+
+        print(f'{impl}', end='\n\t')
+        print('Min key =', round(to_mib(min_key), 2), 'MiB', end='\t\t')
+        print('Max key =', round(to_mib(min_key), 2), 'MiB', end='\t\t')
+
+        ratio = (minkey_speed - maxkey_speed) / minkey_speed
+        ratios.append(ratio)
+        
+        print('Speed ratio (decrement of maxkey over minkey) = ', round(ratio, 2), '%')
+
+print(f'Highest ratio = {max(ratios)}%')
+print(f'Lowest ratio =  {min(ratios)}%')
+print(f'Average ratio = {sum(ratios) / len(ratios)}%')
+
+# ============================== MixCTR speed vs AES-DM and AES-MMO
+
+print()
+print('=== MixCTR vs AES-DM vs AES-MMO')
+
+data = df[df.internal_threads == 1]
+data['speed'] = data['key_size'] / data['time']
+
+data_dm = data[(data.fanout == 2) & (data.implementation == 'aesni-davies-meyer')]
+data_mmo = data[(data.fanout == 2) & (data.implementation == 'aesni-matyas-meyer-oseas')]
+data_mixctr = data[(data.fanout == 2) & (data.implementation == 'aes-ni-mixctr')]
+
+speed_dm =     sum(data_dm.speed) / len(data_dm.speed)
+speed_mmo =    sum(data_mmo.speed) / len(data_mmo.speed)
+speed_mixctr = sum(data_mixctr.speed) / len(data_mixctr.speed)
+
+print(f'MixCTR vs DM =  +{round((speed_mixctr / speed_dm - 1) * 100, 2)}%')
+print(f'MixCTR vs MMO = +{round((speed_mixctr / speed_mmo - 1) * 100, 2)}%')
+
+# ============================== MixCTR worst speed vs SHAKEx, BLAKEx, and SHA3 best speed
+
+
+df['speed'] = df['key_size'] / df['time']
+print()
+print('=== MixCTR vs BLAKE/SHA3/SHAKE')
+for fanout in [2, 4]:
+    print('Fanout', fanout)
+    data = df[(df.internal_threads == 1) & (df.fanout == fanout)]
+    data_mixctr = data[data.implementation == 'aes-ni-mixctr'].speed
+    speed_mixctr = sum(data_mixctr) / len(data_mixctr)
+
+    max_speed_other = 0
+    for impl in ['openssl-blake2s', 'wolfcrypt-sha3-256', 'blake3-blake3', 'openssl-blake2b', 'wolfcrypt-sha3-512', 'wolfcrypt-shake256', 'wolfcrypt-shake128']:
+        data_other = data[data.implementation == impl].speed
+        speed = sum(data_other) / len(data_other)
+        max_speed_other = max(max_speed_other, speed)
+
+
+    print('  MixCTR speed =', speed_mixctr)
+    print('  Other speed  =', max_speed_other)
+    print('Ratio (MixCTR / other) =', speed_mixctr / max_speed_other)
