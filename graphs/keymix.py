@@ -346,3 +346,18 @@ for fanout in [2, 4]:
     print('  MixCTR speed =', speed_mixctr)
     print('  Other speed  =', max_speed_other)
     print('Ratio (MixCTR / other) =', speed_mixctr / max_speed_other)
+
+# ============================== 16 threads vs 1 threads
+
+print('\n=== 16 threads vs 1 threads')
+data = df[(df.implementation.isin(IMPLS.keys()))]
+
+times_st = data[data.internal_threads == 1].time
+avg_times_st = sum(times_st) / len(times_st)
+
+times_mt = data[data.internal_threads == 16].time
+avg_times_mt = sum(times_mt) / len(times_mt)
+
+print('Avg. time with 1 thread =', avg_times_st)
+print('Avg. time with 16 threads =', avg_times_mt)
+print('Ratio (1 threads / 16 thread) =', avg_times_st / avg_times_mt)
