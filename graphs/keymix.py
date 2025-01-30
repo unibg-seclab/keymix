@@ -350,7 +350,7 @@ for fanout in [2, 4]:
 # ============================== 16 threads vs 1 threads
 
 print('\n=== 16 threads vs 1 threads')
-data = df[(df.implementation.isin(IMPLS.keys()))]
+data = df[df.fanout.isin([2,4,8,16]) & (df.implementation.isin(IMPLS.keys()))]
 
 times_st = data[data.internal_threads == 1].time
 avg_times_st = sum(times_st) / len(times_st)
