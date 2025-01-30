@@ -350,14 +350,27 @@ for fanout in [2, 4]:
 # ============================== 16 threads vs 1 threads
 
 print('\n=== 16 threads vs 1 threads')
-data = df[df.fanout.isin([2,4,8,16]) & (df.implementation.isin(IMPLS.keys()))]
+overall_improvements = []
+for fanout in [2, 4, 8, 16]:
+    print('--- Fanout', fanout)
+    df_fanout = df[df.fanout == fanout]
+    impls = list(df_fanout.implementation.unique())
 
-times_st = data[data.internal_threads == 1].time
-avg_times_st = sum(times_st) / len(times_st)
+    for impl in df_fanout.implementation.unique():
+        if impl not in IMPLS:
+            continue
 
-times_mt = data[data.internal_threads == 16].time
-avg_times_mt = sum(times_mt) / len(times_mt)
+        print(f'({impl})', end=' ')
+        data = df_fanout[df_fanout.implementation == impl]
 
-print('Avg. time with 1 thread =', avg_times_st)
-print('Avg. time with 16 threads =', avg_times_mt)
-print('Ratio (1 threads / 16 thread) =', avg_times_st / avg_times_mt)
+        data16 = df_groupby(data[data.internal_threads == 16], 'key_size', agg='time')
+        data01 = df_groupby(data[data.internal_threads == 1], 'key_size', agg='time')
+
+        time_improvements = data01.time_mean / data16.time_mean
+        avg_time_improvement = sum(time_improvements) / len(time_improvements)
+        print(f'Time improvement 16 vs 1 thread = {round(avg_time_improvement, 2)}')
+
+        overall_improvements.append(avg_time_improvement)
+
+print('--- Overall')
+print(f'Average improvement (1 vs 16) = {round(sum(overall_improvements) / len(overall_improvements), 2)}')
