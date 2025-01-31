@@ -12,7 +12,7 @@ and decryption to files.
 
 We offer a `PKGBUILD` in the top directory that sets up the shared library
 and the CLI tool.
-Please note that you have to manually installs the dependencies, their `PKGBUILD`
+Please note that you have to manually install the dependencies, their `PKGBUILD`
 files are available at
 
 - `deps/blake3/PKGBUILD`
@@ -36,6 +36,7 @@ files are available at
 4. Install in your system the generated files, for example
    - `install -Dm 0777 keymixer /usr/bin/keymixer`
    - `install -Dm 0755 libkeymix.so /usr/lib/libkeymix.so`
+   Note that install directories may be different for your distro
 
 There are also install scripts for all manual dependencies
 
@@ -66,6 +67,7 @@ In particular:
    - `make test` to compile
    - `./test` to run them
    - `make daemon` to run tests as a daemon
+
    The tests write data to `data/out.csv` and `data/enc.csv`.
    Please note that they take quite a lot of time.
 3. Verifying equivalence between various implementations (i.e., sanity check)
