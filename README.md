@@ -24,19 +24,21 @@ files are available at
 
 ### Other systems
 
-1. Install OpenSSL on your system (the packaged version is fine)
-2. Install the remaining dependencies with `make deps`
-3. Install Keymix with `install.sh` in the top directory
+1. Ensure `gcc` is installed
+2. Install OpenSSL on your system (the packaged version is fine)
+3. Install the remaining dependencies with `make deps`
+4. Install Keymix with `install.sh` in the top directory
 
 ### Manual compilation
 
-1. Install OpenSSL on your system (the packaged version is fine)
-2. Install the remaining dependencies with `make deps`
-3. Compile the desired features
+1. Ensure `gcc` is installed
+2. Install OpenSSL on your system (the packaged version is fine)
+3. Install the remaining dependencies with `make deps`
+4. Compile the desired features
    - `make` to only compile the code
    - `make libkeymix.so` for the shared library
    - `make keymixer` for the CLI tool
-4. Install in your system the generated files, for example
+5. Install in your system the generated files, for example
    - `install -Dm 0777 keymixer /usr/bin/keymixer`
    - `install -Dm 0755 libkeymix.so /usr/lib/libkeymix.so`
    Note that install directories may be different for your distro
