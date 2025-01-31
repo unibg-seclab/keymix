@@ -78,7 +78,14 @@ In particular:
 3. Verifying equivalence between various implementations (i.e., sanity check)
    - `make verify` and then run `./verify`
 
-### Code style
+## Graphs
+
+There are some scripts in the `graphs/` folder to generate graphs based on
+the output from the tests.
+
+See the relative [README](/graphs/).
+
+## Code style
 
 The file `.clang-format` should work out of the box. In `githooks` you'll find
 some git hooks to enable with `git config --local core.hooksPath githooks`,

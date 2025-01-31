@@ -44,8 +44,12 @@ IMPLS = {
     # 'xkcp-kravette-wbc': {'name': 'Kravette-WBC', 'short-name': 'Kravette-WBC', 'block_size': 192, 'marker': '8', 'linestyle': 'dotted', 'color': 'magenta'},
 }
 
-FILE = os.path.realpath(os.path.join(__file__, '..', '..', 'data',
-                                     'out-anthem-to-128-threads.csv')) # out-anthem.csv
+if len(sys.argv) < 2:
+    print('Please specify the path containing the CSV data')
+    print('USAGE: keymix.py PATH', file=sys.stderr)
+    sys.exit(1)
+
+FILE = os.path.realpath(sys.argv[1]) # out-anthem.csv
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
 TARGET_KEY_SIZE = 256 * 1024 * 1024
 IS_WITH_LEGEND = True

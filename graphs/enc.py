@@ -12,7 +12,13 @@ from common import *
 
 
 # Common
-FILE = os.path.realpath(os.path.join(__file__, '..', '..', 'data', 'enc-anthem.csv'))
+
+if len(sys.argv) < 2:
+    print('Please specify the path containing the CSV data')
+    print('USAGE: keymix.py PATH', file=sys.stderr)
+    sys.exit(1)
+
+FILE = os.path.realpath(sys.argv[1])
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
 ENC_MODES = {
     'ctr': {'name': 'Counter', 'color': 'tab:blue', 'marker': 'o'},
