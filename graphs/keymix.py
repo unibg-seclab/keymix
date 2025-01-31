@@ -49,7 +49,9 @@ if len(sys.argv) < 2:
     print('USAGE: keymix.py PATH', file=sys.stderr)
     sys.exit(1)
 
-FILE = os.path.realpath(sys.argv[1]) # out-anthem.csv
+# NOTE: Use performance results from the data directory prefixed with out (e.g.,
+# out-anthem-to-128-threads.csv and out-anthem.csv)
+FILE = os.path.realpath(sys.argv[1])
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
 TARGET_KEY_SIZE = 256 * 1024 * 1024
 IS_WITH_LEGEND = True

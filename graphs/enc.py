@@ -18,6 +18,8 @@ if len(sys.argv) < 2:
     print('USAGE: keymix.py PATH', file=sys.stderr)
     sys.exit(1)
 
+# NOTE: Use performance results from the data directory prefixed with enc (e.g.,
+# enc-anthem.csv)
 FILE = os.path.realpath(sys.argv[1])
 OUTDIR = os.path.realpath(os.path.join(__file__, '..'))
 ENC_MODES = {
