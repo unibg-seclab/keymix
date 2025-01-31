@@ -9,15 +9,10 @@ source "./PKGBUILD"
 parts=(${source//::/ })
 
 out="${parts[0]}"
-if [ -f "$out" ]; then
-  echo "Sources already downloaded"
-else
-  wget -O "$out" "${parts[1]}"
-  tar -xvf "$out" -C "$srcdir"
-fi
+wget -O "$out" "${parts[1]}"
+tar -xvf "$out" -C "$srcdir"
 
 build
-check
 
 cd "$srcdir/$_pkgname-$pkgver-stable"
 sudo make install

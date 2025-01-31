@@ -52,13 +52,13 @@ perf.*
 
 deps/blake3/*
 !deps/blake3/PKGBUILD
+!deps/blake3/install.sh
 deps/wolfssl-ecb/*
 !deps/wolfssl-ecb/PKGBUILD
 !deps/wolfssl-ecb/install.sh
 deps/xkcp/*
 !deps/xkcp/PKGBUILD
-deps/blake3/*
-!deps/blake3/PKGBUILD
+!deps/xkcp/install.sh
 
 packages/arch/*
 !packages/arch/PKGBUILD

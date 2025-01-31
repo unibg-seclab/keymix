@@ -7,6 +7,7 @@ url="https://github.com/BLAKE3-team/BLAKE3"
 license=(GPL-2.0-or-later)
 depends=()
 makedepends=(gcc)
+conflicts=(libblake3)
 provides=(libblake3.so)
 source=(
   $pkgname-$pkgver::"git+$url.git#tag=$pkgver"
