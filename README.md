@@ -1,10 +1,13 @@
 # Keymix
 
-This is the official repo for the Keymix algorithm.
+This is the official repo for the Keymix algorithm, developed by the
+[UniBG Seclab](https://seclab.unibg.it).
 
 We offer both a shared C library with the necessary functions to use Keymix
 in your code, and a CLI tool called `keymixer` to directly apply encryption
 and decryption to files.
+
+For the key extraction algorithm, see the dedicated [repo](https://github.com/unibg-seclab/seed-sampling).
 
 ## Installing
 
