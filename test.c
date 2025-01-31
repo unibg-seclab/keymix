@@ -276,12 +276,8 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
 // -------------------------------------------------- Main loops
 
 int main(int argc, char *argv[]) {
-#ifdef DO_KEYMIX_TESTS
         _log(LOG_INFO, "Doing keymix\n");
-#endif
-#ifdef DO_ENCRYPTION_TESTS
         _log(LOG_INFO, "Doing encryption\n");
-#endif
 
         OpenSSL_add_all_algorithms();
         ERR_load_crypto_strings();
@@ -307,10 +303,8 @@ int main(int argc, char *argv[]) {
 
         ctx_t ctx;
 
-#define DO_KEYMIX_TESTS 1
-#define DO_ENCRYPTION_TESTS 1
+        // --------------------------------- Keymix tests
 
-#ifdef DO_KEYMIX_TESTS
         fout = fopen(out_keymix, "w");
         _log(LOG_INFO, "Testing keymix\n");
 
@@ -357,9 +351,9 @@ int main(int argc, char *argv[]) {
 
         fclose(fout);
         fout = NULL;
-#endif
 
-#ifdef DO_ENCRYPTION_TESTS
+        // --------------------------------- Encryption tests
+
         fout = fopen(out_enc, "w");
         _log(LOG_INFO, "Testing encryption\n");
 
@@ -394,7 +388,6 @@ int main(int argc, char *argv[]) {
 
         fclose(fout);
         fout = NULL;
-#endif
 
 cleanup:
         if (fout)
