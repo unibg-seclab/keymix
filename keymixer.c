@@ -37,13 +37,12 @@ typedef struct {
         const char *input;
         const char *output;
         const char *key;
-        uint128_t iv;
+        byte iv[KEYMIX_IV_SIZE];
         uint8_t fanout;
         enc_mode_t enc_mode;
         mix_impl_t mix;
         mix_impl_t one_way_mix;
         uint8_t threads;
-        uint8_t blocks;
         bool verbose;
 } cli_args_t;
 
@@ -76,8 +75,7 @@ static struct argp_option options[] = {
     {"output", ARG_KEY_OUTPUT, "PATH", 0, "Output to file instead of standard output"},
     {"primitive", ARG_KEY_PRIMITIVE, "STRING", 0,
      "One of the mixing primitive available (default: xkcp-tuboshake-128)"},
-    {"threads", ARG_KEY_THREADS, "UINT[xUINT]", 0,
-     "Number of threads per keymix (default 1x1), times the number of blocks done in parallel"},
+    {"threads", ARG_KEY_THREADS, "UINT", 0, "Number of threads"},
     {"verbose", ARG_KEY_VERBOSE, NULL, 0, "Verbose mode"},
     {NULL}, // as per doc, this is necessary to terminate the options
 };
@@ -89,50 +87,12 @@ static struct argp argp = {options, parse_opt, args_doc,
 
 // ------------------------------------------------------------------ Argument parsing
 
-// I know about `strtol` and all the other stuff, but we need a 16-B unsigned
-// integer, and `strtol` does a signed long :(
-// Adapted from https://stackoverflow.com/questions/10156409/convert-hex-string-char-to-int
-inline int parse_hex(uint128_t *valp, char *hex) {
-        // Work on a local copy (less pointer headaches is better)
-        uint128_t val = 0;
-        while (*hex) {
-                byte byte = tolower(*hex);
-                // transform hex character to the 4bit equivalent number, using the ascii table
-                // indexes
-                if (byte >= '0' && byte <= '9')
-                        byte = byte - '0';
-                else if (byte >= 'a' && byte <= 'f')
-                        byte = byte - 'a' + 10;
-                else
-                        return 1; // Invalid character detected
-
-                // shift 4 to make space for new digit, and add the 4 bits of the new digit
-                val = (val << 4) | (byte & 0xF);
-
-                // go to next byte
-                hex++;
-        }
-        // Everything is good, update the value
-        *valp = val;
-        return 0;
-}
-
-inline int parse_threads(uint8_t *threads, uint8_t *blocks, char *str) {
-        *threads  = 1;
-        *blocks   = 1;
-        int count = 0;
-        for (char *p = strtok(str, "x"); p != NULL; p = strtok(NULL, "x")) {
-                switch (count++) {
-                case 0:
-                        *threads = (uint8_t)atoi(p);
-                        break;
-                case 1:
-                        *blocks = (uint8_t)atoi(p);
-                        break;
+inline int parse_hex(byte *bytes, size_t len, char *hex) {
+        for (int i = 0; *hex && i < len; i++) {
+                if (sscanf(hex + 2*i, "%2hhx", bytes + i) <= 0) {
+                        return 1;
                 }
         }
-        if (count > 2)
-                return 1;
         return 0;
 }
 
@@ -146,15 +106,16 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments->verbose = true;
                 break;
         case ARG_KEY_IV:
-                if (strlen(arg) != 16)
-                        argp_error(state, "IV must be 16-B long");
-                if (parse_hex(&(arguments->iv), arg))
+                if (strlen(arg) != 2 * KEYMIX_IV_SIZE)
+                        argp_error(state, "IV must be %d-B long", KEYMIX_IV_SIZE);
+                if (parse_hex(arguments->iv, KEYMIX_IV_SIZE,  arg))
                         argp_error(state, "IV must consist of valid hex characters");
                 break;
         case ARG_KEY_ENC_MODE:
                 arguments->enc_mode = get_enc_mode_type(arg);
                 if (arguments->enc_mode == -1)
-                        argp_error(state, "encryption mode must be one of ctr, ofb");
+                        argp_error(state,
+                                   "encryption mode must be one of ctr, ctr-opt, ctr-ctr, ofb");
                 break;
         case ARG_KEY_PRIMITIVE:
                 arguments->mix = get_mix_type(arg);
@@ -167,9 +128,10 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
                         argp_error(state, "one-way primitive must be one of the available ones");
                 break;
         case ARG_KEY_THREADS:
-                if (parse_threads(&arguments->threads, &arguments->blocks, arg)) {
-                        argp_error(state, "invalid threads, use UINTxUINT or UINT");
-                }
+                long value = strtol(arg, NULL, 10);
+                if (value <= 0)
+                        argp_error(state, "number of threads must be at least 1");
+                arguments->threads = value;
                 break;
         case ARGP_KEY_ARG:
                 // We accept only 2 input argument, the key and (possibly) the file
@@ -218,7 +180,6 @@ int main(int argc, char **argv) {
             .mix         = XKCP_TURBOSHAKE_128,
             .one_way_mix = NONE,
             .threads     = 1,
-            .blocks      = 1,
             .verbose     = false,
         };
 
@@ -228,11 +189,6 @@ int main(int argc, char **argv) {
 
         // Setup fanout
         get_fanouts_from_mix_type(args.mix, 1, (uint8_t *)&args.fanout);
-
-        if (!ISPOWEROF(args.threads, args.fanout)) {
-                errmsg("invalid number of threads, must be a power of fanout (%d)", args.fanout);
-                return EXIT_FAILURE;
-        }
 
         if (args.verbose) {
                 printf("===============\n");
@@ -245,10 +201,9 @@ int main(int argc, char **argv) {
                 // printf("%llx\n", (unsigned long long)(args.iv & 0xFFFFFFFFFFFFFFFF));
                 printf("enc mode:          %s", get_enc_mode_name(args.enc_mode));
                 printf("primitive:         %s", get_mix_name(args.mix));
-                if (args.enc_mode == ENC_MODE_OFB)
-                        printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
+                printf("one-way primitive: %s", get_mix_name(args.one_way_mix));
                 printf("fanout:            %d\n", args.fanout);
-                printf("threads:           %dx%d\n", args.threads, args.blocks);
+                printf("threads:           %d\n", args.threads);
                 printf("===============\n");
         }
 
@@ -285,7 +240,7 @@ int main(int argc, char **argv) {
         // Do the encryption
         ctx_t ctx;
         err = ctx_encrypt_init(&ctx, args.enc_mode, args.mix, args.one_way_mix, key, key_size,
-                               args.iv, args.fanout);
+                               args.fanout);
         switch (err) {
         case CTX_ERR_UNKNOWN_MIX:
                 errmsg("no mix primitive implementation found");
@@ -324,11 +279,14 @@ int main(int argc, char **argv) {
                 block_size_t one_way_block_size;
 
                 get_mix_func(args.mix, &mix_function, &block_size);
-                if (args.enc_mode == ENC_MODE_CTR) {
+                switch (args.enc_mode) {
+                case ENC_MODE_CTR:
+                case ENC_MODE_CTR_OPT:
                         errmsg("size of the key must be: size = block_size * fanout^n, with "
                                "%s mixing primitive block_size = %d and fanout = %d",
                                get_mix_name(args.mix), block_size, args.fanout);
-                } else {
+                        break;
+                case ENC_MODE_OFB:
                         get_mix_func(args.one_way_mix, &one_way_function, &one_way_block_size);
                         errmsg("size of the key must be: size = block_size * fanout^n, with %s "
                                "mixing primitive block_size = %d and fanout = %d, but also "
@@ -336,17 +294,17 @@ int main(int argc, char **argv) {
                                "primitive one_way_block_size = %d", get_mix_name(args.mix),
                                block_size, get_mix_name(args.one_way_mix), one_way_block_size,
                                args.fanout);
+                        break;
                 }
                 err = ERR_KEY_SIZE;
                 goto cleanup;
         }
 
-        if (stream_encrypt(fout, fin, &ctx, args.threads, args.blocks))
+        if (stream_encrypt(&ctx, fin, fout, args.iv, args.threads))
                 err = ERR_ENC;
 
         // ctx_keymix_init(&ctx, args.mixfunc, key, key_size, args.fanout);
-        // ctx_enable_iv_counter(&ctx, args.iv);
-        // err = stream_encrypt2(fout, fin, &ctx, args.threads);
+        // err = stream_encrypt2(&ctx, fin, fout, args.iv, args.threads);
 
 cleanup:
         safe_explicit_bzero(key, key_size);

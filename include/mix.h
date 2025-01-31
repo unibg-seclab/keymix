@@ -4,6 +4,7 @@
 #include "types.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 // Number of AES execution in the MixCTR implementations
@@ -17,9 +18,12 @@ typedef enum {
         OPENSSL_AES_128,
         OPENSSL_DAVIES_MEYER_128,
         OPENSSL_MATYAS_MEYER_OSEAS_128,
+        OPENSSL_NEW_MATYAS_MEYER_OSEAS_128,
         WOLFCRYPT_AES_128,
         WOLFCRYPT_DAVIES_MEYER_128,
         WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+        AESNI_DAVIES_MEYER_128,
+        AESNI_MATYAS_MEYER_OSEAS_128,
         // 256-bit block size
         OPENSSL_SHA3_256,
         OPENSSL_BLAKE2S,
@@ -57,7 +61,7 @@ typedef enum {
 
 // A function that implements mix on a series of blocks.
 // Here `size` must be a multiple of `BLOCK_SIZE`.
-typedef int (*mix_func_t)(byte *in, byte *out, size_t size);
+typedef int (*mix_func_t)(byte *in, byte *out, size_t size, byte *iv);
 
 typedef enum {
         MIX_NONE,
@@ -128,7 +132,10 @@ const static mix_impl_t MIX_TYPES[] = {
         OPENSSL_DAVIES_MEYER_128,
         WOLFCRYPT_DAVIES_MEYER_128,
         OPENSSL_MATYAS_MEYER_OSEAS_128,
+        OPENSSL_NEW_MATYAS_MEYER_OSEAS_128,
         WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+        AESNI_DAVIES_MEYER_128,
+        AESNI_MATYAS_MEYER_OSEAS_128,
         // 256-bit block size
         OPENSSL_SHA3_256,
         WOLFCRYPT_SHA3_256,
@@ -181,5 +188,10 @@ mix_info_t *get_mix_info(mix_impl_t mix_type);
 
 // Get the mix type given its name.
 mix_impl_t get_mix_type(char *name);
+
+// Run mix function with multiple threads.
+int multi_threaded_mixpass(mix_func_t mixpass, block_size_t block_size,
+                           byte *in, byte *out, size_t size, byte *iv,
+                           uint8_t nof_threads);
 
 #endif

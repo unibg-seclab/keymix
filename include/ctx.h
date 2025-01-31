@@ -7,8 +7,14 @@
 #include "mix.h"
 #include "types.h"
 
+#define KEYMIX_NONCE_SIZE 8
+#define KEYMIX_COUNTER_SIZE 8
+#define KEYMIX_IV_SIZE KEYMIX_NONCE_SIZE + KEYMIX_COUNTER_SIZE
+
 typedef enum {
         ENC_MODE_CTR,
+        ENC_MODE_CTR_OPT,
+        ENC_MODE_CTR_CTR,
         ENC_MODE_OFB,
 } enc_mode_t;
 
@@ -39,21 +45,12 @@ typedef struct {
         // The mix implementation.
         mix_func_t mixpass;
 
-        // The fanout for the shuffle/spread part, can only be 2, 3, or 4
+        // The fanout for the shuffle/spread part.
         uint8_t fanout;
-
-        // The initial IV to XOR with the first block of the key.
-        // This is only done if `do_iv_counter` is enabled.
-        uint128_t iv;
 
         // Marks this context as an encryption context.
         // That is, to do the XOR after the keymix.
         bool encrypt;
-
-        // If `true`, indicates keymix to apply the IV to the first block
-        // and increasing counters to the following ones.
-        // Otherwise, this step is skipped.
-        bool do_iv_counter;
 
         // Input/output size of the mixing primitive.
         block_size_t block_size;
@@ -61,7 +58,7 @@ typedef struct {
         // Encryption mode.
         enc_mode_t enc_mode;
 
-        // The mix type of the one-way pass
+        // The mix type of the one-way pass.
         mix_impl_t one_way_mix;
 
         // One-way mix pass implementation.
@@ -69,13 +66,18 @@ typedef struct {
 
         // Input/output size of the one-way pass mixing primitive.
         block_size_t one_way_block_size;
+
+        // Precomputation of the internal state to optimize execution of the
+        // ctr encryption mode. Or store the next key of the ofb encryption
+        // mode.
+        byte *state;
 } ctx_t;
 
 // Context initialization
 
 // Initializes the context `ctx` for encryption purposes with a certain `key` and setting an `iv`.
 ctx_err_t ctx_encrypt_init(ctx_t *ctx, enc_mode_t enc_mode, mix_impl_t mix, mix_impl_t one_way_mix,
-                           byte *key, size_t size, uint128_t iv, uint8_t fanout);
+                           byte *key, size_t size, uint8_t fanout);
 
 // Initializes the context `ctx` for keymix-only purposes with a certain `key`.
 ctx_err_t ctx_keymix_init(ctx_t *ctx, mix_impl_t mix, byte *key, size_t size, uint8_t fanout);
@@ -86,12 +88,11 @@ void ctx_enable_encryption(ctx_t *ctx);
 // Updates the context `ctx` to disable the XOR operation after doing the keymix.
 void ctx_disable_encryption(ctx_t *ctx);
 
-// Updates the context `ctx` to enable the application of IV and counter to the key.
-// Must provide an IV.
-void ctx_enable_iv_counter(ctx_t *ctx, uint128_t iv);
+// Precompute internal state to optimize execution of the ctr encryption mode.
+void ctx_precompute_state(ctx_t *ctx);
 
-// Updates the context `ctx` to disable the application of IV and counter to the key.
-void ctx_disable_iv_counter(ctx_t *ctx);
+// Free `ctx` state.
+void ctx_free(ctx_t *ctx);
 
 // Other utilities
 

@@ -2,122 +2,146 @@
 
 #include <assert.h>
 
+#include "log.h"
 #include "mix.h"
 #include "utils.h"
-
-// This function spreads the output of the encryption produced by
-// the single thread across multiple slabs inplace.
-void spread(byte *buffer, size_t size, uint8_t level, block_size_t block_size,
-            uint8_t fanout) {
-        if (DEBUG) {
-                assert(level > 0);
-        }
-
-        byte *in  = buffer;
-        byte *out = buffer;
-
-        size_t mini_size = block_size / fanout;
-
-        uint64_t prev_macros_in_slab = intpow(fanout, level - 1);
-        uint64_t macros_in_slab      = fanout * prev_macros_in_slab;
-        size_t prev_slab_size        = prev_macros_in_slab * block_size;
-        size_t slab_size             = macros_in_slab * block_size;
-
-        byte *last = out + size;
-        uint64_t in_mini_offset, out_macro_offset, out_mini_offset;
-
-        while (out < last) {
-                // With inplace swap we never have to look back on the previous
-                // slab parts. Moreover, when we get to the last slab part we
-                // have nothing to do, previous swap operations have already
-                // managed to set this last slab part right.
-                in_mini_offset = 0;
-                for (uint8_t prev_slab = 0; prev_slab < fanout - 1; prev_slab++) {
-                        out_macro_offset = 0;
-                        for (uint64_t macro = 0; macro < prev_macros_in_slab; macro++) {
-                                in_mini_offset += (prev_slab + 1) * mini_size;
-                                out_mini_offset =
-                                    (prev_slab + 1) * prev_slab_size + prev_slab * mini_size;
-                                for (uint8_t mini = prev_slab + 1; mini < fanout; mini++) {
-                                        memswap(out + out_macro_offset + out_mini_offset,
-                                                in + in_mini_offset, mini_size);
-                                        in_mini_offset += mini_size;
-                                        out_mini_offset += prev_slab_size;
-                                }
-                                out_macro_offset += block_size;
-                        }
-                }
-                in += slab_size;
-                out += slab_size;
-        }
-}
 
 // Spread the output of the encryption owned by the current thread to the
 // following threads belonging to the same slab. The operation despite being
 // done inplace is thread-safe since there is no overlap between the read and
 // write operations of the threads.
-//
-// Note, this is using a different mixing behavior with respect to the Mix&Slice
-// shuffle.
-void spread_chunks(spread_chunks_args_t *args) {
-        if (DEBUG)
-                assert(args->level >= args->thread_levels);
-
-        size_t mini_size = args->block_size / args->fanout;
-
-        uint64_t prev_macros_in_slab = intpow(args->fanout, args->level - 1);
-        uint64_t macros_in_slab      = args->fanout * prev_macros_in_slab;
-        size_t prev_slab_size        = prev_macros_in_slab * args->block_size;
-        size_t slab_size             = macros_in_slab * args->block_size;
-
-        uint8_t nof_threads = intpow(args->fanout, args->total_levels - args->thread_levels);
-        uint64_t nof_slabs  = args->buffer_abs_size / slab_size;
-        uint8_t nof_threads_per_slab      = nof_threads / nof_slabs;
-        uint8_t prev_nof_threads_per_slab = nof_threads_per_slab / args->fanout;
-
+void spread(spread_args_t *args) {
+        uint64_t tot_macros;
+        uint64_t offset;
+        uint64_t macros;
+        uint64_t prev_slab_macros;
         uint8_t prev_slab;
-        if (prev_nof_threads_per_slab <= 1) {
-                prev_slab = args->thread_id % args->fanout;
-        } else {
-                prev_slab = (args->thread_id % nof_threads_per_slab) / prev_nof_threads_per_slab;
-        }
+        block_size_t mini_size;
+        byte *base;
+        byte *from;
+        byte *to;
 
-        // Don't do anything if the current thread belongs to the last
-        // prev_slab.
-        // Note, this inevitably reduces the amount of parallelism we can
-        // accomplish.
-        if (prev_slab == args->fanout - 1) {
-                return;
-        }
+        tot_macros = args->buffer_abs_size / args->block_size;
 
-        uint64_t out_slab_offset        = slab_size * (args->thread_id / nof_threads_per_slab);
-        uint64_t out_inside_slab_offset = 0;
-        if (prev_nof_threads_per_slab > 1) {
-                out_inside_slab_offset =
-                    args->buffer_size * (args->thread_id % prev_nof_threads_per_slab);
-        }
-        uint64_t out_mini_offset = prev_slab * mini_size;
+        // Current thread offset
+        offset = (args->buffer - args->buffer_abs) / args->block_size;
 
-        byte *in  = args->buffer;
-        byte *out = args->buffer_abs + out_slab_offset + out_inside_slab_offset + out_mini_offset;
+        // Current thread window size
+        macros = args->buffer_size / args->block_size;
 
-        uint64_t nof_macros = args->buffer_size / args->block_size;
+        _log(LOG_DEBUG, "[t=%d] tot_macros = %ld, offset = %ld, macros = %ld\n",
+             args->thread_id, tot_macros, offset, macros);
 
-        uint64_t in_mini_offset   = 0;
-        uint64_t out_macro_offset = 0;
+        assert(args->level >= 1);
+        prev_slab_macros = intpow(args->fanout, args->level - 1);
+        mini_size        = args->block_size / args->fanout;
 
-        for (uint64_t macro = 0; macro < nof_macros; macro++) {
-                // Note, differently from the 'normal' implementation of the
-                // spread_chunks, here we do not look back on previous parts of
-                // the slab. Indeed, previous threads take care of them.
-                in_mini_offset += (prev_slab + 1) * mini_size;
-                out_mini_offset = (prev_slab + 1) * prev_slab_size; // + prev_slab * mini_size;
+        for (uint64_t macro = offset; macro < offset + macros; macro++) {
+                // Previous slab of the current macro
+                prev_slab = (macro / prev_slab_macros) % args->fanout;
+                _log(LOG_DEBUG, "[t=%d] macro = %ld, prev_slab = %d\n", args->thread_id, macro, prev_slab);
+
                 for (uint8_t mini = prev_slab + 1; mini < args->fanout; mini++) {
-                        memswap(out + out_macro_offset + out_mini_offset, in + in_mini_offset,
-                                mini_size);
-                        in_mini_offset += mini_size;
-                        out_mini_offset += prev_slab_size;
+                        base = args->buffer_abs + args->block_size * macro;
+                        from = base + mini_size * mini;
+                        to   = base + args->block_size * prev_slab_macros * (mini - prev_slab) + mini_size * prev_slab;
+
+                        _log(LOG_DEBUG, "[t=%d] mini = %d, from = %ld, to = %ld\n",
+                             args->thread_id, mini, macro * args->fanout + mini,
+                             (macro + prev_slab_macros * (mini - prev_slab)) * args->fanout + prev_slab);
+
+                        memswap(from, to, mini_size);
                 }
-                out_macro_offset += args->block_size;
+        }
+}
+
+void spread_opt(spread_args_t *args) {
+        block_size_t block_size;
+        uint64_t tot_macros;
+        uint64_t offset;
+        uint64_t macros;
+        uint64_t end;
+        uint8_t fanout;
+        uint64_t prev_slab_macros;
+        block_size_t mini_size;
+        uint64_t prev_slabs;
+        uint8_t prev_slab;
+        uint64_t curr_macros;
+        byte *buffer;
+        byte *base;
+        byte *from;
+        byte *to;
+
+        buffer     = args->buffer_abs;
+        block_size = args->block_size;
+        tot_macros = args->buffer_abs_size / block_size;
+
+        // Thread window start
+        offset = (args->buffer - buffer) / block_size;
+        // Thread window size
+        macros = args->buffer_size / args->block_size;
+        // Thread window end
+        end = offset + macros;
+
+        // _log(LOG_DEBUG, "[t=%d] tot_macros = %ld, offset = %ld, macros = %ld\n",
+        //      args->thread_id, tot_macros, offset, macros);
+
+        assert(args->level >= 1);
+        fanout           = args->fanout;
+        prev_slab_macros = intpow(fanout, args->level - 1);
+        mini_size        = block_size / fanout;
+
+        // To improve performance, we need to know how many previous slabs we
+        // process, the one we are in and its number of macros
+        prev_slabs = ceil((double) end / prev_slab_macros) - offset / prev_slab_macros;
+        prev_slab  = (offset / prev_slab_macros) % fanout;
+
+        // _log(LOG_DEBUG, "[t=%d] prev_slab_macros = %ld, prev_slabs = %ld, prev_slab = %ld\n",
+        //      args->thread_id, prev_slab_macros, prev_slabs, prev_slab);
+
+        // Iterate over all prev slabs
+        for (uint64_t i = 0; i < prev_slabs; i++) {
+                // Number of macros to process in the current previous slab
+                curr_macros = prev_slab_macros;
+                if (!i && prev_slabs == 1) {
+                        // Window smaller than the previous slab size
+                        curr_macros = macros;
+                } else if (!i) {
+                        // Not aligned first previous slab
+                        curr_macros = prev_slab_macros - offset % prev_slab_macros;
+                } else if (i == prev_slabs - 1 && end % prev_slab_macros) {
+                        // Not aligned last previous slab
+                        curr_macros = end % prev_slab_macros;
+                }
+
+                // Swaps are always done ahead (i.e. to > from), so the last
+                // previous slab is subject to changes from all previous slabs
+                // and has nothing to do
+                if (prev_slab == fanout - 1) {
+                        prev_slab = (prev_slab + 1) % fanout;
+                        offset += curr_macros;
+                        continue;
+                }
+
+                // Iterate over all macros part of the window in the current prev slab
+                for (uint64_t macro = offset; macro < offset + curr_macros; macro++) {
+                        // _log(LOG_DEBUG, "[t=%d] curr_macros = %ld, macro = %ld, prev_slab = %d\n",
+                        //      args->thread_id, curr_macros, macro, prev_slab);
+
+                        for (uint8_t mini = prev_slab + 1; mini < fanout; mini++) {
+                                base = buffer + block_size * macro;
+                                from = base + mini_size * mini;
+                                to   = base + block_size * prev_slab_macros * (mini - prev_slab) + mini_size * prev_slab;
+
+                                // _log(LOG_DEBUG, "[t=%d] mini = %d, from = %ld, to = %ld\n",
+                                //      args->thread_id, mini, macro * fanout + mini,
+                                //      (macro + prev_slab_macros * (mini - prev_slab)) * fanout + prev_slab);
+
+                                memswap(from, to, mini_size);
+                        }
+                }
+
+                prev_slab = (prev_slab + 1) % fanout;
+                offset += curr_macros;
         }
 }

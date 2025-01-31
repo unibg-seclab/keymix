@@ -39,42 +39,56 @@ byte *setup(size_t size, bool random) {
 inline double MiB(size_t size) { return (double)size / 1024 / 1024; }
 
 void *_run_thr(void *arg) {
-        spread_chunks((spread_chunks_args_t *)arg);
+        spread((spread_args_t *)arg);
         return NULL;
 }
 
-void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, block_size_t block_size,
-                           uint8_t fanout, uint8_t nof_threads) {
+void *_run_thr_opt(void *arg) {
+        spread_opt((spread_args_t *)arg);
+        return NULL;
+}
+
+void emulate_spread(byte *buffer, size_t size, uint8_t level, block_size_t block_size,
+                    uint8_t fanout, uint8_t nof_threads, bool opt) {
+        pthread_t threads[nof_threads];
+        spread_args_t thread_args[nof_threads];
+        spread_args_t *arg;
+        size_t thread_chunk_size;
+        uint64_t tot_macros;
+        uint64_t macros;
+        byte *offset;
+
+        assert(size % block_size == 0);
+
         if (nof_threads > (size / block_size))
                 nof_threads = fanout;
 
-        uint8_t thread_levels = level - LOGBASE(nof_threads, fanout); // only accurate when the
-                                                                      // nof_threads is a power of
-                                                                      // fanout
-
-        pthread_t threads[nof_threads];
-        spread_chunks_args_t thread_args[nof_threads];
-
-        size_t thread_chunk_size = size / nof_threads;
-
-        assert(size % nof_threads == 0);
-        assert(thread_chunk_size % block_size == 0);
+        tot_macros = size / block_size;
+        offset = buffer;
 
         for (uint8_t t = 0; t < nof_threads; t++) {
-                spread_chunks_args_t *arg = thread_args + t;
+                arg = thread_args + t;
+
+                macros = tot_macros / nof_threads + (t < tot_macros % nof_threads);
+                thread_chunk_size = block_size * macros;
 
                 arg->thread_id       = t;
-                arg->buffer          = buffer + t * thread_chunk_size;
+                arg->nof_threads     = nof_threads;
+                arg->buffer          = offset;
                 arg->buffer_abs      = buffer;
                 arg->buffer_abs_size = size;
                 arg->buffer_size     = thread_chunk_size;
                 arg->fanout          = fanout;
-                arg->thread_levels   = 1 + thread_levels;
-                arg->total_levels    = 1 + level;
                 arg->level           = level;
                 arg->block_size      = block_size;
 
-                pthread_create(&threads[t], NULL, _run_thr, arg);
+                if (!opt) {
+                        pthread_create(&threads[t], NULL, _run_thr, arg);
+                } else {
+                        pthread_create(&threads[t], NULL, _run_thr_opt, arg);
+                }
+
+                offset += thread_chunk_size;
         }
 
         for (uint8_t t = 0; t < nof_threads; t++) {
@@ -85,36 +99,42 @@ void emulate_spread_chunks(byte *buffer, size_t size, uint8_t level, block_size_
 // Verify equivalence of the shuffling operations for mixing a key of size
 // fanout^level macro blocks.
 int verify_shuffles(block_size_t block_size, size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * (size_t) block_size;
+        size_t size;
+        byte *in;
+        byte *out_spread;
+        byte *out_spread_chunks;
+        int err;
+        uint8_t nof_threads;
+        bool is_shuffle_chunks_level;
+
+        size = block_size * pow(fanout, level);
 
         _log(LOG_INFO, "> Verifying swaps and shuffles up to level %zu (%.2f MiB)\n", level,
              MiB(size));
 
-        byte *in                = setup(size, true);
-        byte *out_spread        = setup(size, false);
-        byte *out_spread_chunks = setup(size, false);
+        in                = setup(size, true);
+        out_spread        = setup(size, false);
+        out_spread_chunks = setup(size, false);
 
-        int err = 0;
+        err = 0;
         for (uint8_t l = 1; l <= level; l++) {
-                uint8_t nof_threads          = pow(fanout, fmin(l, 2));
-                bool is_shuffle_chunks_level = (level - l < fmin(l, 2));
+                nof_threads             = pow(fanout, MIN(l, 2));
+                is_shuffle_chunks_level = (level - l < MIN(l, 2));
+
+                if (!is_shuffle_chunks_level) {
+                        continue;
+                }
 
                 // Fill in buffer of the inplace operations
                 memcpy(out_spread, in, size);
                 memcpy(out_spread_chunks, in, size);
 
-                spread(out_spread, size, l, block_size, fanout);
-
-                if (is_shuffle_chunks_level) {
-                        emulate_spread_chunks(out_spread_chunks, size, l, block_size, fanout,
-                                              nof_threads);
-
-                        err += COMPARE(out_spread, out_spread_chunks, size,
-                                       "Spread (inplace) != spread (chunks inplace)\n");
-                }
-
+                emulate_spread(out_spread, size, l, block_size, fanout, 1, false);
+                emulate_spread(out_spread_chunks, size, l, block_size, fanout, nof_threads, true);
+                err = COMPARE(out_spread, out_spread_chunks, size,
+                              "Spread (inplace) != spread (chunks inplace)\n");
                 if (err) {
-                        _log(LOG_INFO, "Error at level %d/%d (with %d threads)", l, level,
+                        _log(LOG_ERROR, "Error at level %d/%d (with %d threads)\n", l, level,
                              nof_threads);
                         break;
                 }
@@ -127,45 +147,44 @@ int verify_shuffles(block_size_t block_size, size_t fanout, uint8_t level) {
         return err;
 }
 
+
 // Verify equivalence of the shuffling operations for mixing a key of size
 // fanout^level macro blocks with a varying number of threads.
 int verify_shuffles_with_varying_threads(block_size_t block_size, size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * block_size;
+        size_t size;
+        int err;
+        byte *in;
+        byte *out1;
+        byte *out2;
+
+        size = block_size * pow(fanout, level);
 
         _log(LOG_INFO, "> Verifying that shuffles AT level %zu are thread-independent (%.2f MiB)\n",
              level, MiB(size));
 
-        byte *in = setup(size, true);
-
-        byte *out1 = setup(size, false);
-        byte *out2 = setup(size, false);
-        byte *out3 = setup(size, false);
+        in   = setup(size, true);
+        out1 = setup(size, false);
+        out2 = setup(size, false);
 
         // The following functions work inplace. So to avoid overwriting the input we copy it
         memcpy(out1, in, size);
-        memcpy(out2, in, size);
-        memcpy(out3, in, size);
-        // Note, we are not testing spread_chunks with one thread because it is meant to be
-        // used only with multiple threads
-        spread(out1, size, level, block_size, fanout);
-        emulate_spread_chunks(out2, size, level, block_size, fanout, fanout);
-        emulate_spread_chunks(out3, size, level, block_size, fanout, fanout * fanout);
 
-        int err = 0;
-
-        err += COMPARE(out1, out2, size,
-                       "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n", fanout);
-        err += COMPARE(out2, out3, size,
-                       "%zu thr (spread chunks inplace) != %zu thr (spread chunks inplace)\n",
-                       fanout, fanout * fanout);
-        err +=
-            COMPARE(out3, out1, size, "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n",
-                    fanout * fanout);
+        err = 0;
+        emulate_spread(out1, size, level, block_size, fanout, 1, false);
+        for (uint8_t nof_threads = 1; nof_threads <= fanout; nof_threads++) {
+                memcpy(out2, in, size);
+                emulate_spread(out2, size, level, block_size, fanout, nof_threads, true);
+                err = COMPARE(out1, out2, size,
+                              "1 thr (spread inplace) != %zu thr (spread chunks inplace)\n",
+                              nof_threads);
+                if (err) {
+                        break;
+                }
+        }
 
         free(in);
         free(out1);
         free(out2);
-        free(out3);
 
         return err;
 }
@@ -173,25 +192,47 @@ int verify_shuffles_with_varying_threads(block_size_t block_size, size_t fanout,
 // Verify the equivalence of the results when using different encryption and
 // hash libraries
 int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
-        size_t size = (size_t)pow(fanout, level) * block_size;
+        const int MAX_GROUPS = 7;
+
+        size_t size;
+        uint8_t nof_groups;
+        mix_impl_t groups[MAX_GROUPS][2];
+        mix_func_t funcs[2];
+        block_size_t block_sizes[2];
+        ctx_t ctx;
+        byte *in;
+        byte *out[2];
+        int err;
+        char error_msg[80];
+
+        size = block_size * pow(fanout, level);
 
         _log(LOG_INFO, "> Verifying keymix mix-independence for size %.2f MiB\n", MiB(size));
 
-        byte *in     = setup(size, true);
-        byte *out[2] = { setup(size, false), setup(size, false) };
+        in     = setup(size, true);
+        out[0] = setup(size, false);
+        out[1] = setup(size, false);
 
-        mix_impl_t groups[2][2];
-        mix_func_t funcs[2];
-        block_size_t block_sizes[2];
-        int nof_groups = 0;
-
+        nof_groups = 0;
         switch (block_size) {
         case BLOCK_SIZE_AES:
-                nof_groups = 2;
+                nof_groups = 7;
                 groups[0][0] = OPENSSL_DAVIES_MEYER_128;
                 groups[0][1] = WOLFCRYPT_DAVIES_MEYER_128;
                 groups[1][0] = OPENSSL_MATYAS_MEYER_OSEAS_128;
-                groups[1][1] = WOLFCRYPT_MATYAS_MEYER_OSEAS_128;
+                groups[1][1] = OPENSSL_NEW_MATYAS_MEYER_OSEAS_128;
+                groups[2][0] = OPENSSL_MATYAS_MEYER_OSEAS_128;
+                groups[2][1] = WOLFCRYPT_MATYAS_MEYER_OSEAS_128;
+
+                groups[3][0] = OPENSSL_DAVIES_MEYER_128;
+                groups[3][1] = AESNI_DAVIES_MEYER_128;
+                groups[4][0] = WOLFCRYPT_DAVIES_MEYER_128;
+                groups[4][1] = AESNI_DAVIES_MEYER_128;
+
+                groups[5][0] = OPENSSL_MATYAS_MEYER_OSEAS_128;
+                groups[5][1] = AESNI_MATYAS_MEYER_OSEAS_128;
+                groups[6][0] = WOLFCRYPT_MATYAS_MEYER_OSEAS_128;
+                groups[6][1] = AESNI_MATYAS_MEYER_OSEAS_128;
                 break;
         case BLOCK_SIZE_SHA3_256:
                 nof_groups = 2;
@@ -226,13 +267,30 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
                 break;
         }
 
-        int err = 0;
-        for (int g = 0; g < nof_groups; g++) {
-                keymix(groups[g][0], in, out[0], size, fanout, 1);
-                keymix(groups[g][1], in, out[1], size, fanout, 1);
-                char *error_msg = (char *) malloc(80 * sizeof(char));
-                sprintf(error_msg, "%s != %s\n", get_mix_name(groups[g][0]), get_mix_name(groups[g][1]));
-                err += COMPARE(out[0], out[1], size, error_msg);
+        err = 0;
+        for (uint8_t g = 0; g < nof_groups; g++) {
+                err = ctx_keymix_init(&ctx, groups[g][0], in, size, fanout);
+                if (err) {
+                        _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
+                        break;
+                }
+                keymix(&ctx, out[0], size);
+                ctx_free(&ctx);
+
+                err = ctx_keymix_init(&ctx, groups[g][1], in, size, fanout);
+                if (err) {
+                        _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
+                        break;
+                }
+                keymix(&ctx, out[1], size);
+                ctx_free(&ctx);
+
+                sprintf(error_msg, "%s != %s\n", get_mix_name(groups[g][0]),
+                        get_mix_name(groups[g][1]));
+                err = COMPARE(out[0], out[1], size, error_msg);
+                if (err) {
+                        break;
+                }
         }
 
         free(in);
@@ -245,97 +303,48 @@ int verify_keymix(block_size_t block_size, size_t fanout, uint8_t level) {
 // Verify the equivalence of the results when using single-threaded and
 // multi-threaded encryption with a varying number of threads
 int verify_multithreaded_keymix(mix_impl_t mix_type, size_t fanout, uint8_t level) {
+        size_t size;
         mix_func_t mix;
         block_size_t block_size;
+        byte *in;
+        byte *out1;
+        byte *outt;
+        ctx_t ctx;
+        int err;
 
         if (get_mix_func(mix_type, &mix, &block_size)) {
                 _log(LOG_ERROR, "Unknown mixing implementation\n");
-                exit(EXIT_FAILURE);
+                return 1;
         }
 
-        size_t size = (size_t)pow(fanout, level) * block_size;
+        size = block_size * pow(fanout, level);
 
         _log(LOG_INFO, "> Verifying keymix threading-independence for size %.2f MiB\n", MiB(size));
 
-        byte *in     = setup(size, true);
-        byte *out1   = setup(size, false);
-        byte *outf   = setup(size, false);
-        byte *outff  = setup(size, false);
+        in   = setup(size, true);
+        out1 = setup(size, false);
+        outt = setup(size, false);
 
-        size_t thr1   = 1;
-        size_t thrf   = fanout;
-        size_t thrff  = fanout * fanout;
-
-        keymix(mix_type, in, out1, size, fanout, thr1);
-        keymix(mix_type, in, outf, size, fanout, thrf);
-        keymix(mix_type, in, outff, size, fanout, thrff);
-
-        // Comparisons
-        int err = 0;
-        err += COMPARE(out1, outf, size, "Keymix (1) != Keymix (%zu)\n", thrf);
-
-        err += COMPARE(out1, outff, size, "Keymix (1) != Keymix (%zu)\n", thrff);
-        err += COMPARE(outf, outff, size, "Keymix (%zu) != Keymix (%zu)\n", thrf, thrff);
-
-        free(in);
-        free(out1);
-        free(outf);
-        free(outff);
-
-        return err;
-}
-
-int verify_keymix_t(mix_impl_t mix_type, size_t fanout, uint8_t level) {
-        mix_func_t mix;
-        block_size_t block_size;
-
-        if (get_mix_func(mix_type, &mix, &block_size)) {
-                _log(LOG_ERROR, "Unknown mixing implementation\n");
-                exit(EXIT_FAILURE);
-        }
-
-        size_t size = (size_t)pow(fanout, level) * block_size;
-
-        _log(LOG_INFO, "> Verifying keymix-t equivalence for size %.2f MiB\n", MiB(size));
-
-        int  err         = 0;
-        byte *in         = setup(size, true);
-        byte *out_simple = setup(size, false);
-        byte *out1       = setup(size, false);
-        byte *out2_thr1  = setup(2 * size, 0);
-        byte *out2_thr2  = setup(2 * size, 0);
-        byte *out3_thr1  = setup(3 * size, 0);
-        byte *out3_thr2  = setup(3 * size, 0);
-
-        uint128_t iv             = rand() % (1 << sizeof(uint128_t));
-        uint8_t internal_threads = 1;
-
-        ctx_t ctx;
         err = ctx_keymix_init(&ctx, mix_type, in, size, fanout);
         if (err) {
                 _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
-                exit(EXIT_FAILURE);
+                goto cleanup;
         }
 
-        keymix(mix_type, in, out_simple, size, fanout, 1);
-        keymix_t(&ctx, out1, size, 1, internal_threads);
+        keymix(&ctx, out1, size);
+        for (uint8_t nof_threads = 2; nof_threads <= fanout; nof_threads++) {
+                keymix_t(&ctx, outt, size, nof_threads);
+                err = COMPARE(out1, outt, size, "Keymix (1) != Keymix (%d)\n", nof_threads);
+                if (err) {
+                        break;
+                }
+        }
 
-        keymix_t(&ctx, out2_thr1, 2 * size, 1, internal_threads);
-        keymix_t(&ctx, out2_thr2, 2 * size, 2, internal_threads);
-        keymix_t(&ctx, out3_thr1, 3 * size, 1, internal_threads);
-        keymix_t(&ctx, out3_thr2, 3 * size, 2, internal_threads);
-
-        err += COMPARE(out_simple, out1, size, "Keymix T (x1, 1thr) != Keymix\n");
-        err += COMPARE(out2_thr1, out2_thr2, size, "Keymix T (x2, 1thr) != Keymix T (x2, 2thr)\n");
-        err += COMPARE(out3_thr1, out3_thr2, size, "Keymix T (x3, 1thr) != Keymix T (x3, 2thr)\n");
-
+cleanup:
+        ctx_free(&ctx);
         free(in);
-        free(out_simple);
         free(out1);
-        free(out2_thr1);
-        free(out2_thr2);
-        free(out3_thr1);
-        free(out3_thr2);
+        free(outt);
 
         return err;
 }
@@ -344,90 +353,167 @@ int verify_enc(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type
                uint8_t level) {
         mix_func_t mix;
         block_size_t block_size;
+        size_t key_size;
+        size_t resource_size;
+        byte *key;
+        byte *iv;
+        byte *in;
+        byte *out1;
+        byte *outt;
+        ctx_t ctx;
+        int err;
+
+        if (get_mix_func(mix_type, &mix, &block_size)) {
+                _log(LOG_ERROR, "Unknown mixing implementation\n");
+                return 1;
+        }
+
+        key_size      = block_size * pow(fanout, level);
+        resource_size = (rand() % 5) * key_size + (rand() % key_size);
+
+        _log(LOG_INFO, "> Verifying encryption for key size %.2f MiB\n", MiB(key_size));
+
+        key  = setup(key_size, true);
+        iv   = setup(KEYMIX_IV_SIZE, true);
+        in   = setup(resource_size, true);
+        out1 = setup(resource_size, false);
+        outt = setup(resource_size, false);
+        
+        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, fanout);
+        if (err) {
+                _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
+                goto cleanup;
+        }
+
+        encrypt(&ctx, in, out1, resource_size, iv);
+        for (uint8_t nof_threads = 2; nof_threads <= fanout; nof_threads++) {
+                if (enc_mode == ENC_MODE_OFB) {
+                        // Reset context state for encryption
+                        memcpy(ctx.state, ctx.key, ctx.key_size);
+                }
+
+                encrypt_t(&ctx, in, outt, resource_size, iv, fanout);
+                err = COMPARE(out1, outt, resource_size, "Encrypt != Encrypt (%d int-thr)\n",
+                               nof_threads);
+                if (err) {
+                        break;
+                }
+        }
+
+cleanup:
+        ctx_free(&ctx);
+        free(key);
+        free(iv);
+        free(in);
+        free(out1);
+        free(outt);
+
+        return err;
+}
+
+int verify_enc_ctr_modes(mix_impl_t mix_type, mix_impl_t one_way_type, size_t fanout,
+                         uint8_t level) {
+        mix_func_t mix;
+        block_size_t block_size;
+        size_t key_size;
+        size_t resource_size;
+        byte *key;
+        byte *iv;
+        byte *in;
+        byte *out1;
+        byte *out2;
+        ctx_t ctx;
+        int err;
 
         if (get_mix_func(mix_type, &mix, &block_size)) {
                 _log(LOG_ERROR, "Unknown mixing implementation\n");
                 exit(EXIT_FAILURE);
         }
 
-        size_t key_size      = (size_t)pow(fanout, level) * block_size;
-        size_t resource_size = (rand() % 5) * key_size + (rand() % key_size);
+        key_size      = (size_t)pow(fanout, level) * block_size;
+        resource_size = (rand() % 5) * key_size + (rand() % key_size);
 
-        _log(LOG_INFO, "> Verifying encryption for key size %.2f MiB\n", MiB(key_size));
+        _log(LOG_INFO, "> Verifying equivalence of encryption ctr modes for key size %.2f MiB\n",
+             MiB(key_size));
 
-        uint128_t iv = rand() % (1 << sizeof(uint128_t));
+        key  = setup(key_size, true);
+        iv   = setup(KEYMIX_IV_SIZE, true);
+        in   = setup(resource_size, true);
+        out1 = setup(resource_size, false);
+        out2 = setup(resource_size, false);
 
-        int err   = 0;
-        byte *key = setup(key_size, true);
-        byte *in  = setup(resource_size, true);
-
-        byte *out1 = setup(resource_size, false);
-        byte *out2 = setup(resource_size, false);
-        byte *out3 = setup(resource_size, false);
-
-        ctx_t ctx;
-        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, key_size, iv, fanout);
+        err = ctx_encrypt_init(&ctx, ENC_MODE_CTR, mix_type, one_way_type, key, key_size, fanout);
         if (err) {
                 _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
-                exit(EXIT_FAILURE);
+                goto cleanup;
         }
-        encrypt(&ctx, in, out1, resource_size);
-        if (enc_mode == ENC_MODE_CTR) {
-                encrypt_t(&ctx, in, out2, resource_size, 2, 1);
-                encrypt_t(&ctx, in, out3, resource_size, 3, 1);
+        encrypt(&ctx, in, out1, resource_size, iv);
+        ctx_free(&ctx);
 
-                err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (2thr)\n");
-                err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (3thr)\n");
-                err += COMPARE(out2, out3, resource_size, "Encrypt (2thr) != Encrypt (3thr)\n");
+        err = ctx_encrypt_init(&ctx, ENC_MODE_CTR_OPT, mix_type, one_way_type, key, key_size,
+                               fanout);
+        if (err) {
+                _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
+                goto cleanup;
         }
+        encrypt(&ctx, in, out2, resource_size, iv);
 
-        encrypt_t(&ctx, in, out2, resource_size, 1, fanout);
-        encrypt_t(&ctx, in, out3, resource_size, 1, fanout * fanout);
-        err += COMPARE(out1, out2, resource_size, "Encrypt != Encrypt (%d int-thr)\n", fanout);
-        err += COMPARE(out1, out3, resource_size, "Encrypt != Encrypt (%d int-thr)\n",
-                       fanout * fanout);
-        err += COMPARE(out2, out3, resource_size, "Encrypt (%d int-thr) != Encrypt (%d int-thr)\n",
-                       fanout, fanout * fanout);
+        err = COMPARE(out1, out2, resource_size, "Encrypt (ctr) != Encrypt (ctr-opt)\n");
 
+cleanup:
+        ctx_free(&ctx);
         free(key);
+        free(iv);
+        free(in);
         free(out1);
         free(out2);
-        free(out3);
         return err;
 }
 
 int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_type) {
         mix_func_t mix;
         block_size_t block_size;
+        size_t size;
+        byte *key;
+        byte *iv;
+        byte *in;
+        byte *enc;
+        byte *dec;
+        ctx_t ctx;
+        int err;
+
 
         if (get_mix_func(mix_type, &mix, &block_size)) {
                 _log(LOG_ERROR, "Unknown mixing implementation\n");
                 exit(EXIT_FAILURE);
         }
 
-        byte *key = setup(block_size, false);
+        size = (rand() & 10) * block_size + (rand() % block_size);
+        
+        key = setup(block_size, false);
+        iv  = setup(KEYMIX_IV_SIZE, false);
+        in  = setup(size, true);
+        enc = setup(size, false);
+        dec = setup(size, false);
 
-        uint128_t iv     = 0;
-        uint128_t fanout = 2;
-        size_t size      = (rand() & 10) * block_size + (rand() % block_size);
-
-        int err   = 0;
-        byte *in  = setup(size, true);
-        byte *enc = setup(size, false);
-        byte *dec = setup(size, false);
-
-        ctx_t ctx;
-        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, block_size, iv, fanout);
+        err = ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_type, key, block_size, 2);
         if (err) {
                 _log(LOG_ERROR, "Encryption context initialization exited with %d\n", err);
-                exit(EXIT_FAILURE);
+                goto cleanup;
         }
-        encrypt(&ctx, in, enc, size);
-        encrypt(&ctx, enc, dec, size);
+        encrypt(&ctx, in, enc, size, iv);
+        if (enc_mode == ENC_MODE_OFB) {
+                // Reset context state for decryption
+                memcpy(ctx.state, ctx.key, ctx.key_size);
+        }
+        encrypt(&ctx, enc, dec, size, iv);
 
-        err += COMPARE(in, dec, size, "Enc != INV(Dec)\n");
+        err = COMPARE(in, dec, size, "Enc != INV(Dec)\n");
 
+cleanup:
+        ctx_free(&ctx);
         free(key);
+        free(iv);
         free(in);
         free(enc);
         free(dec);
@@ -440,16 +526,18 @@ int custom_checks(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t one_way_t
                 goto cleanup;
 
 int main() {
-        uint64_t rand_seed = time(NULL);
-        srand(rand_seed);
-
-        int err = 0;
+        uint64_t rand_seed;
+        int err;
         block_size_t block_size;
         mix_impl_t mix_type;
         mix_info_t mix_info;
         uint8_t fanouts[NUM_OF_FANOUTS];
         uint8_t fanouts_count;
         uint8_t fanout;
+
+        // Initialize pseudo-random number generator
+        rand_seed = time(NULL);
+        srand(rand_seed);
 
         _log(LOG_INFO, "[*] Verifying keymix with varying block sizes and fanouts\n\n");
         for (uint8_t i = 0; i < sizeof(BLOCK_SIZES) / sizeof(block_size_t); i++) {
@@ -459,26 +547,33 @@ int main() {
                 for (uint8_t j = 0; j < fanouts_count; j++) {
                         fanout = fanouts[j];
 
-                        _log(LOG_INFO, "Verifying with block size %d and fanout %zu\n", block_size, fanout);
+                        _log(LOG_INFO, "Verifying with block size %d and fanout %zu\n", block_size,
+                             fanout);
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_shuffles(block_size, fanout, l));
-                                CHECKED(verify_shuffles_with_varying_threads(block_size, fanout, l));
+                                CHECKED(verify_shuffles_with_varying_threads(block_size, fanout,
+                                        l));
                                 CHECKED(verify_keymix(block_size, fanout, l));
                         }
                         _log(LOG_INFO, "\n");
                 }
         }
 
-        _log(LOG_INFO, "[*] Verifying keymix and encryption with varying mixing implementations and fanouts\n\n");
+        _log(LOG_INFO,
+             "[*] Verifying keymix and encryption with varying mixing implementations and "
+             "fanouts\n\n");
         for (uint8_t i = 0; i < sizeof(MIX_TYPES) / sizeof(mix_impl_t); i++) {
                 mix_type = MIX_TYPES[i];
                 mix_info = *get_mix_info(mix_type);
                 fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS, fanouts);
 
-                CHECKED(custom_checks(ENC_MODE_CTR, mix_type, NONE));
-
-                if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
-                        CHECKED(custom_checks(ENC_MODE_OFB, mix_type, OPENSSL_MATYAS_MEYER_OSEAS_128));
+                for (enc_mode_t enc_mode = ENC_MODE_CTR; enc_mode <= ENC_MODE_OFB; enc_mode++) {
+                        if (enc_mode != ENC_MODE_OFB) {
+                                CHECKED(custom_checks(enc_mode, mix_type, NONE));
+                        } else if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
+                                CHECKED(custom_checks(ENC_MODE_OFB, mix_type,
+                                                      OPENSSL_MATYAS_MEYER_OSEAS_128));
+                        }
                 }
 
                 for (uint8_t j = 0; j < fanouts_count; j++) {
@@ -488,12 +583,16 @@ int main() {
                              get_mix_name(mix_type), fanout);
                         for (uint8_t l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
                                 CHECKED(verify_multithreaded_keymix(mix_type, fanout, l));
-                                CHECKED(verify_keymix_t(mix_type, fanout, l));
-                                CHECKED(verify_enc(ENC_MODE_CTR, mix_type, NONE, fanout, l));
-                                if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
-                                        CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
-                                                           OPENSSL_MATYAS_MEYER_OSEAS_128, fanout, l));
+                                for (enc_mode_t mode = ENC_MODE_CTR; mode <= ENC_MODE_OFB; mode++) {
+                                        if (mode != ENC_MODE_OFB) {
+                                                CHECKED(verify_enc(mode, mix_type, NONE, fanout, l));
+                                        } else if (mix_info.primitive != MIX_MATYAS_MEYER_OSEAS) {
+                                                CHECKED(verify_enc(ENC_MODE_OFB, mix_type,
+                                                                   OPENSSL_MATYAS_MEYER_OSEAS_128,
+                                                                   fanout, l));
+                                        }
                                 }
+                                CHECKED(verify_enc_ctr_modes(mix_type, NONE, fanout, l));
                         }
                         _log(LOG_INFO, "\n");
                 }

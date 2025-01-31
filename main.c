@@ -69,6 +69,8 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
                 _log(LOG_ERROR, "Cannot allocate memory\n");
                 goto cleanup;
         }
+
+        // Initialize key and keystream buffers
         explicit_bzero(key, key_size);
         explicit_bzero(out, key_size);
 
@@ -77,11 +79,18 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
                 print_buffer_hex(out, key_size, "out");
         }
 
-        time = MEASURE({ err = keymix(mix_type, key, out, key_size, fanout, nof_threads); }); // all layers
-        // time = MEASURE({ err = (*func)(key, out, key_size); }); // single layer
+        ctx_t ctx;
+        err = ctx_keymix_init(&ctx, mix_type, key, key_size, fanout);
+        if (err) {
+                _log(LOG_ERROR, "Keymix context initialization exited with %d\n", err);
+                goto ctx_cleanup;
+        }
+
+        time = MEASURE({ err = keymix_t(&ctx, out, key_size, nof_threads); }); // all layers
+        // time = MEASURE({ err = (*func)(key, out, key_size, MIXPASS_DEFAULT_IV); }); // single layer
         if (err) {
                 printf("Error occured while encrypting");
-                goto cleanup;
+                goto ctx_cleanup;
         }
 
         readable_size = (double)key_size / SIZE_1MiB;
@@ -89,9 +98,8 @@ int run_keymix(size_t desired_key_size, mix_impl_t mix_type, uint8_t nof_threads
         printf("total size:\t%.*lf MiB\n", PRECISION, readable_size);
         printf("average speed:\t%.*lf MiB/s\n\n", PRECISION, readable_size * 1000 / (time));
 
-        explicit_bzero(key, key_size);
-        explicit_bzero(out, key_size);
-
+ctx_cleanup:
+        ctx_free(&ctx);
 cleanup:
         free(key);
         free(out);

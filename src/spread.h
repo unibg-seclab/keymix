@@ -6,13 +6,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-// Implements the spread algorithm in-place.
-void spread(byte *buffer, size_t size, uint8_t level, block_size_t block_size, uint8_t fanout);
-
 // Data needed by the in-place `spread` algorithm.
 typedef struct {
         // The (progressive) number of the thread, starting from 0.
         uint8_t thread_id;
+
+        // Total number of threads.
+        uint8_t nof_threads;
 
         // A pointero to the buffer portion on which to operate.
         byte *buffer;
@@ -24,12 +24,6 @@ typedef struct {
         // The actual size of the whole buffer.
         size_t buffer_abs_size;
 
-        // How many levels of mixing can be done by the threads without synchronization.
-        uint8_t thread_levels;
-
-        // The total number of mixing levels.
-        uint8_t total_levels;
-
         // Block size of the mixing primitive
         block_size_t block_size;
 
@@ -38,10 +32,13 @@ typedef struct {
 
         // The current level at which to apply the spread.
         uint8_t level;
-} spread_chunks_args_t;
+} spread_args_t;
 
-// Implements the spread algorithm in-place and can be called by a single
-// thread without the need to synchronize.
-void spread_chunks(spread_chunks_args_t *args);
+// Implements the spread algorithm in-place and can be called by multiple
+// threads working on different windows.
+void spread(spread_args_t *args);
+
+// Optimized version of the spread function.
+void spread_opt(spread_args_t *args);
 
 #endif

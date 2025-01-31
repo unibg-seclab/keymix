@@ -44,9 +44,8 @@ FILE *fout;
 void csv_header() {
         fprintf(fout, "key_size,"); // Key size in B
         fprintf(fout, "outsize,");  // Output size, you can get expansion by dividing by key_size
-        fprintf(fout,
-                "internal_threads,");       // Number of internal threads
-        fprintf(fout, "external_threads,"); // Number of threads to generate the different Ts
+        fprintf(fout, "internal_threads,"); // Number of internal threads
+        fprintf(fout, "external_threads,"); // Kept for compatibility
         fprintf(fout, "enc_mode,");         // Encryption mode (none, ctr, ofb)
         fprintf(fout, "implementation,");   // Mixing implementation
         fprintf(fout, "one_way_mix_type,"); // One-way mixing implementation
@@ -54,13 +53,12 @@ void csv_header() {
         fprintf(fout, "time\n");            // Time in ms
         fflush(fout);
 }
-void csv_line(size_t key_size, size_t size, uint8_t internal_threads, uint8_t external_threads,
-              enc_mode_t enc_mode, mix_impl_t implementation, mix_impl_t one_way_mix_type,
-              uint8_t fanout, double time) {
+void csv_line(size_t key_size, size_t size, uint8_t threads, enc_mode_t enc_mode,
+              mix_impl_t implementation, mix_impl_t one_way_mix_type, uint8_t fanout, double time) {
         fprintf(fout, "%zu,", key_size);
         fprintf(fout, "%zu,", size);
-        fprintf(fout, "%d,", internal_threads);
-        fprintf(fout, "%d,", external_threads);
+        fprintf(fout, "%d,", threads);
+        fprintf(fout, "%d,", 1); // kept for compatibility
         fprintf(fout, "%s,", (enc_mode != -1 ? get_enc_mode_name(enc_mode) : "none"));
         fprintf(fout, "%s,", get_mix_name(implementation));
         fprintf(fout, "%s,", get_mix_name(one_way_mix_type));
@@ -86,125 +84,117 @@ void setup_keys(block_size_t block_size, uint8_t fanout, size_t **key_sizes,
         uint8_t max_x = first_x_that_surpasses(MAX_KEY_SIZE, block_size, fanout);
 
         *key_sizes_count = max_x + 1 - min_x;
-        *key_sizes       = realloc(*key_sizes, *key_sizes_count * sizeof(size_t));
+        *key_sizes       = malloc(*key_sizes_count * sizeof(size_t));
 
         for (uint8_t x = min_x; x <= max_x; x++) {
                 (*key_sizes)[x - min_x] = block_size * pow(fanout, x);
         }
 }
 
-void setup_valid_internal_threads(uint8_t fanout, uint8_t internal_threads[],
-                                  uint8_t *internal_threads_count) {
-        // Diff factors can be only one of 3, so we can just wing a switch
-        // Just be sure to keep the maximum reasonable
-
-        switch (fanout) {
-        case 2:
-                *internal_threads_count = 4;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 2;
-                internal_threads[2]     = 4;
-                internal_threads[3]     = 8;
-                break;
-        case 3:
-                *internal_threads_count = 3;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 3;
-                internal_threads[2]     = 9;
-                break;
-        case 4:
-                *internal_threads_count = 2;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 4;
-                break;
-        case 5:
-                *internal_threads_count = 2;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 5;
-                break;
-        case 6:
-                *internal_threads_count = 2;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 6;
-                break;
-        case 8:
-                *internal_threads_count = 2;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 8;
-                break;
-        case 10:
-                *internal_threads_count = 2;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 10;
-                break;
-        case 12:
-                *internal_threads_count = 2;
-                internal_threads[0]     = 1;
-                internal_threads[1]     = 12;
-                break;
-        }
-}
-
 // -------------------------------------------------- Actual test functions
 
-void test_keymix(ctx_t *ctx, byte *out, size_t size, uint8_t internal_threads,
-                 uint8_t external_threads) {
-        _log(LOG_INFO, "[TEST (i=%d, e=%d)] %s, fanout %d, expansion %zu: ", internal_threads,
-             external_threads, get_mix_name(ctx->mix), ctx->fanout, size / ctx->key_size);
+void test_keymix(ctx_t *ctx, byte *out, size_t size, uint8_t threads) {
+        _log(LOG_INFO, "[TEST (i=%d)] %s, fanout %d, expansion %zu: ", threads,
+             get_mix_name(ctx->mix), ctx->fanout, size / ctx->key_size);
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
-                double time = MEASURE(keymix_t(ctx, out, size, external_threads, internal_threads));
-                csv_line(ctx->key_size, size, internal_threads, external_threads, -1, ctx->mix, NONE,
+                double time = MEASURE(keymix_t(ctx, out, size, threads));
+                csv_line(ctx->key_size, size, threads, -1, ctx->mix, NONE, ctx->fanout, time);
+                _log(LOG_INFO, ".");
+        }
+        _log(LOG_INFO, "\n");
+}
+
+void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv, uint8_t threads) {
+        _log(LOG_INFO,
+             "[TEST (i=%d)] mode %s, main impl %s, one-way impl %s, fanout %d, expansion %zu: ",
+             threads, get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
+             get_mix_name(ctx->one_way_mix), ctx->fanout, CEILDIV(size, ctx->key_size));
+
+        for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
+                double time = MEASURE(encrypt_t(ctx, in, out, size, iv, threads));
+                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
                          ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
 }
 
-void test_enc(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
-              uint8_t external_threads) {
-        _log(LOG_INFO, "[TEST (i=%d, e=%d)] mode %s, main impl %s, one-way impl %s, "
-             "fanout %d, expansion %zu: ", internal_threads, external_threads,
-             get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
+void test_ctr_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv, uint8_t threads) {
+        _log(LOG_INFO,
+             "[TEST (i=%d)] mode %s, main impl %s, one-way impl %s, fanout %d, expansion %zu: ",
+             threads, get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
              get_mix_name(ctx->one_way_mix), ctx->fanout, CEILDIV(size, ctx->key_size));
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
-                double time =
-                    MEASURE(encrypt_t(ctx, in, out, size, external_threads, internal_threads));
-                csv_line(ctx->key_size, size, internal_threads, external_threads, ctx->enc_mode,
-                         ctx->mix, ctx->one_way_mix, ctx->fanout, time);
+                double time = MEASURE({
+                        byte *tmpiv = malloc(KEYMIX_IV_SIZE);
+                        memcpy(tmpiv, iv, KEYMIX_IV_SIZE);
+                        byte *counter         = tmpiv + KEYMIX_NONCE_SIZE;
+                        size_t remaining_size = size;
+
+                        while (remaining_size > 0) {
+                                size_t to_encrypt = MIN(remaining_size, ctx->key_size);
+                                encrypt_t(ctx, in, out, to_encrypt, tmpiv, threads);
+
+                                if (remaining_size >= to_encrypt)
+                                        remaining_size -= to_encrypt;
+                                // Don't need to forward in/out
+                                ctr64_inc(counter);
+                        }
+
+                        explicit_bzero(tmpiv, KEYMIX_IV_SIZE);
+                        free(tmpiv);
+                });
+                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
+                         ctx->fanout, time);
                 _log(LOG_INFO, ".");
         }
         _log(LOG_INFO, "\n");
 }
 
-void test_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, uint8_t internal_threads,
-                     uint8_t external_threads) {
-        _log(LOG_INFO, "[TEST (i=%d, e=%d)] mode %s, main impl %s, one-way impl %s, "
-             "fanout %d, expansion %zu: ", internal_threads, external_threads,
-             get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
+void test_ofb_enc_stream(ctx_t *ctx, byte *in, byte *out, size_t size, byte *iv, uint8_t threads) {
+        byte *curr_key;
+        byte *next_key;
+        byte *outbuffer;
+        size_t remaining_size;
+        uint64_t keys_to_do;
+        uint64_t nof_macros;
+        size_t remaining_one_way_size;
+
+        _log(LOG_INFO,
+             "[TEST (i=%d)] mode %s, main impl %s, one-way impl %s, fanout %d, expansion %zu: ",
+             threads, get_enc_mode_name(ctx->enc_mode), get_mix_name(ctx->mix),
              get_mix_name(ctx->one_way_mix), ctx->fanout, CEILDIV(size, ctx->key_size));
 
         for (uint8_t test = 0; test < NUM_OF_TESTS; test++) {
                 double time = MEASURE({
-                        uint128_t counter     = 0;
-                        size_t buffer_size    = external_threads * ctx->key_size;
-                        size_t remaining_size = size;
+                        outbuffer = malloc(ctx->key_size);
 
-                        while (remaining_size > 0) {
-                                size_t to_encrypt = MIN(remaining_size, buffer_size);
-                                encrypt_ex(ctx, in, out, to_encrypt, external_threads,
-                                           internal_threads, counter);
-
-                                if (remaining_size >= to_encrypt)
-                                        remaining_size -= to_encrypt;
-                                // Don't need to forward in/out
-                                counter += external_threads;
+                        remaining_size = size;
+                        keys_to_do     = CEILDIV(size, ctx->key_size);
+                        for (uint64_t i = 0; i < keys_to_do; i++) {
+                                keymix_ex(ctx, ctx->state, ctx->state, ctx->key_size, iv, threads);
+                                nof_macros = CEILDIV(remaining_size, ctx->one_way_block_size);
+                                remaining_one_way_size = ctx->one_way_block_size * nof_macros;
+                                multi_threaded_mixpass(
+                                    ctx->one_way_mixpass, ctx->one_way_block_size, ctx->state,
+                                    outbuffer, MIN(remaining_one_way_size, ctx->key_size), iv,
+                                    threads);
+                                multi_threaded_memxor(out, outbuffer, in,
+                                                      MIN(remaining_size, ctx->key_size), threads);
+                                if (remaining_size >= ctx->key_size)
+                                        remaining_size -= ctx->key_size;
                         }
+
+                        free(outbuffer);
                 });
-                csv_line(ctx->key_size, size, internal_threads, external_threads, ctx->enc_mode,
-                         ctx->mix, ctx->one_way_mix, ctx->fanout, time);
+                csv_line(ctx->key_size, size, threads, ctx->enc_mode, ctx->mix, ctx->one_way_mix,
+                         ctx->fanout, time);
                 _log(LOG_INFO, ".");
+
+                // Reset ctx state for next test
+                memcpy(ctx->state, ctx->key, ctx->key_size);
         }
         _log(LOG_INFO, "\n");
 }
@@ -221,18 +211,20 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
         uint8_t fanouts_count;
         size_t *key_sizes;
         uint8_t key_sizes_count;
-        uint8_t internal_threads[4];
-        uint8_t internal_threads_count;
 
-        uint8_t external_threads_enc[] = {1, 2, 3, 4, 5, 6, 7, 8};
-        uint8_t external_threads_count = (enc_mode == ENC_MODE_CTR ? 8 : 1); // use one thread for
-                                                                             // OFB encryption mode
+        byte iv[KEYMIX_IV_SIZE];
+        for (uint8_t i = 0; i < KEYMIX_IV_SIZE; i++) {
+                iv[i] = 0;
+        }
+
+        uint8_t threads[]     = {16};
+        uint8_t threads_count = sizeof(threads) / sizeof(uint8_t);
 
         size_t file_sizes[]     = {SIZE_1MiB, 10 * SIZE_1MiB, 100 * SIZE_1MiB,
                                    SIZE_1GiB, 10 * SIZE_1GiB, 100 * SIZE_1GiB};
         size_t file_sizes_count = sizeof(file_sizes) / sizeof(size_t);
 
-        fanouts_count = get_fanouts_from_mix_type(enc_mode, NUM_OF_FANOUTS_ENC, fanouts_enc);
+        fanouts_count = get_fanouts_from_mix_type(mix_type, NUM_OF_FANOUTS_ENC, fanouts_enc);
 
         err = get_mix_func(mix_type, &mixpass, &block_size);
         if (err) {
@@ -242,9 +234,7 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
 
         FOR_EVERY(fanout_p, fanouts_enc, fanouts_count) {
                 uint8_t fanout = *fanout_p;
-
                 setup_keys(block_size, fanout, &key_sizes, &key_sizes_count);
-                setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
                 FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
                         size_t key_size = *key_size_p;
@@ -252,27 +242,34 @@ void do_encryption_tests(enc_mode_t enc_mode, mix_impl_t mix_type, mix_impl_t on
                              MiB(key_size));
                         key = malloc(key_size);
 
-                        FOR_EVERY(ithr, internal_threads, internal_threads_count)
-                        FOR_EVERY(ethr, external_threads_enc, external_threads_count)
+                        FOR_EVERY(thr, threads, threads_count)
                         FOR_EVERY(sizep, file_sizes, file_sizes_count) {
                                 size_t size = *sizep;
 
-                                ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_mix_type, key, key_size, 0, fanout);
+                                ctx_encrypt_init(&ctx, enc_mode, mix_type, one_way_mix_type, key,
+                                                 key_size, fanout);
                                 if (size < 100 * SIZE_1GiB) {
                                         out = malloc(size);
                                         in  = out;
-                                        test_enc(&ctx, in, out, size, *ithr, *ethr);
+                                        test_enc(&ctx, in, out, size, iv, *thr);
                                         free(out);
                                 } else {
-                                        out = malloc((*ethr) * key_size);
+                                        out = malloc(key_size);
                                         in  = out;
-                                        test_enc_stream(&ctx, in, out, size, *ithr, *ethr);
+                                        if (enc_mode != ENC_MODE_OFB) {
+                                                test_ctr_enc_stream(&ctx, in, out, size, iv, *thr);
+                                        } else {
+                                                test_ofb_enc_stream(&ctx, in, out, size, iv, *thr);
+                                        }
                                         free(out);
                                 }
+                                ctx_free(&ctx);
                         }
 
                         free(key);
                 }
+
+                free(key_sizes);
         }
 }
 
@@ -293,7 +290,7 @@ int main(int argc, char *argv[]) {
         char *out_enc    = "data/enc.csv";
 
         const mix_impl_t *mix_types = MIX_TYPES;
-        uint8_t mix_types_count = sizeof(MIX_TYPES) / sizeof(mix_impl_t);
+        uint8_t mix_types_count     = sizeof(MIX_TYPES) / sizeof(mix_impl_t);
 
         uint8_t fanouts[NUM_OF_FANOUTS];
         uint8_t fanouts_count;
@@ -305,13 +302,8 @@ int main(int argc, char *argv[]) {
         size_t *key_sizes = NULL;
         uint8_t key_sizes_count;
 
-        uint8_t external_threads[] = {1, 2, 4, 8};
-        uint8_t external_threads_count =
-            sizeof(external_threads) / sizeof(__typeof__(*external_threads));
-
-        // There are never more than 5 internal threads' values
-        uint8_t internal_threads[5] = {0, 0, 0, 0, 0};
-        uint8_t internal_threads_count;
+        uint8_t threads[]     = {1, 2, 4, 8, 16, 32, 64};
+        uint8_t threads_count = sizeof(threads) / sizeof(uint8_t);
 
         ctx_t ctx;
 
@@ -336,30 +328,30 @@ int main(int argc, char *argv[]) {
                 fanouts_count = get_fanouts_from_block_size(block_size, NUM_OF_FANOUTS, fanouts);
                 FOR_EVERY(fanout_p, fanouts, fanouts_count) {
                         uint8_t fanout = *fanout_p;
-
                         setup_keys(block_size, fanout, &key_sizes, &key_sizes_count);
-                        setup_valid_internal_threads(fanout, internal_threads, &internal_threads_count);
 
                         FOR_EVERY(key_size_p, key_sizes, key_sizes_count) {
                                 size_t key_size = *key_size_p;
                                 _log(LOG_INFO, "Testing key size %zu B (%.2f MiB)\n", *key_size_p,
-                                MiB(*key_size_p));
+                                     MiB(*key_size_p));
                                 key = malloc(key_size);
 
-                                FOR_EVERY(ithr, internal_threads, internal_threads_count) {
-                                        // FOR_EVERY(ethr, external_threads, external_threads_count) {
+                                FOR_EVERY(thr, threads, threads_count) {
                                         size_t size = key_size;
 
                                         out = malloc(size);
 
                                         ctx_keymix_init(&ctx, mix_type, key, key_size, fanout);
-                                        test_keymix(&ctx, out, size, *ithr, 1);
+                                        test_keymix(&ctx, out, size, *thr);
+                                        ctx_free(&ctx);
 
                                         free(out);
                                 }
 
                                 free(key);
                         }
+
+                        free(key_sizes);
                 }
         }
 
@@ -373,8 +365,32 @@ int main(int argc, char *argv[]) {
 
         csv_header();
 
-        do_encryption_tests(ENC_MODE_CTR, XKCP_TURBOSHAKE_128, NONE);
-        do_encryption_tests(ENC_MODE_OFB, OPENSSL_AES_128, OPENSSL_MATYAS_MEYER_OSEAS_128);
+        enc_mode_t enc_modes[] = {ENC_MODE_CTR, ENC_MODE_CTR_OPT, ENC_MODE_CTR_CTR, ENC_MODE_OFB};
+
+        // Run encryption modes with a mixing function (i.e., no one-way mixing)
+        mix_impl_t enc_mix_types[] = {OPENSSL_AES_128,
+                                      OPENSSL_MATYAS_MEYER_OSEAS_128,
+                                      WOLFCRYPT_MATYAS_MEYER_OSEAS_128,
+                                      AESNI_MIXCTR,
+                                      XKCP_TURBOSHAKE_256,
+                                      XKCP_TURBOSHAKE_128};
+        for (int i = 0; i < sizeof(enc_modes) / sizeof(enc_mode_t) - 1; i++) {
+                enc_mode_t enc_mode = enc_modes[i];
+                for (int j = 0; j < sizeof(enc_mix_types) / sizeof(mix_impl_t); j++) {
+                        do_encryption_tests(enc_mode, enc_mix_types[j], NONE);
+                }
+        }
+
+        // Run encryption modes with the OpenSSL AES-128-ECB mixing function and
+        // another one-way mixing function
+        mix_impl_t one_way_mix_types[] = {OPENSSL_MATYAS_MEYER_OSEAS_128,
+                                          WOLFCRYPT_MATYAS_MEYER_OSEAS_128, XKCP_TURBOSHAKE_256};
+        for (int i = 0; i < sizeof(enc_modes) / sizeof(enc_mode_t); i++) {
+                enc_mode_t enc_mode = enc_modes[i];
+                for (int j = 0; j < sizeof(one_way_mix_types) / sizeof(mix_impl_t); j++) {
+                        do_encryption_tests(enc_mode, OPENSSL_AES_128, one_way_mix_types[j]);
+                }
+        }
 
         fclose(fout);
         fout = NULL;
@@ -383,6 +399,5 @@ int main(int argc, char *argv[]) {
 cleanup:
         if (fout)
                 fclose(fout);
-        free(key_sizes);
         return 0;
 }
