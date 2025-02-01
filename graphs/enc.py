@@ -144,6 +144,8 @@ for enc_mode in ENC_MODES:
     plt.xscale('log')
     plt.ylabel('Average time [s]')
     plt.ylim(bottom=0, top=425)
+    ax = plt.gca()
+    ax.yaxis.set_major_formatter('{x:>4.0f}')
     plt.savefig(os.path.join(OUTDIR, f'enc-{enc_mode}-primitives-time-by-key-size.pdf'),
                 bbox_inches='tight', pad_inches=0)
     plt.close()
