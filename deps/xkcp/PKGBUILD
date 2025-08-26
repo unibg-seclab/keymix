@@ -1,0 +1,37 @@
+pkgname=xkcp-git
+pkgver=ade40f8
+pkgrel=1
+pkgdesc="eXtended Keccak Code Package"
+arch=(x86_64)
+url="https://github.com/XKCP/XKCP"
+license=(GPL-2.0-or-later)
+depends=()
+provides=(libXKCP.so)
+conflicts=(libkeccak)
+source=(
+  $pkgname-$pkgver::git+https://github.com/XKCP/XKCP.git
+)
+sha512sums=('SKIP')
+b2sums=('SKIP')
+
+_xkcptarget="AVX2"
+# _xkcptarget="AVX512"
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  git checkout "$pkgver"
+  git submodule update --init
+  make "${_xkcptarget}/libXKCP.so"
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+
+  # mkdir -p "$pgkdir/usr/include"
+  # mv "$srcdir/${_pkgname}-$pkgver/bin/${_xkcptarget}/libXKCP.so.headers" "$pkgdir/usr/include/libXKCP"
+  # install -Dd "$srcdir/$pkgname-$pkgver/bin/${_xkcptarget}/libXKCP.so.headers" "$pkgdir/usr/include"
+  for include in $srcdir/$pkgname-$pkgver/bin/${_xkcptarget}/libXKCP.so.headers/*; do
+  	install -D "$include" "$pkgdir/usr/include/xkcp/$(basename $include)"
+  done
+  install -D "$srcdir/$pkgname-$pkgver/bin/${_xkcptarget}/libXKCP.so" "$pkgdir/usr/lib/libXKCP.so"
+}
